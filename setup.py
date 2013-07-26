@@ -1,4 +1,6 @@
-from setuptools import setup
+from setuptools import setup, find_packages
+
+install_requires = []
 
 setup(
     name='IL2ServerConnector',
@@ -10,9 +12,8 @@ setup(
     bugtrack_url='https://github.com/IL2HorusTeam/server-connector/issues',
     author='Alexander Oblovatniy',
     author_email='oblovatniy@gmail.com',
-    packages=[
-        'il2_server_connector',
-    ],
+    packages=find_packages(),
+    test_suite='il2_server_connector.tests',
     scripts=[],
-    requires=[],
+    install_requires=install_requires,
 )
