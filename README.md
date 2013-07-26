@@ -1,6 +1,8 @@
 IL-2 FB Dedicated Server connector
 ==================================
 
+[![Build Status](https://travis-ci.org/IL2HorusTeam/server-connector.png?branch=master)](https://travis-ci.org/IL2HorusTeam/server-connector)
+
 Python library which provides high-level access to IL-2 FB Dedicated Server
 
 
