@@ -17,15 +17,14 @@ setup(
     scripts=[],
     install_requires=install_requires,
     classifiers = [
-        'Development Status :: 5 - Production/Stable',
+        'Development Status :: 1 - Planning',
         'Intended Audience :: Developers',
-        'License :: MIT',
+        'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: PyPy',
-        'Topic :: Software Development :: IL-2 FB DS'
+        'Topic :: Software Development :: Libraries',
     ],
 )
