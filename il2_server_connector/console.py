@@ -54,8 +54,6 @@ class PlainTextConsoleClient(asynchat.async_chat):
         with self.processors_mx:
             for processor in self.processors:
                 processor.process(line)
-        # TODO: remove print
-        print received_message
 
     def tell(self, message):
         self.push(message + '\r\n')
