@@ -3,7 +3,7 @@
 This test module requires real IL-2 FB DS running. Its host and address must
 be set as evn variable called 'IL2_FB_TEST_DS_ADDRESS' which is described as:
 
-    IL2_FB_TEST_DS_ADDRESS=host:port
+    IL2_FB_TEST_DS_ADDRESS=[host:]port
 """
 
 import asyncore
@@ -16,13 +16,16 @@ from il2_server_connector.console import PlainTextConsoleClient
 
 
 def get_address():
-    try:
-        address = os.environ.get('IL2_FB_TEST_DS_ADDRESS').split(':')
-        host = address[0]
-        port = int(address[1])
-        return host, port
-    except Exception:
-        return None, None
+    address = os.environ.get('IL2_FB_TEST_DS_ADDRESS')
+    
+    if ':' in addr:
+        host, port = addr.split(':', 1)
+    else:
+        host = "localhost"
+        port = addr
+        
+    port = int(port) if port.isdigit() else None
+    return host, port
 
 
 host, port = get_address()
