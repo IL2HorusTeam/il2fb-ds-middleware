@@ -18,11 +18,11 @@ from il2_server_connector.console import PlainTextConsoleClient
 def get_address():
     address = os.environ.get('IL2_FB_TEST_DS_ADDRESS')
     
-    if ':' in addr:
-        host, port = addr.split(':', 1)
+    if ':' in address:
+        host, port = address.split(':', 1)
     else:
         host = "localhost"
-        port = addr
+        port = address
         
     port = int(port) if port.isdigit() else None
     return host, port
