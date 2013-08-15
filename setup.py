@@ -1,7 +1,5 @@
 from setuptools import setup, find_packages
 
-install_requires = []
-
 setup(
     name='IL2ServerConnector',
     version='0.0.1',
@@ -13,9 +11,8 @@ setup(
     author='Alexander Oblovatniy',
     author_email='oblovatniy@gmail.com',
     packages=find_packages(),
-    test_suite='il2_server_connector.tests',
-    scripts=[],
-    install_requires=install_requires,
+    test_suite='il2sc.tests',
+    install_requires=[i.strip() for i in open("requirements.pip").readlines()],
     classifiers = [
         'Development Status :: 1 - Planning',
         'Intended Audience :: Developers',
