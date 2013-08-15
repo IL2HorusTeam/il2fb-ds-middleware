@@ -9,6 +9,16 @@ from twisted.python import log
 class ConsoleProtocol(LineOnlyReceiver):
 
     def lineReceived(self, line):
+        if line == '' or line == "exit\\n":
+            log.err("Game server is shut down")
+            reactor.stop()
+            return
+        if line.startswith("<consoleN>"):
+            return
+        if line.endswith("\\n"):
+            line = line[:-2]
+        if line.startswith("\\u0020"):
+            line = " " + line[6:]
         # TODO:
 
 
