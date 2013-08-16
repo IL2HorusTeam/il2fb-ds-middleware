@@ -1,8 +1,8 @@
 IL-2 FB Dedicated Server connector
 ==================================
 
-[![Build Status](https://travis-ci.org/IL2HorusTeam/server-connector.png?branch=feature-1)](https://travis-ci.org/IL2HorusTeam/server-connector)
-[![Coverage Status](https://coveralls.io/repos/IL2HorusTeam/server-connector/badge.png?branch=feature-1)](https://coveralls.io/r/IL2HorusTeam/server-connector?branch=feature-1)
+[![Build Status](https://travis-ci.org/IL2HorusTeam/il2ds-proxy.png?branch=feature-2)](https://travis-ci.org/IL2HorusTeam/il2ds-proxy)
+[![Coverage Status](https://coveralls.io/repos/IL2HorusTeam/il2ds-proxy/badge.png?branch=feature-2)](https://coveralls.io/r/IL2HorusTeam/il2ds-proxy?branch=feature-2)
 
 Python library which provides high-level access to IL-2 FB Dedicated Server
 
