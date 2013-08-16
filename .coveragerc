@@ -1,0 +1,3 @@
+[run]
+source = il2ds_proxy
+omit = */tests/*

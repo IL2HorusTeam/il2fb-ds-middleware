@@ -1,7 +1,7 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 setup(
-    name='IL2ServerConnector',
+    name='il2ds-proxy',
     version='0.0.1',
     description='High-level access to IL-2 FB Dedicated Server.',
     long_description=open('README.md').read(),
@@ -10,8 +10,9 @@ setup(
     bugtrack_url='https://github.com/IL2HorusTeam/server-connector/issues',
     author='Alexander Oblovatniy',
     author_email='oblovatniy@gmail.com',
-    packages=find_packages(),
-    test_suite='il2sc.tests',
+    packages=[
+        'il2ds_proxy',
+    ],
     install_requires=[i.strip() for i in open("requirements.pip").readlines()],
     classifiers = [
         'Development Status :: 1 - Planning',

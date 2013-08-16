@@ -6,8 +6,9 @@ python:
 install:
     - pip install -e . --use-mirrors
 before_script:
-    #- pip install coverage coveralls --use-mirrors
+    - pip install coverage coveralls --use-mirrors
 script:
-    #coverage run --source=il2_server_connector setup.py test
+    - coverage run `which trial` il2ds_proxy
+    - coverage report
 after_success:
-    #- coveralls
+    - coveralls

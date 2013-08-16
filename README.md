@@ -10,9 +10,9 @@ Python library which provides high-level access to IL-2 FB Dedicated Server
 Installation
 ------------
 
-**Current version** of server connector is **0.0.1**.
+**Current version** of il2ds-proxy is **0.0.1**.
 
-You can install it as a [PyPi package](https://pypi.python.org/pypi/IL2ServerConnector/):
+You can install it as a [PyPi package](https://pypi.python.org/pypi/il2ds-proxy/):
 
-    pip install IL2ServerConnector
+    pip install il2ds-proxy
 
