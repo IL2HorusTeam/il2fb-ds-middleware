@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='il2ds-proxy',
@@ -10,9 +10,7 @@ setup(
     bugtrack_url='https://github.com/IL2HorusTeam/server-connector/issues',
     author='Alexander Oblovatniy',
     author_email='oblovatniy@gmail.com',
-    packages=[
-        'il2ds_proxy',
-    ],
+    packages=find_packages(),
     install_requires=[i.strip() for i in open("requirements.pip").readlines()],
     classifiers = [
         'Development Status :: 1 - Planning',

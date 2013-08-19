@@ -6,7 +6,15 @@ from twisted.protocols.basic import LineOnlyReceiver
 from twisted.python import log
 
 
-class ConsoleProtocol(LineOnlyReceiver):
+class DSConsoleProtocol(LineOnlyReceiver):
+
+    def connectionMade(self):
+        log.msg("Connection established with {0}".format(
+            self.transport.getPeer()))
+
+    def connectionLost(self, reason):
+        log.err("Connection with {0} lost: {1}".format(
+            self.transport.getPeer(), reason))
 
     def lineReceived(self, line):
         if line == '' or line == "exit\\n":
@@ -22,13 +30,9 @@ class ConsoleProtocol(LineOnlyReceiver):
         # TODO:
 
 
-class ConsoleClientFactory(ClientFactory):
+class DSConsoleFactory(ClientFactory):
+
     protocol = ConsoleProtocol
 
     def clientConnectionFailed(self, connector, reason):
         log.err("Connection failed: %s" % reason)
-        reactor.stop()
-
-    def clientConnectionLost(self, connector, reason):
-        log.err("Connection lost: %s" % reason)
-        reactor.stop()

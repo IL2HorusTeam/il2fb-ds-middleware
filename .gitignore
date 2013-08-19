@@ -17,7 +17,6 @@ develop-eggs
 .installed.cfg
 lib
 lib64
-_trial_temp
 
 # Installer logs
 pip-log.txt
@@ -35,3 +34,8 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+# Twisted
+_trial_temp
+*.log
+*.pid
