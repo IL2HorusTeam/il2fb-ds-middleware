@@ -19,7 +19,7 @@ class ConsoleProtocol(LineReceiver):
         self.factory.got_line(line)
 
     def message(self, message):
-        self.transport.write(message + '\\n')
+        self.sendLine(message + '\\n')
 
 
 @implementer(ILineBroadcaster)
