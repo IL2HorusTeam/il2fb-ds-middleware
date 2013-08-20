@@ -5,7 +5,7 @@ from twisted.application.service import IService, Service, MultiService
 from twisted.python import log
 from zope.interface import implementer, Interface
 
-from il2ds_middleware.tests.ds_emulator.interfaces import ILineBroadcaster
+from il2ds_middleware.ds_emulator.interfaces import ILineBroadcaster
 
 
 class ILineParser(Interface):
@@ -84,6 +84,15 @@ class RootService(MultiService, _DSServiceMixin):
 class PilotService(Service, _DSServiceMixin):
 
     name = "pilots"
+
+    def __init__(self):
+        self.pilots = {}
+
+    def join(self, callsign, address):
+        pass
+
+    def leave(self, callsign):
+        pass
 
     def parse_line(self, line):
         # TODO:
