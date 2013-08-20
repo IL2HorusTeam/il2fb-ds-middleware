@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from twisted.internet import reactor
 from twisted.internet.protocol import ServerFactory
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
@@ -39,7 +40,7 @@ class ConsoleFactory(ServerFactory):
 
     def got_line(self, line):
         if self.service:
-            self.service.parse_line(line)
+            reactor.callLater(0, self.service.parse_line, line)
 
     def broadcast_line(self, line):
         for client in self.clients:
