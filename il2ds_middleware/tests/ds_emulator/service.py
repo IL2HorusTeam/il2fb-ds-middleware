@@ -18,7 +18,7 @@ class ILineParser(Interface):
         raise NotImplementedError
 
 
-class PropagatorMixin:
+class _PropagatorMixin:
 
     propagate = False
 
@@ -27,7 +27,7 @@ class PropagatorMixin:
 
 
 @implementer(IService, ILineBroadcaster)
-class LineBroadcastingServiceMixin:
+class _LineBroadcastingServiceMixin:
 
     broadcaster = None
 
@@ -41,26 +41,35 @@ class LineBroadcastingServiceMixin:
 
 
 @implementer(ILineParser)
-class DSServiceMixin(LineBroadcastingServiceMixin, PropagatorMixin):
+class _DSServiceMixin(_LineBroadcastingServiceMixin, _PropagatorMixin):
     pass
 
 
-class RootService(MultiService, DSServiceMixin):
+class RootService(MultiService, _DSServiceMixin):
+    """
+    Top-level service.
+    """
 
-    def __init__(self, address):
+    def __init__(self, broadcaster):
         MultiService.__init__(self)
-        self.iface, self.port = address
-        self.broadcaster = DSConsoleFactory(self)
+        self.broadcaster = broadcaster
         self._init_children()
 
     def _init_children(self):
+        """
+        Initialize children services.
+        """
         ChatService().setServiceParent(self)
         PilotService().setServiceParent(self)
         MissionService().setServiceParent(self)
 
-        self.tcp_service = internet.TCPServer(
-            self.port, self.broadcaster, interface=self.iface)
-        self.tcp_service.setServiceParent(self)
+    def startService(self):
+        self.broadcaster.service = self
+        MultiService.startService(self)
+
+    def stopService(self):
+        self.broadcaster.service = None
+        return MultiService.stopService(self)
 
     def parse_line(self, line):
         result = False
@@ -73,7 +82,7 @@ class RootService(MultiService, DSServiceMixin):
         return self._autopropagate(result)
 
 
-class PilotService(Service, DSServiceMixin):
+class PilotService(Service, _DSServiceMixin):
 
     name = "pilots"
 
@@ -84,7 +93,7 @@ class PilotService(Service, DSServiceMixin):
         return self._autopropagate(result)
 
 
-class MissionService(Service, DSServiceMixin):
+class MissionService(Service, _DSServiceMixin):
 
     name = "missions"
 
@@ -95,7 +104,7 @@ class MissionService(Service, DSServiceMixin):
         return self._autopropagate(result)
 
 
-class ChatService(Service, DSServiceMixin):
+class ChatService(Service, _DSServiceMixin):
 
     name = "chat"
     propagate = True

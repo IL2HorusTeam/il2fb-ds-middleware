@@ -26,10 +26,10 @@ class DSConsoleProtocol(LineReceiver):
 class DSConsoleFactory(ServerFactory):
 
     protocol = DSConsoleProtocol
+    service = None
 
-    def __init__(self, service):
+    def __init__(self):
         self.clients = []
-        self.service = service
 
     def client_joined(self, client):
         self.clients.append(client)
@@ -38,7 +38,8 @@ class DSConsoleFactory(ServerFactory):
         self.clients.remove(client)
 
     def got_line(self, line):
-        self.service.parse_line(line)
+        if self.service:
+            self.service.parse_line(line)
 
     def broadcast_line(self, line):
         for client in self.clients:
