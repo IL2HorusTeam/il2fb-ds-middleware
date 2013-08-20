@@ -4,7 +4,7 @@ sys.path.insert(0, '.')
 
 from twisted.application import service
 
-from il2ds_proxy.tests.ds_emulator.service import RootService
+from il2ds_middleware.tests.ds_emulator.service import RootService
 
 
 application = service.Application("server emulator")

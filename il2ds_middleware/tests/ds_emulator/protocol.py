@@ -5,7 +5,7 @@ from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from zope.interface import implementer
 
-from il2ds_proxy.tests.ds_emulator.interfaces import ILineBroadcaster
+from il2ds_middleware.tests.ds_emulator.interfaces import ILineBroadcaster
 
 class DSConsoleProtocol(LineReceiver):
 

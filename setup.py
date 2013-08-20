@@ -1,13 +1,13 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='il2ds-proxy',
+    name='il2ds-middleware',
     version='0.0.1',
     description='High-level access to IL-2 FB Dedicated Server.',
     long_description=open('README.md').read(),
     license='MIT',
-    url='https://github.com/IL2HorusTeam/server-connector',
-    bugtrack_url='https://github.com/IL2HorusTeam/server-connector/issues',
+    url='https://github.com/IL2HorusTeam/il2ds-middleware',
+    bugtrack_url='https://github.com/IL2HorusTeam/il2ds-middleware/issues',
     author='Alexander Oblovatniy',
     author_email='oblovatniy@gmail.com',
     packages=find_packages(),
