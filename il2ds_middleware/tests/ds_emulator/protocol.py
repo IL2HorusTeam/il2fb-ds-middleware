@@ -7,7 +7,7 @@ from zope.interface import implementer
 
 from il2ds_middleware.tests.ds_emulator.interfaces import ILineBroadcaster
 
-class DSConsoleProtocol(LineReceiver):
+class ConsoleProtocol(LineReceiver):
 
     def connectionMade(self):
         self.factory.client_joined(self)
@@ -23,9 +23,9 @@ class DSConsoleProtocol(LineReceiver):
 
 
 @implementer(ILineBroadcaster)
-class DSConsoleFactory(ServerFactory):
+class ConsoleFactory(ServerFactory):
 
-    protocol = DSConsoleProtocol
+    protocol = ConsoleProtocol
     service = None
 
     def __init__(self):

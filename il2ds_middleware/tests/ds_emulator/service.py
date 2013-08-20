@@ -6,7 +6,6 @@ from twisted.python import log
 from zope.interface import implementer, Interface
 
 from il2ds_middleware.tests.ds_emulator.interfaces import ILineBroadcaster
-from il2ds_middleware.tests.ds_emulator.protocol import DSConsoleFactory
 
 
 class ILineParser(Interface):
