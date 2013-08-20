@@ -6,7 +6,7 @@ from twisted.protocols.basic import LineOnlyReceiver
 from twisted.python import log
 
 
-class DSConsoleProtocol(LineOnlyReceiver):
+class ConsoleProtocol(LineOnlyReceiver):
 
     def connectionMade(self):
         log.msg("Connection established with {0}".format(
@@ -30,7 +30,7 @@ class DSConsoleProtocol(LineOnlyReceiver):
         # TODO:
 
 
-class DSConsoleFactory(ClientFactory):
+class ConsoleFactory(ClientFactory):
 
     protocol = ConsoleProtocol
 
