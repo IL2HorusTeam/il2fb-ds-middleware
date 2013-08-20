@@ -89,7 +89,7 @@ class PilotService(Service, _DSServiceMixin):
         self.pilots = {}
 
     def join(self, callsign, address):
-        pass
+        self.broadcast_line("%s %s" % (callsign, address))
 
     def leave(self, callsign):
         pass
