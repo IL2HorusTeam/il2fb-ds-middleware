@@ -1,8 +1,8 @@
 IL-2 FB Dedicated Server Middleware
 ===================================
 
-[![Build Status](https://travis-ci.org/IL2HorusTeam/il2ds-middleware.png?branch=feature-2)](https://travis-ci.org/IL2HorusTeam/il2ds-middleware?branch=feature-2)
-[![Coverage Status](https://coveralls.io/repos/IL2HorusTeam/il2ds-middleware/badge.png?branch=feature-2)](https://coveralls.io/r/IL2HorusTeam/il2ds-middleware?branch=feature-2)
+[![Build Status](https://travis-ci.org/IL2HorusTeam/il2ds-middleware.png)](https://travis-ci.org/IL2HorusTeam/il2ds-middleware)
+[![Coverage Status](https://coveralls.io/repos/IL2HorusTeam/il2ds-middleware/badge.png)](https://coveralls.io/r/IL2HorusTeam/il2ds-middleware)
 
 Python library which provides high-level access to IL-2 FB Dedicated Server
 
