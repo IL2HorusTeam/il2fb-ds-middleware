@@ -72,6 +72,24 @@ class ConsoleBaseTestCase(TestCase):
             self.client_disconnected, self.server_disconnected,
             self.sservice.stopService()])
 
+    def _get_expecting_line_receiver(self, expected_responses, d):
+
+        def got_line(line):
+            try:
+                self.assertEqual(line, expected_responses.pop(0))
+            except Exception as e:
+                timeout.cancel()
+                d.errback(e)
+            else:
+                if expected_responses:
+                    return
+                timeout.cancel()
+                d.callback(None)
+
+        from twisted.internet import reactor
+        timeout = reactor.callLater(0.1, d.errback, FailTest('Timed out'))
+        return got_line
+
 
 class TestConnection(ConsoleBaseTestCase):
 
@@ -84,18 +102,10 @@ class TestConnection(ConsoleBaseTestCase):
         self.client_connection.disconnect()
 
     def test_receive_line(self):
-
-        def got_line(line):
-            timeout.cancel()
-            return self.assertEqual(line, "test\\n")
-
         d = defer.Deferred()
-        d.addCallback(got_line)
-        self.cfactory.receiver = d.callback
-
-        from twisted.internet import reactor
-        timeout = reactor.callLater(0.1, d.errback, FailTest('Timed out'))
-
+        responses = ["test\\n", ]
+        self.cfactory.receiver = self._get_expecting_line_receiver(
+            responses, d)
         self.sfactory.broadcast_line("test")
         return d
 
@@ -105,89 +115,65 @@ def expected_join_responses(channel, callsign, ip, port):
         "socket channel '{0}' start creating: ip {1}:{2}\\n".format(
             channel, ip, port),
         "Chat: --- {0} joins the game.\\n".format(callsign),
-        "socket channel '{0}', ip {1}:{2}, {3}, " \
+        "socket channel '{0}', ip {1}:{2}, {3}, "
         "is complete created.\\n".format(
             channel, ip, port, callsign)]
 
+
 def expected_leave_responses(channel, callsign, ip, port):
     return [
-        "socketConnection with {0}:{1} on channel {2} lost.  " \
+        "socketConnection with {0}:{1} on channel {2} lost.  "
         "Reason: \\n".format(
             ip, port, channel),
         "Chat: --- {0} has left the game.\\n".format(
             callsign)]
 
+
 class TestPilots(ConsoleBaseTestCase):
 
+    def setUp(self):
+        r = super(TestPilots, self).setUp()
+        self.srvc = self.sservice.getServiceNamed('pilots')
+        return r
+
+    def tearDown(self):
+        self.srvc = None
+        return super(TestPilots, self).tearDown()
+
+    def _get_pilots_count_checker(self, expected_count):
+        def check(_):
+            self.assertEqual(len(self.srvc.pilots), expected_count)
+        return check
+
     def test_join(self):
-
-        def got_line(line):
-            try:
-                self.assertEqual(line, responses.pop(0))
-            except Exception, e:
-                timeout.cancel()
-                d.errback(e)
-            else:
-                if responses:
-                    return
-                timeout.cancel()
-                d.callback(None)
-
-        def check_pilots_count(_):
-            self.assertEqual(len(srvc.pilots), 2)
-
-        self.cfactory.receiver = got_line
-        srvc = self.sservice.getServiceNamed('pilots')
-
         responses = expected_join_responses(
-            1, "user1", "192.168.1.2", srvc.port)
+            1, "user1", "192.168.1.2", self.srvc.port)
         responses.extend(expected_join_responses(
-            3, "user2", "192.168.1.3", srvc.port))
+            3, "user2", "192.168.1.3", self.srvc.port))
 
         d = defer.Deferred()
-        d.addCallback(check_pilots_count)
+        d.addCallback(self._get_pilots_count_checker(2))
+        self.cfactory.receiver = self._get_expecting_line_receiver(
+            responses, d)
 
-        srvc.join("user1", "192.168.1.2")
-        srvc.join("user2", "192.168.1.3")
-
-        from twisted.internet import reactor
-        timeout = reactor.callLater(0.1, d.errback, FailTest('Timed out'))
+        self.srvc.join("user1", "192.168.1.2")
+        self.srvc.join("user2", "192.168.1.3")
         return d
 
     def test_leave(self):
-
-        def got_line(line):
-            try:
-                self.assertEqual(line, responses.pop(0))
-            except Exception, e:
-                timeout.cancel()
-                d.errback(e)
-            else:
-                if responses:
-                    return
-                timeout.cancel()
-                d.callback(None)
-
-        def check_pilots_count(_):
-            self.assertEqual(len(srvc.pilots), 1)
-
-        self.cfactory.receiver = got_line
-        srvc = self.sservice.getServiceNamed('pilots')
-
         responses = expected_join_responses(
-            1, "user1", "192.168.1.2", srvc.port)
+            1, "user1", "192.168.1.2", self.srvc.port)
         responses.extend(expected_join_responses(
-            3, "user2", "192.168.1.3", srvc.port))
+            3, "user2", "192.168.1.3", self.srvc.port))
         responses.extend(expected_leave_responses(
-            1, "user1", "192.168.1.2", srvc.port))
+            1, "user1", "192.168.1.2", self.srvc.port))
 
         d = defer.Deferred()
-        d.addCallback(check_pilots_count)
+        d.addCallback(self._get_pilots_count_checker(1))
+        self.cfactory.receiver = self._get_expecting_line_receiver(
+            responses, d)
 
-        srvc.join("user1", "192.168.1.2")
-        srvc.join("user2", "192.168.1.3")
-        srvc.leave("user1")
-
-        from twisted.internet import reactor
-        timeout = reactor.callLater(0.1, d.errback, FailTest('Timed out'))
+        self.srvc.join("user1", "192.168.1.2")
+        self.srvc.join("user2", "192.168.1.3")
+        self.srvc.leave("user1")
         return d
