@@ -118,7 +118,26 @@ class PilotService(Service, _DSServiceMixin):
                 pilot['channel'], pilot['ip'], self.port, pilot['callsign']))
 
     def leave(self, callsign):
-        pass
+        pilot = self._pilot_by_callsign(callsign)
+        if pilot is None:
+            return
+
+        self.pilots.remove(pilot)
+
+        self.broadcast_line(
+            "socketConnection with {0}:{1} on channel {2} lost.  " \
+            "Reason: ".format(
+                pilot['ip'], self.port, pilot['channel']))
+        self.broadcast_line(
+            "Chat: --- {0} has left the game.".format(
+                pilot['callsign']))
+
+    def _pilot_by_callsign(self, callsign):
+        for p in self.pilots:
+            if p['callsign'] == callsign:
+                return p
+        log.err("Pilot with callsign \"{0}\" not found.".format(callsign))
+        return None
 
     def parse_line(self, line):
         # TODO:

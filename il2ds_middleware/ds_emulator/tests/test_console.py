@@ -100,23 +100,31 @@ class TestConnection(ConsoleBaseTestCase):
         return d
 
 
+def expected_join_responses(channel, callsign, ip, port):
+    return [
+        "socket channel '{0}' start creating: ip {1}:{2}\\n".format(
+            channel, ip, port),
+        "Chat: --- {0} joins the game.\\n".format(callsign),
+        "socket channel '{0}', ip {1}:{2}, {3}, " \
+        "is complete created.\\n".format(
+            channel, ip, port, callsign)]
+
+def expected_leave_responses(channel, callsign, ip, port):
+    return [
+        "socketConnection with {0}:{1} on channel {2} lost.  " \
+        "Reason: \\n".format(
+            ip, port, channel),
+        "Chat: --- {0} has left the game.\\n".format(
+            callsign)]
+
 class TestPilots(ConsoleBaseTestCase):
 
     def test_join(self):
 
-        def expected_responses(channel, callsign, ip, user_port):
-            return [
-                "socket channel '{0}' start creating: ip {1}:{2}\\n".format(
-                    channel, ip, user_port)
-                , "Chat: --- {0} joins the game.\\n".format(callsign)
-                , "socket channel '{0}', ip {1}:{2}, {3}, " \
-                    "is complete created.\\n".format(
-                    channel, ip, user_port, callsign)]
-
         def got_line(line):
             try:
                 self.assertEqual(line, responses.pop(0))
-            except AssertionError, e:
+            except Exception, e:
                 timeout.cancel()
                 d.errback(e)
             else:
@@ -131,16 +139,55 @@ class TestPilots(ConsoleBaseTestCase):
         self.cfactory.receiver = got_line
         srvc = self.sservice.getServiceNamed('pilots')
 
-        responses = expected_responses(
+        responses = expected_join_responses(
             1, "user1", "192.168.1.2", srvc.port)
-        responses.extend(expected_responses(
+        responses.extend(expected_join_responses(
             3, "user2", "192.168.1.3", srvc.port))
+
+        d = defer.Deferred()
+        d.addCallback(check_pilots_count)
 
         srvc.join("user1", "192.168.1.2")
         srvc.join("user2", "192.168.1.3")
 
+        from twisted.internet import reactor
+        timeout = reactor.callLater(0.1, d.errback, FailTest('Timed out'))
+        return d
+
+    def test_leave(self):
+
+        def got_line(line):
+            try:
+                self.assertEqual(line, responses.pop(0))
+            except Exception, e:
+                timeout.cancel()
+                d.errback(e)
+            else:
+                if responses:
+                    return
+                timeout.cancel()
+                d.callback(None)
+
+        def check_pilots_count(_):
+            self.assertEqual(len(srvc.pilots), 1)
+
+        self.cfactory.receiver = got_line
+        srvc = self.sservice.getServiceNamed('pilots')
+
+        responses = expected_join_responses(
+            1, "user1", "192.168.1.2", srvc.port)
+        responses.extend(expected_join_responses(
+            3, "user2", "192.168.1.3", srvc.port))
+        responses.extend(expected_leave_responses(
+            1, "user1", "192.168.1.2", srvc.port))
+
         d = defer.Deferred()
         d.addCallback(check_pilots_count)
+
+        srvc.join("user1", "192.168.1.2")
+        srvc.join("user2", "192.168.1.3")
+        srvc.leave("user1")
+
         from twisted.internet import reactor
         timeout = reactor.callLater(0.1, d.errback, FailTest('Timed out'))
         return d
