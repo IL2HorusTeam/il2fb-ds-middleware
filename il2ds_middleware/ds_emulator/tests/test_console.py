@@ -248,3 +248,19 @@ class TestMissions(ConsoleBaseTestCase):
         self.cfactory.message("mission LOAD net/dogfight/test.mis")
         self.cfactory.message("mission")
         return d
+
+    def test_begin_mission(self):
+        responses = ["ERROR mission: Mission NOT loaded\\n"]
+        responses.extend(expected_load_responses("net/dogfight/test.mis"))
+        responses.append("Mission: net/dogfight/test.mis is Playing\\n")
+        responses.append(responses[-1])
+
+        d = defer.Deferred()
+        self.cfactory.receiver = self._get_expecting_line_receiver(
+            responses, d)
+
+        self.cfactory.message("mission BEGIN")
+        self.cfactory.message("mission LOAD net/dogfight/test.mis")
+        self.cfactory.message("mission BEGIN")
+        self.cfactory.message("mission")
+        return d

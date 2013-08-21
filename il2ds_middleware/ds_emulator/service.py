@@ -165,6 +165,9 @@ class MissionService(Service, _DSServiceMixin):
         if cmd.startswith("LOAD"):
             self._load_mission(mission = cmd[4:].lstrip())
             return self._autopropagate()
+        if cmd == "BEGIN":
+            self._begin_mission()
+            return self._autopropagate()
         return self._autopropagate(False)
 
     def _load_mission(self, mission):
@@ -181,8 +184,17 @@ class MissionService(Service, _DSServiceMixin):
         self.status = MISSION_LOADED
         self._send_status()
 
+    def _begin_mission(self):
+        if self.status == MISSION_NONE:
+            self.broadcast_line("ERROR mission: Mission NOT loaded")
+        else:
+            self.status = MISSION_PLAYING
+            self._send_status()
+
     def _send_status(self):
         if self.status == MISSION_NONE:
             self.broadcast_line("Mission NOT loaded")
         elif self.status == MISSION_LOADED:
             self.broadcast_line("Mission: {0} is Loaded".format(self.mission))
+        elif self.status == MISSION_PLAYING:
+            self.broadcast_line("Mission: {0} is Playing".format(self.mission))
