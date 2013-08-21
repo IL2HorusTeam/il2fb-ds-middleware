@@ -58,7 +58,6 @@ class RootService(MultiService, _DSServiceMixin):
         """
         Initialize children services.
         """
-        ChatService().setServiceParent(self)
         PilotService().setServiceParent(self)
         MissionService().setServiceParent(self)
 
@@ -78,6 +77,8 @@ class RootService(MultiService, _DSServiceMixin):
             result = service.parse_line(line)
             if result:
                 break
+        if not result:
+            self.broadcast_line("Command not found: " + line)
         return self._autopropagate(result)
 
 
@@ -163,14 +164,3 @@ class MissionService(Service, _DSServiceMixin):
         if self.status == MISSION_NONE:
             self.broadcast_line("Mission NOT loaded")
             return
-
-
-class ChatService(Service, _DSServiceMixin):
-
-    name = "chat"
-    propagate = True
-
-    def parse_line(self, line):
-        # TODO:
-        result = False
-        return self._autopropagate(result)

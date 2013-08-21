@@ -129,6 +129,14 @@ class TestConnection(ConsoleBaseTestCase):
         self.sfactory.broadcast_line("test")
         return d
 
+    def test_unknown_command(self):
+        d = defer.Deferred()
+        responses = ["Command not found: abracadabracadabr\\n", ]
+        self.cfactory.receiver = self._get_expecting_line_receiver(
+            responses, d)
+        self.cfactory.message("abracadabracadabr")
+        return d
+
 
 def expected_join_responses(channel, callsign, ip, port):
     return [
