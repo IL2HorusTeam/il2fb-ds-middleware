@@ -171,6 +171,9 @@ class MissionService(Service, _DSServiceMixin):
         if cmd == "END":
             self._end_mission()
             return self._autopropagate()
+        if cmd == "DESTROY":
+            self._destroy_mission()
+            return self._autopropagate()
         return self._autopropagate(False)
 
     def _load_mission(self, mission):
@@ -200,6 +203,13 @@ class MissionService(Service, _DSServiceMixin):
         else:
             self.status = MISSION_LOADED
             self._send_status()
+
+    def _destroy_mission(self):
+        if self.status == MISSION_NONE:
+            self.broadcast_line("ERROR mission: Mission NOT loaded")
+        else:
+            self.status = MISSION_NONE
+            self.mission = None
 
     def _send_status(self):
         if self.status == MISSION_NONE:

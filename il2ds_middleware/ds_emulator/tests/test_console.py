@@ -106,8 +106,12 @@ class ConsoleBaseTestCase(TestCase):
                 timeout.cancel()
                 d.callback(None)
 
+        def on_timeout(_):
+            d.errback(FailTest(
+            'Timed out, remaining lines:\n\t'+'\n\t'.join(expected_responses)))
+
         from twisted.internet import reactor
-        timeout = reactor.callLater(0.1, d.errback, FailTest('Timed out'))
+        timeout = reactor.callLater(0.1, on_timeout, None)
         return got_line
 
 
@@ -124,16 +128,14 @@ class TestConnection(ConsoleBaseTestCase):
     def test_receive_line(self):
         d = defer.Deferred()
         responses = ["test\\n", ]
-        self.cfactory.receiver = self._get_expecting_line_receiver(
-            responses, d)
+        self.cfactory.receiver = self._get_expecting_line_receiver(responses, d)
         self.sfactory.broadcast_line("test")
         return d
 
     def test_unknown_command(self):
         d = defer.Deferred()
         responses = ["Command not found: abracadabracadabr\\n", ]
-        self.cfactory.receiver = self._get_expecting_line_receiver(
-            responses, d)
+        self.cfactory.receiver = self._get_expecting_line_receiver(responses, d)
         self.cfactory.message("abracadabracadabr")
         return d
 
@@ -193,8 +195,7 @@ class TestPilots(ConsoleBaseTestCase):
 
         d = defer.Deferred()
         d.addCallback(self._get_pilots_count_checker(2))
-        self.cfactory.receiver = self._get_expecting_line_receiver(
-            responses, d)
+        self.cfactory.receiver = self._get_expecting_line_receiver(responses, d)
 
         self.srvc.join("user1", "192.168.1.2")
         self.srvc.join("user2", "192.168.1.3")
@@ -210,12 +211,11 @@ class TestPilots(ConsoleBaseTestCase):
 
         d = defer.Deferred()
         d.addCallback(self._get_pilots_count_checker(1))
-        self.cfactory.receiver = self._get_expecting_line_receiver(
-            responses, d)
-
+        self.cfactory.receiver = self._get_expecting_line_receiver(responses, d)
         self.srvc.join("user1", "192.168.1.2")
         self.srvc.join("user2", "192.168.1.3")
         self.srvc.leave("user1")
+        self.srvc.leave("fake_user")
         return d
 
 
@@ -233,8 +233,7 @@ class TestMissions(ConsoleBaseTestCase):
     def test_no_mission(self):
         d = defer.Deferred()
         responses = ["Mission NOT loaded\\n", ]
-        self.cfactory.receiver = self._get_expecting_line_receiver(
-            responses, d)
+        self.cfactory.receiver = self._get_expecting_line_receiver(responses, d)
         self.cfactory.message("mission")
         return d
 
@@ -243,8 +242,7 @@ class TestMissions(ConsoleBaseTestCase):
         responses.append(responses[-1])
 
         d = defer.Deferred()
-        self.cfactory.receiver = self._get_expecting_line_receiver(
-            responses, d)
+        self.cfactory.receiver = self._get_expecting_line_receiver(responses, d)
         self.cfactory.message("mission LOAD net/dogfight/test.mis")
         self.cfactory.message("mission")
         return d
@@ -256,9 +254,7 @@ class TestMissions(ConsoleBaseTestCase):
         responses.append(responses[-1])
 
         d = defer.Deferred()
-        self.cfactory.receiver = self._get_expecting_line_receiver(
-            responses, d)
-
+        self.cfactory.receiver = self._get_expecting_line_receiver(responses, d)
         self.cfactory.message("mission BEGIN")
         self.cfactory.message("mission LOAD net/dogfight/test.mis")
         self.cfactory.message("mission BEGIN")
@@ -272,13 +268,29 @@ class TestMissions(ConsoleBaseTestCase):
         responses.append("Mission: net/dogfight/test.mis is Loaded\\n")
 
         d = defer.Deferred()
-        self.cfactory.receiver = self._get_expecting_line_receiver(
-            responses, d)
-
+        self.cfactory.receiver = self._get_expecting_line_receiver(responses, d)
         self.cfactory.message("mission END")
         self.cfactory.message("mission LOAD net/dogfight/test.mis")
         self.cfactory.message("mission BEGIN")
         self.cfactory.message("mission END")
         self.cfactory.message("mission END END END")
+        self.cfactory.message("mission")
+        return d
+
+    def test_destroy_mission(self):
+        responses = ["ERROR mission: Mission NOT loaded\\n"]
+        responses.extend(expected_load_responses("net/dogfight/test.mis"))
+        responses.extend(expected_load_responses("net/dogfight/test.mis"))
+        responses.append("Mission: net/dogfight/test.mis is Playing\\n")
+        responses.append("Mission NOT loaded\\n")
+
+        d = defer.Deferred()
+        self.cfactory.receiver = self._get_expecting_line_receiver(responses, d)
+        self.cfactory.message("mission DESTROY")
+        self.cfactory.message("mission LOAD net/dogfight/test.mis")
+        self.cfactory.message("mission DESTROY")
+        self.cfactory.message("mission LOAD net/dogfight/test.mis")
+        self.cfactory.message("mission BEGIN")
+        self.cfactory.message("mission DESTROY")
         self.cfactory.message("mission")
         return d
