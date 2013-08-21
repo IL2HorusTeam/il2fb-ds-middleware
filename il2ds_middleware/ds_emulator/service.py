@@ -21,7 +21,7 @@ class _PropagatorMixin:
 
     propagate = False
 
-    def _autopropagate(self, value):
+    def _autopropagate(self, value=True):
         return False if self.propagate else value
 
 
@@ -155,12 +155,34 @@ class MissionService(Service, _DSServiceMixin):
     mission = None
 
     def parse_line(self, line):
-        result = line == "mission"
-        if result:
+        if line.startswith("mission"):
+            cmd = line[7:].strip()
+        else:
+            return self._autopropagate(False)
+        if not cmd:
             self._send_status()
-        return self._autopropagate(result)
+            return self._autopropagate()
+        if cmd.startswith("LOAD"):
+            self._load_mission(mission = cmd[4:].lstrip())
+            return self._autopropagate()
+        return self._autopropagate(False)
+
+    def _load_mission(self, mission):
+        self.mission = mission
+        self.broadcast_line("Loading mission {0}...".format(self.mission))
+        self.broadcast_line("Load bridges")
+        self.broadcast_line("Load static objects")
+        self.broadcast_line("##### House without collision "
+            "(3do/Tree/Tree2.sim)")
+        self.broadcast_line("##### House without collision "
+            "(3do/Buildings/Port/Floor/live.sim)")
+        self.broadcast_line("##### House without collision "
+            "(3do/Buildings/Port/BaseSegment/live.sim)")
+        self.status = MISSION_LOADED
+        self._send_status()
 
     def _send_status(self):
         if self.status == MISSION_NONE:
             self.broadcast_line("Mission NOT loaded")
-            return
+        elif self.status == MISSION_LOADED:
+            self.broadcast_line("Mission: {0} is Loaded".format(self.mission))

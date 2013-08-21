@@ -157,6 +157,18 @@ def expected_leave_responses(channel, callsign, ip, port):
             callsign)]
 
 
+def expected_load_responses(path):
+    return [
+        "Loading mission {0}...\\n".format(path),
+        "Load bridges\\n",
+        "Load static objects\\n",
+        "##### House without collision (3do/Tree/Tree2.sim)\\n",
+        "##### House without collision (3do/Buildings/Port/Floor/live.sim)\\n",
+        "##### House without collision (3do/Buildings/Port/BaseSegment/"
+            "live.sim)\\n",
+        "Mission: {0} is Loaded\\n".format(path)]
+
+
 class TestPilots(ConsoleBaseTestCase):
 
     def setUp(self):
@@ -206,6 +218,7 @@ class TestPilots(ConsoleBaseTestCase):
         self.srvc.leave("user1")
         return d
 
+
 class TestMissions(ConsoleBaseTestCase):
 
     def setUp(self):
@@ -226,4 +239,12 @@ class TestMissions(ConsoleBaseTestCase):
         return d
 
     def test_load_mission(self):
-        pass
+        responses = expected_load_responses("net/dogfight/test.mis")
+        responses.append(responses[-1])
+
+        d = defer.Deferred()
+        self.cfactory.receiver = self._get_expecting_line_receiver(
+            responses, d)
+        self.cfactory.message("mission LOAD net/dogfight/test.mis")
+        self.cfactory.message("mission")
+        return d
