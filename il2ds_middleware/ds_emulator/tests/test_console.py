@@ -9,44 +9,66 @@ from il2ds_middleware.ds_emulator.protocol import (ConsoleFactory,
     ConsoleProtocol)
 
 
-class ServerProtocol(ConsoleProtocol):
+class ServerFactory(ConsoleFactory):
 
-    def connectionLost(self, reason):
-        ConsoleProtocol.connectionLost(self, reason)
-        self.factory.on_connection_lost.callback(self)
+    def __init__(self):
+        ConsoleFactory.__init__(self)
+        self.on_connection_lost = defer.Deferred()
+
+    def client_left(self, client):
+        ConsoleFactory.client_left(self, client)
+        self.on_connection_lost.callback(client)
 
 
 class ClientProtocol(LineReceiver):
 
     def connectionMade(self):
-        self.factory.on_connection_made.callback(self)
+        self.factory.client_joined(self)
 
-    def connectionLost(self, *a):
-        self.factory.on_connection_lost.callback(self)
+    def connectionLost(self, reason):
+        self.factory.client_left(self)
 
     def lineReceived(self, line):
         if self.factory.receiver:
             self.factory.receiver(line)
 
 
+class ClientFactory(protocol.ClientFactory):
+
+    protocol = ClientProtocol
+
+    def __init__(self):
+        self.clients = []
+        self.on_connection_made = defer.Deferred()
+        self.on_connection_lost = defer.Deferred()
+
+    def client_joined(self, client):
+        self.on_connection_made.callback(client)
+        self.clients.append(client)
+
+    def client_left(self, client):
+        self.on_connection_lost.callback(client)
+        self.clients.remove(client)
+
+    def message(self, message):
+
+        def do_message(message):
+            for client in self.clients:
+                client.sendLine(message)
+
+        from twisted.internet import reactor
+        reactor.callLater(0, do_message, message)
+
+
 class ConsoleBaseTestCase(TestCase):
 
     def setUp(self):
-        connected = defer.Deferred()
-        self.client_disconnected = defer.Deferred()
-        self.server_disconnected = defer.Deferred()
-
-        self.server_port = self._listen_server(self.server_disconnected)
-        self.client_connection = self._connect_client(
-            connected, self.client_disconnected)
-
+        self.server_port = self._listen_server()
+        self.client_connection, connected = self._connect_client()
         return connected
 
-    def _listen_server(self, d):
-        self.sfactory = ConsoleFactory()
-        self.sfactory.protocol = ServerProtocol
-        self.sfactory.on_connection_lost = d
-
+    def _listen_server(self):
+        self.sfactory = ServerFactory()
         self.sservice = RootService(self.sfactory)
         self.sfactory.service = self.sservice
         self.sservice.startService()
@@ -54,14 +76,12 @@ class ConsoleBaseTestCase(TestCase):
         from twisted.internet import reactor
         return reactor.listenTCP(0, self.sfactory, interface="127.0.0.1")
 
-    def _connect_client(self, d1, d2):
+    def _connect_client(self):
+        self.cfactory = ClientFactory()
         from twisted.internet import reactor
-        self.cfactory = protocol.ClientFactory()
-        self.cfactory.protocol = ClientProtocol
-        self.cfactory.on_connection_made = d1
-        self.cfactory.on_connection_lost = d2
-        return reactor.connectTCP(
-            "127.0.0.1", self.server_port.getHost().port, self.cfactory)
+        return (reactor.connectTCP(
+            "127.0.0.1", self.server_port.getHost().port, self.cfactory),
+            self.cfactory.on_connection_made)
 
     def tearDown(self):
         listening_stopped = defer.maybeDeferred(self.server_port.stopListening)
@@ -69,7 +89,7 @@ class ConsoleBaseTestCase(TestCase):
         self.cfactory.receiver = None
         return defer.gatherResults([
             listening_stopped,
-            self.client_disconnected, self.server_disconnected,
+            self.cfactory.on_connection_lost, self.sfactory.on_connection_lost,
             self.sservice.stopService()])
 
     def _get_expecting_line_receiver(self, expected_responses, d):
@@ -177,3 +197,25 @@ class TestPilots(ConsoleBaseTestCase):
         self.srvc.join("user2", "192.168.1.3")
         self.srvc.leave("user1")
         return d
+
+class TestMissions(ConsoleBaseTestCase):
+
+    def setUp(self):
+        r = super(TestMissions, self).setUp()
+        self.srvc = self.sservice.getServiceNamed('missions')
+        return r
+
+    def tearDown(self):
+        self.srvc = None
+        return super(TestMissions, self).tearDown()
+
+    def test_no_mission(self):
+        d = defer.Deferred()
+        responses = ["Mission NOT loaded\\n", ]
+        self.cfactory.receiver = self._get_expecting_line_receiver(
+            responses, d)
+        self.cfactory.message("mission")
+        return d
+
+    def test_load_mission(self):
+        pass

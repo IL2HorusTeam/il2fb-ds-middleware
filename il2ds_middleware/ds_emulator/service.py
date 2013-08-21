@@ -84,7 +84,6 @@ class RootService(MultiService, _DSServiceMixin):
 class PilotService(Service, _DSServiceMixin):
 
     name = "pilots"
-
     channel = 1
     channel_inc = 2
     port = 21000
@@ -141,20 +140,29 @@ class PilotService(Service, _DSServiceMixin):
 
     def parse_line(self, line):
         # TODO:
-        print self.name, line
         result = False
         return self._autopropagate(result)
+
+
+MISSION_NONE, MISSION_LOADED, MISSION_PLAYING = 1, 2, 3
 
 
 class MissionService(Service, _DSServiceMixin):
 
     name = "missions"
+    status = MISSION_NONE
+    mission = None
 
     def parse_line(self, line):
-        # TODO:
-        print self.name, line
-        result = False
+        result = line == "mission"
+        if result:
+            self._send_status()
         return self._autopropagate(result)
+
+    def _send_status(self):
+        if self.status == MISSION_NONE:
+            self.broadcast_line("Mission NOT loaded")
+            return
 
 
 class ChatService(Service, _DSServiceMixin):
@@ -164,6 +172,5 @@ class ChatService(Service, _DSServiceMixin):
 
     def parse_line(self, line):
         # TODO:
-        print self.name, line
         result = False
         return self._autopropagate(result)
