@@ -85,11 +85,37 @@ class PilotService(Service, _DSServiceMixin):
 
     name = "pilots"
 
-    def __init__(self):
-        self.pilots = {}
+    channel = 1
+    channel_inc = 2
+    port = 21000
 
-    def join(self, callsign, address):
-        self.broadcast_line("%s %s" % (callsign, address))
+    def __init__(self):
+        self.pilots = []
+
+    def join(self, callsign, ip):
+
+        def create_pilot():
+            pilot = {
+                'callsign': callsign,
+                'ip': ip,
+                'channel': self.channel,
+            }
+            self.channel += self.channel_inc
+            return pilot
+
+        pilot = create_pilot()
+        self.pilots.append(pilot)
+
+        self.broadcast_line(
+            "socket channel '{0}' start creating: ip {1}:{2}".format(
+                pilot['channel'], pilot['ip'], self.port))
+        self.broadcast_line(
+            "Chat: --- {0} joins the game.".format(
+                pilot['callsign']))
+        self.broadcast_line(
+            "socket channel '{0}', ip {1}:{2}, {3}, " \
+            "is complete created.".format(
+                pilot['channel'], pilot['ip'], self.port, pilot['callsign']))
 
     def leave(self, callsign):
         pass
