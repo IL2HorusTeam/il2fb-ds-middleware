@@ -93,6 +93,14 @@ class PilotService(Service, _DSServiceMixin):
     def __init__(self):
         self.pilots = []
 
+    def parse_line(self, line):
+        while True:
+            if line.startswith("kick"):
+                self._kick(callsign=line[4:].strip())
+                break
+            return self._autopropagate(False)
+        return self._autopropagate()
+
     def join(self, callsign, ip):
 
         def create_pilot():
@@ -119,19 +127,24 @@ class PilotService(Service, _DSServiceMixin):
                 pilot['channel'], pilot['ip'], self.port, pilot['callsign']))
 
     def leave(self, callsign):
+        self._leave(callsign)
+
+    def _kick(self, callsign):
+        self._leave(callsign, reason="You have been kicked from the server.")
+
+    def _leave(self, callsign, reason=None):
         pilot = self._pilot_by_callsign(callsign)
         if pilot is None:
             return
-
         self.pilots.remove(pilot)
 
-        self.broadcast_line(
-            "socketConnection with {0}:{1} on channel {2} lost.  "
-            "Reason: ".format(
-                pilot['ip'], self.port, pilot['channel']))
-        self.broadcast_line(
-            "Chat: --- {0} has left the game.".format(
-                pilot['callsign']))
+        line = "socketConnection with {0}:{1} on channel {2} lost.  " \
+            "Reason: ".format(pilot['ip'], self.port, pilot['channel'])
+        if reason:
+            line += reason
+        self.broadcast_line(line)
+        self.broadcast_line("Chat: --- {0} has left the game.".format(
+            pilot['callsign']))
 
     def _pilot_by_callsign(self, callsign):
         for p in self.pilots:
@@ -140,10 +153,9 @@ class PilotService(Service, _DSServiceMixin):
         log.err("Pilot with callsign \"{0}\" not found.".format(callsign))
         return None
 
-    def parse_line(self, line):
-        # TODO:
-        result = False
-        return self._autopropagate(result)
+    def stopService(self):
+        self.pilots = None
+        return Service.stopService(self)
 
 
 MISSION_NONE, MISSION_LOADED, MISSION_PLAYING = tuple(range(1, 4))
@@ -223,3 +235,7 @@ class MissionService(Service, _DSServiceMixin):
             self.broadcast_line("Mission: {0} is Loaded".format(self.mission))
         elif self.status == MISSION_PLAYING:
             self.broadcast_line("Mission: {0} is Playing".format(self.mission))
+
+    def stopService(self):
+        self.mission = None
+        return Service.stopService(self)

@@ -160,6 +160,13 @@ def expected_leave_responses(channel, callsign, ip, port):
         "Chat: --- {0} has left the game.\\n".format(
             callsign)]
 
+def expected_kick_responses(channel, callsign, ip, port):
+    return [
+        "socketConnection with {0}:{1} on channel {2} lost.  "
+        "Reason: You have been kicked from the server.\\n".format(
+            ip, port, channel),
+        "Chat: --- {0} has left the game.\\n".format(
+            callsign)]
 
 def expected_load_responses(path):
     return [
@@ -220,6 +227,23 @@ class TestPilots(ConsoleBaseTestCase):
         self.srvc.join("user2", "192.168.1.3")
         self.srvc.leave("user1")
         self.srvc.leave("fake_user")
+        return d
+
+    def test_kick(self):
+        responses = expected_join_responses(
+            1, "user1", "192.168.1.2", self.srvc.port)
+        responses.extend(expected_join_responses(
+            3, "user2", "192.168.1.3", self.srvc.port))
+        responses.extend(expected_kick_responses(
+            1, "user1", "192.168.1.2", self.srvc.port))
+
+        d = defer.Deferred()
+        d.addCallback(self._get_pilots_count_checker(1))
+        self.cfactory.receiver = self._get_expecting_line_receiver(
+            responses, d)
+        self.srvc.join("user1", "192.168.1.2")
+        self.srvc.join("user2", "192.168.1.3")
+        self.cfactory.message("kick user1")
         return d
 
 
