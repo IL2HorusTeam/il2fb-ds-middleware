@@ -45,6 +45,7 @@ class _DSServiceMixin(_LineBroadcastingServiceMixin, _PropagatorMixin):
 
 
 class RootService(MultiService, _DSServiceMixin):
+
     """
     Top-level service.
     """
@@ -113,7 +114,7 @@ class PilotService(Service, _DSServiceMixin):
             "Chat: --- {0} joins the game.".format(
                 pilot['callsign']))
         self.broadcast_line(
-            "socket channel '{0}', ip {1}:{2}, {3}, " \
+            "socket channel '{0}', ip {1}:{2}, {3}, "
             "is complete created.".format(
                 pilot['channel'], pilot['ip'], self.port, pilot['callsign']))
 
@@ -125,7 +126,7 @@ class PilotService(Service, _DSServiceMixin):
         self.pilots.remove(pilot)
 
         self.broadcast_line(
-            "socketConnection with {0}:{1} on channel {2} lost.  " \
+            "socketConnection with {0}:{1} on channel {2} lost.  "
             "Reason: ".format(
                 pilot['ip'], self.port, pilot['channel']))
         self.broadcast_line(
@@ -145,7 +146,7 @@ class PilotService(Service, _DSServiceMixin):
         return self._autopropagate(result)
 
 
-MISSION_NONE, MISSION_LOADED, MISSION_PLAYING = 1, 2, 3
+MISSION_NONE, MISSION_LOADED, MISSION_PLAYING = tuple(range(1, 4))
 
 
 class MissionService(Service, _DSServiceMixin):
@@ -155,26 +156,27 @@ class MissionService(Service, _DSServiceMixin):
     mission = None
 
     def parse_line(self, line):
-        if line.startswith("mission"):
-            cmd = line[7:].strip()
-        else:
+        if not line.startswith("mission"):
             return self._autopropagate(False)
-        if not cmd:
-            self._send_status()
-            return self._autopropagate()
-        if cmd.startswith("LOAD"):
-            self._load_mission(mission = cmd[4:].lstrip())
-            return self._autopropagate()
-        if cmd == "BEGIN":
-            self._begin_mission()
-            return self._autopropagate()
-        if cmd == "END":
-            self._end_mission()
-            return self._autopropagate()
-        if cmd == "DESTROY":
-            self._destroy_mission()
-            return self._autopropagate()
-        return self._autopropagate(False)
+        cmd = line[7:].strip()
+        while True:
+            if not cmd:
+                self._send_status()
+                break
+            elif cmd.startswith("LOAD"):
+                self._load_mission(mission=cmd[4:].lstrip())
+                break
+            elif cmd == "BEGIN":
+                self._begin_mission()
+                break
+            elif cmd == "END":
+                self._end_mission()
+                break
+            elif cmd == "DESTROY":
+                self._destroy_mission()
+                break
+            return self._autopropagate(False)
+        return self._autopropagate()
 
     def _load_mission(self, mission):
         self.mission = mission
@@ -192,24 +194,27 @@ class MissionService(Service, _DSServiceMixin):
 
     def _begin_mission(self):
         if self.status == MISSION_NONE:
-            self.broadcast_line("ERROR mission: Mission NOT loaded")
+            self._mission_not_loaded()
         else:
             self.status = MISSION_PLAYING
             self._send_status()
 
     def _end_mission(self):
         if self.status == MISSION_NONE:
-            self.broadcast_line("ERROR mission: Mission NOT loaded")
+            self._mission_not_loaded()
         else:
             self.status = MISSION_LOADED
             self._send_status()
 
     def _destroy_mission(self):
         if self.status == MISSION_NONE:
-            self.broadcast_line("ERROR mission: Mission NOT loaded")
+            self._mission_not_loaded()
         else:
             self.status = MISSION_NONE
             self.mission = None
+
+    def _mission_not_loaded(self):
+        self.broadcast_line("ERROR mission: Mission NOT loaded")
 
     def _send_status(self):
         if self.status == MISSION_NONE:
