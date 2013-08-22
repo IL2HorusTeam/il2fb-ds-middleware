@@ -62,6 +62,7 @@ class RootService(MultiService, _DSServiceMixin):
         """
         PilotService().setServiceParent(self)
         MissionService().setServiceParent(self)
+        DeviceLinkService().setServiceParent(self)
 
     def startService(self):
         self.broadcaster.service = self
@@ -248,3 +249,11 @@ class MissionService(Service, _DSServiceMixin):
     def stopService(self):
         self.mission = None
         return Service.stopService(self)
+
+
+class DeviceLinkService(Service):
+
+    name = "dl"
+
+    def got_data(self, data, address, peer):
+        pass

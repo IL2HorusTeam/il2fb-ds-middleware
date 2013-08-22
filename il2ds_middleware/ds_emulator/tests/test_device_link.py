@@ -16,7 +16,6 @@ class DeviceLinkTestCase(BaseTestCase):
     def test_pilot_count(self):
         responses = ["A/1002\\\\0", ]
         d = Deferred()
-        self.dl_client.receiver = self._get_expecting_line_receiver(
-            responses, d)
+        self._set_dl_expecting_receiver(responses, d)
         self.dl_client.pilot_count()
         return d

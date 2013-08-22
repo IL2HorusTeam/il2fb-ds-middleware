@@ -16,21 +16,25 @@ class BaseTestCase(TestCase):
         return self._connect_client()
 
     def _listen_server(self):
-        self.sfactory = ConsoleServerFactory()
-        self.sservice = RootService(self.sfactory)
-        self.sfactory.service = self.sservice
-        self.sservice.startService()
-
+        self.console_server_factory = ConsoleServerFactory()
+        self.service = RootService(self.console_server_factory)
         self.dl_server = DeviceLinkProtocol()
+
+        self.console_server_factory.on_data = self.service.parse_line
+        self.dl_server.on_data = self.service.getServiceNamed('dl').got_data
 
         from twisted.internet import reactor
         self.console_server_port = reactor.listenTCP(
-            0, self.sfactory, interface="127.0.0.1")
+            0, self.console_server_factory, interface="127.0.0.1")
         self.dl_server_port = reactor.listenUDP(
             0, self.dl_server, interface="127.0.0.1")
 
+        self.service.startService()
+
+
     def _connect_client(self):
-        self.cfactory = ConsoleClientFactory()
+        self.console_client_factory = ConsoleClientFactory()
+        self.console_message = self.console_client_factory.message
 
         ds_host = self.dl_server_port.getHost()
         self.dl_client = DeviceLinkClientProtocol((ds_host.host, ds_host.port))
@@ -38,13 +42,15 @@ class BaseTestCase(TestCase):
         from twisted.internet import reactor
         self.console_client_port = reactor.connectTCP(
             "127.0.0.1", self.console_server_port.getHost().port,
-            self.cfactory)
+            self.console_client_factory)
         self.dl_client_port = reactor.listenUDP(0, self.dl_client)
 
-        return self.cfactory.on_connection_made
+        return self.console_client_factory.on_connection_made
 
     def tearDown(self):
-        self.cfactory.receiver = None
+        self.console_server_factory.on_data = None
+        self.dl_server.on_data = None
+        self.console_client_factory.receiver = None
         self.dl_client.receiver = None
 
         console_server_stopped = defer.maybeDeferred(
@@ -58,8 +64,9 @@ class BaseTestCase(TestCase):
 
         return defer.gatherResults([
             console_server_stopped, dl_server_stopped, dl_client_stopped,
-            self.cfactory.on_connection_lost, self.sfactory.on_connection_lost,
-            self.sservice.stopService(), ])
+            self.console_client_factory.on_connection_lost,
+            self.console_server_factory.on_connection_lost,
+            self.service.stopService(), ])
 
     def _make_timeout(self, callback):
         from twisted.internet import reactor
@@ -96,3 +103,11 @@ class BaseTestCase(TestCase):
 
         timeout = self._make_timeout(on_timeout)
         return got_line
+
+    def _set_console_expecting_receiver(self, expected_lines, d):
+        self.console_client_factory.receiver = \
+            self._get_expecting_line_receiver(expected_lines, d)
+
+    def _set_dl_expecting_receiver(self, expected_lines, d):
+        self.dl_client.receiver = \
+            self._get_expecting_line_receiver(expected_lines, d)

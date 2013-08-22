@@ -10,10 +10,12 @@ from il2ds_middleware.ds_emulator.interfaces import ILineBroadcaster
 
 class DeviceLinkProtocol(DatagramProtocol):
 
-    service = None
+    on_data = None
 
     def datagramReceived(self, data, (host, port)):
-        pass
+        if self.on_data:
+            from twisted.internet import reactor
+            reactor.callLater(0, self.on_data, data, (host, port), self)
 
     def answer(self, mesage, address):
         self.transport.write("A/" + mesage, address)
@@ -41,7 +43,7 @@ class ConsoleProtocol(LineReceiver):
 class ConsoleFactory(ServerFactory):
 
     protocol = ConsoleProtocol
-    service = None
+    on_data = None
 
     def __init__(self):
         self.clients = []
@@ -53,9 +55,9 @@ class ConsoleFactory(ServerFactory):
         self.clients.remove(client)
 
     def got_line(self, line):
-        if self.service:
+        if self.on_data:
             from twisted.internet import reactor
-            reactor.callLater(0, self.service.parse_line, line)
+            reactor.callLater(0, self.on_data, line)
 
     def broadcast_line(self, line):
 
