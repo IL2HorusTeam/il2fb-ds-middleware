@@ -1,124 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from twisted.internet import defer, protocol
-from twisted.protocols.basic import LineReceiver
-from twisted.trial.unittest import FailTest, TestCase
+from twisted.internet import defer
 
-from il2ds_middleware.ds_emulator.service import RootService
-from il2ds_middleware.ds_emulator.protocol import (ConsoleFactory,
-    ConsoleProtocol, )
-from il2ds_middleware.ds_emulator.tests.helpers import (
-    LineReceiverTestCaseMixin, )
-
-class ServerFactory(ConsoleFactory):
-
-    def __init__(self):
-        ConsoleFactory.__init__(self)
-        self.on_connection_lost = defer.Deferred()
-
-    def client_left(self, client):
-        ConsoleFactory.client_left(self, client)
-        self.on_connection_lost.callback(client)
-
-
-class ClientProtocol(LineReceiver):
-
-    def connectionMade(self):
-        self.factory.client_joined(self)
-
-    def connectionLost(self, reason):
-        self.factory.client_left(self)
-
-    def lineReceived(self, line):
-        if self.factory.receiver:
-            self.factory.receiver(line)
-
-
-class ClientFactory(protocol.ClientFactory):
-
-    protocol = ClientProtocol
-
-    def __init__(self):
-        self.clients = []
-        self.on_connection_made = defer.Deferred()
-        self.on_connection_lost = defer.Deferred()
-
-    def client_joined(self, client):
-        self.on_connection_made.callback(client)
-        self.clients.append(client)
-
-    def client_left(self, client):
-        self.on_connection_lost.callback(client)
-        self.clients.remove(client)
-
-    def message(self, message):
-
-        def do_message(message):
-            for client in self.clients:
-                client.sendLine(message)
-
-        from twisted.internet import reactor
-        reactor.callLater(0, do_message, message)
-
-
-class ConsoleBaseTestCase(TestCase, LineReceiverTestCaseMixin):
-
-    def setUp(self):
-        self.server_port = self._listen_server()
-        self.client_connection, connected = self._connect_client()
-        return connected
-
-    def _listen_server(self):
-        self.sfactory = ServerFactory()
-        self.sservice = RootService(self.sfactory)
-        self.sfactory.service = self.sservice
-        self.sservice.startService()
-
-        from twisted.internet import reactor
-        return reactor.listenTCP(0, self.sfactory, interface="127.0.0.1")
-
-    def _connect_client(self):
-        self.cfactory = ClientFactory()
-        from twisted.internet import reactor
-        return (reactor.connectTCP(
-            "127.0.0.1", self.server_port.getHost().port, self.cfactory),
-            self.cfactory.on_connection_made)
-
-    def tearDown(self):
-        listening_stopped = defer.maybeDeferred(self.server_port.stopListening)
-        self.client_connection.disconnect()
-        self.cfactory.receiver = None
-        return defer.gatherResults([
-            listening_stopped,
-            self.cfactory.on_connection_lost, self.sfactory.on_connection_lost,
-            self.sservice.stopService()])
-
-
-class TestConnection(ConsoleBaseTestCase):
-
-    def test_connect(self):
-        self.assertEqual(len(self.sfactory.clients), 1)
-
-    def test_disconnect(self):
-        self.sfactory.on_connection_lost.addBoth(
-            lambda _: self.assertEqual(len(self.sfactory.clients), 0))
-        self.client_connection.disconnect()
-
-    def test_receive_line(self):
-        d = defer.Deferred()
-        responses = ["test\\n", ]
-        self.cfactory.receiver = self._get_expecting_line_receiver(
-            responses, d)
-        self.sfactory.broadcast_line("test")
-        return d
-
-    def test_unknown_command(self):
-        d = defer.Deferred()
-        responses = ["Command not found: abracadabracadabr\\n", ]
-        self.cfactory.receiver = self._get_expecting_line_receiver(
-            responses, d)
-        self.cfactory.message("abracadabracadabr")
-        return d
+from il2ds_middleware.ds_emulator.tests.base import BaseTestCase
 
 
 def expected_join_responses(channel, callsign, ip, port):
@@ -139,6 +23,7 @@ def expected_leave_responses(channel, callsign, ip, port):
         "Chat: --- {0} has left the game.\\n".format(
             callsign)]
 
+
 def expected_kick_responses(channel, callsign, ip, port):
     return [
         "socketConnection with {0}:{1} on channel {2} lost.  "
@@ -146,6 +31,7 @@ def expected_kick_responses(channel, callsign, ip, port):
             ip, port, channel),
         "Chat: --- {0} has left the game.\\n".format(
             callsign)]
+
 
 def expected_load_responses(path):
     return [
@@ -159,7 +45,34 @@ def expected_load_responses(path):
         "Mission: {0} is Loaded\\n".format(path)]
 
 
-class TestPilots(ConsoleBaseTestCase):
+class TestConnection(BaseTestCase):
+
+    def test_connect(self):
+        self.assertEqual(len(self.sfactory.clients), 1)
+
+    def test_disconnect(self):
+        self.sfactory.on_connection_lost.addBoth(
+            lambda _: self.assertEqual(len(self.sfactory.clients), 0))
+        self.console_client_port.disconnect()
+
+    def test_receive_line(self):
+        d = defer.Deferred()
+        responses = ["test\\n", ]
+        self.cfactory.receiver = self._get_expecting_line_receiver(
+            responses, d)
+        self.sfactory.broadcast_line("test")
+        return d
+
+    def test_unknown_command(self):
+        d = defer.Deferred()
+        responses = ["Command not found: abracadabracadabr\\n", ]
+        self.cfactory.receiver = self._get_expecting_line_receiver(
+            responses, d)
+        self.cfactory.message("abracadabracadabr")
+        return d
+
+
+class TestPilots(BaseTestCase):
 
     def setUp(self):
         r = super(TestPilots, self).setUp()
@@ -226,7 +139,7 @@ class TestPilots(ConsoleBaseTestCase):
         return d
 
 
-class TestMissions(ConsoleBaseTestCase):
+class TestMissions(BaseTestCase):
 
     def setUp(self):
         r = super(TestMissions, self).setUp()
@@ -257,7 +170,7 @@ class TestMissions(ConsoleBaseTestCase):
         return d
 
     def test_begin_mission(self):
-        responses = ["ERROR mission: Mission NOT loaded\\n"]
+        responses = ["ERROR mission: Mission NOT loaded\\n", ]
         responses.extend(expected_load_responses("net/dogfight/test.mis"))
         responses.append("Mission: net/dogfight/test.mis is Playing\\n")
         responses.append(responses[-1])
@@ -272,7 +185,7 @@ class TestMissions(ConsoleBaseTestCase):
         return d
 
     def test_end_mission(self):
-        responses = ["ERROR mission: Mission NOT loaded\\n"]
+        responses = ["ERROR mission: Mission NOT loaded\\n", ]
         responses.extend(expected_load_responses("net/dogfight/test.mis"))
         responses.append("Mission: net/dogfight/test.mis is Playing\\n")
         responses.append("Mission: net/dogfight/test.mis is Loaded\\n")
@@ -289,7 +202,7 @@ class TestMissions(ConsoleBaseTestCase):
         return d
 
     def test_destroy_mission(self):
-        responses = ["ERROR mission: Mission NOT loaded\\n"]
+        responses = ["ERROR mission: Mission NOT loaded\\n", ]
         responses.extend(expected_load_responses("net/dogfight/test.mis"))
         responses.extend(expected_load_responses("net/dogfight/test.mis"))
         responses.append("Mission: net/dogfight/test.mis is Playing\\n")
