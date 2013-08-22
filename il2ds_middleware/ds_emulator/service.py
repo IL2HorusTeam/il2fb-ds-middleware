@@ -60,9 +60,13 @@ class RootService(MultiService, _DSServiceMixin):
         """
         Initialize children services.
         """
-        PilotService().setServiceParent(self)
-        MissionService().setServiceParent(self)
-        DeviceLinkService().setServiceParent(self)
+        pilots = PilotService()
+        dl = DeviceLinkService()
+        missions = MissionService()
+        missions.device_link = dl
+
+        for service in [pilots, missions, dl]:
+            service.setServiceParent(self)
 
     def startService(self):
         self.broadcaster.service = self
@@ -176,6 +180,7 @@ class MissionService(Service, _DSServiceMixin):
     name = "missions"
     status = MISSION_STATUS.NOT_LOADED
     mission = None
+    device_link = None
 
     def parse_line(self, line):
         if not line.startswith("mission"):
@@ -234,6 +239,8 @@ class MissionService(Service, _DSServiceMixin):
         else:
             self.status = MISSION_STATUS.NOT_LOADED
             self.mission = None
+            if self.device_link:
+                self.device_link.forget_everything()
 
     def _mission_not_loaded(self):
         self.broadcast_line("ERROR mission: Mission NOT loaded")
@@ -254,6 +261,13 @@ class MissionService(Service, _DSServiceMixin):
 class DeviceLinkService(Service):
 
     name = "dl"
+
+    def __init__(self):
+        self.forget_everything()
+
+    def forget_everything(self):
+        self.known_air = []
+        self.known_static = []
 
     def got_data(self, data, address, peer):
         pass
