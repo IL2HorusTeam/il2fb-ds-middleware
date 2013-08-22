@@ -3,6 +3,7 @@
 from twisted.application import internet
 from twisted.application.service import IService, Service, MultiService
 from twisted.python import log
+from twisted.python.constants import ValueConstant, Values
 from zope.interface import implementer, Interface
 
 from il2ds_middleware.ds_emulator.interfaces import ILineBroadcaster
@@ -158,13 +159,21 @@ class PilotService(Service, _DSServiceMixin):
         return Service.stopService(self)
 
 
-MISSION_NONE, MISSION_LOADED, MISSION_PLAYING = tuple(range(1, 4))
+class MISSION_STATUS(Values):
+
+    """
+    Constants representing various mission status codes.
+    """
+
+    NOT_LOADED = ValueConstant(0)
+    LOADED = ValueConstant(1)
+    PLAYING = ValueConstant(2)
 
 
 class MissionService(Service, _DSServiceMixin):
 
     name = "missions"
-    status = MISSION_NONE
+    status = MISSION_STATUS.NOT_LOADED
     mission = None
 
     def parse_line(self, line):
@@ -201,39 +210,39 @@ class MissionService(Service, _DSServiceMixin):
             "(3do/Buildings/Port/Floor/live.sim)")
         self.broadcast_line("##### House without collision "
             "(3do/Buildings/Port/BaseSegment/live.sim)")
-        self.status = MISSION_LOADED
+        self.status = MISSION_STATUS.LOADED
         self._send_status()
 
     def _begin_mission(self):
-        if self.status == MISSION_NONE:
+        if self.status == MISSION_STATUS.NOT_LOADED:
             self._mission_not_loaded()
         else:
-            self.status = MISSION_PLAYING
+            self.status = MISSION_STATUS.PLAYING
             self._send_status()
 
     def _end_mission(self):
-        if self.status == MISSION_NONE:
+        if self.status == MISSION_STATUS.NOT_LOADED:
             self._mission_not_loaded()
         else:
-            self.status = MISSION_LOADED
+            self.status = MISSION_STATUS.LOADED
             self._send_status()
 
     def _destroy_mission(self):
-        if self.status == MISSION_NONE:
+        if self.status == MISSION_STATUS.NOT_LOADED:
             self._mission_not_loaded()
         else:
-            self.status = MISSION_NONE
+            self.status = MISSION_STATUS.NOT_LOADED
             self.mission = None
 
     def _mission_not_loaded(self):
         self.broadcast_line("ERROR mission: Mission NOT loaded")
 
     def _send_status(self):
-        if self.status == MISSION_NONE:
+        if self.status == MISSION_STATUS.NOT_LOADED:
             self.broadcast_line("Mission NOT loaded")
-        elif self.status == MISSION_LOADED:
+        elif self.status == MISSION_STATUS.LOADED:
             self.broadcast_line("Mission: {0} is Loaded".format(self.mission))
-        elif self.status == MISSION_PLAYING:
+        elif self.status == MISSION_STATUS.PLAYING:
             self.broadcast_line("Mission: {0} is Playing".format(self.mission))
 
     def stopService(self):
