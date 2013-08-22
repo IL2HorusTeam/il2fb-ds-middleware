@@ -1,11 +1,26 @@
 # -*- coding: utf-8 -*-
 
-from twisted.internet.protocol import ServerFactory
+from twisted.internet.protocol import DatagramProtocol, ServerFactory
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from zope.interface import implementer
 
 from il2ds_middleware.ds_emulator.interfaces import ILineBroadcaster
+
+
+class DeviceLinkProtocol(DatagramProtocol):
+
+    service = None
+
+    def datagramReceived(self, data, (host, port)):
+        pass
+
+    def answer(self, mesage, address):
+        self.transport.write("A/" + mesage, address)
+
+    def multi_answer(self, mesages, address):
+        self.answer('/'.join(messages), address)
+
 
 class ConsoleProtocol(LineReceiver):
 
