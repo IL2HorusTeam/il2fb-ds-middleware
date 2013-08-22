@@ -6,6 +6,8 @@ from twisted.python.constants import ValueConstant, Values
 from twisted.trial.unittest import FailTest, TestCase
 
 from il2ds_middleware.ds_emulator.protocol import DeviceLinkProtocol
+from il2ds_middleware.ds_emulator.tests.helpers import (
+    LineReceiverTestCaseMixin, )
 
 
 class OPCODE(Values):
@@ -41,7 +43,7 @@ class ClientProtocol(DatagramProtocol):
         self.request(OPCODE.RADAR_REFRESH.value)
 
 
-class DeviceLinkTestCase(TestCase):
+class DeviceLinkTestCase(TestCase, LineReceiverTestCaseMixin):
 
     def setUp(self):
         self.server_port = self._listen_server()
@@ -63,17 +65,6 @@ class DeviceLinkTestCase(TestCase):
         client_stopped = defer.maybeDeferred(self.client_port.stopListening)
         return defer.gatherResults([
             server_stopped, client_stopped])
-
-    def _get_unexpecting_line_receiver(self, d):
-
-        def got_data(data, peer):
-            timeout.cancel()
-            d.errback(FailTest("Unexpected data from {0}:\n\t{1}.".format(
-                peer, data)))
-
-        from twisted.internet import reactor
-        timeout = reactor.callLater(0.1, d.callback, None)
-        return got_data
 
     def test_radar_refresh(self):
         d = defer.Deferred()
