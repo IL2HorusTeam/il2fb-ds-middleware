@@ -6,7 +6,8 @@ from twisted.python import log
 from twisted.python.constants import ValueConstant, Values
 from zope.interface import implementer, Interface
 
-from il2ds_middleware.constants import DEVICE_LINK_OPCODE as OPCODE
+from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as OPCODE,
+    MISSION_STATUS, PILOT_STATE, )
 from il2ds_middleware.ds_emulator.interfaces import ILineBroadcaster
 
 
@@ -63,6 +64,7 @@ class RootService(MultiService, _DSServiceMixin):
         """
         pilots = PilotService()
         dl = DeviceLinkService()
+        dl.pilots = pilots
         missions = MissionService()
         missions.device_link = dl
 
@@ -114,6 +116,7 @@ class PilotService(Service, _DSServiceMixin):
             pilot = {
                 'ip': ip,
                 'channel': self.channel,
+                'state': PILOT_STATE.IDLE,
             }
             self.channel += self.channel_inc
             return pilot
@@ -151,20 +154,28 @@ class PilotService(Service, _DSServiceMixin):
         self.broadcast_line("Chat: --- {0} has left the game.".format(
             callsign))
 
+    def idle(self, callsign):
+        pilot = self.pilots.get(callsign)
+        if pilot is not None:
+            pilot['state'] = PILOT_STATE.IDLE
+
+    def spawn(self, callsign, pos=None):
+        pilot = self.pilots.get(callsign)
+        if pilot is not None:
+            pilot['pos'] = pos or {
+                'x': 0.0,
+                'y': 0.0,
+                'z': 0.0,
+            }
+            pilot['state'] = PILOT_STATE.SPAWN
+
+    def get_active(self):
+        return [x for x in self.pilots.keys()
+            if self.pilots[x]['state'] != PILOT_STATE.IDLE]
+
     def stopService(self):
         self.pilots = None
         return Service.stopService(self)
-
-
-class MISSION_STATUS(Values):
-
-    """
-    Constants representing various mission status codes.
-    """
-
-    NOT_LOADED = ValueConstant(0)
-    LOADED = ValueConstant(1)
-    PLAYING = ValueConstant(2)
 
 
 class MissionService(Service, _DSServiceMixin):
@@ -276,8 +287,7 @@ class DeviceLinkService(Service):
                     self._pilot_count(address, peer)
 
     def _refresh_radar(self):
-        # TODO:
-        pass
+        self.known_air = self.pilots.get_active()
 
     def _pilot_count(self, address, peer):
         cmd = OPCODE.PILOT_COUNT.make_command(len(self.known_air))

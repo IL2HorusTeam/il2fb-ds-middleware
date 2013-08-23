@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from twisted.python.constants import ValueConstant, Values
+from twisted.python.constants import (ValueConstant, Values, NamedConstant,
+    Names, )
 
 
 class DeviceLinkValueConstant(ValueConstant):
@@ -29,3 +30,22 @@ DEVICE_LINK_PREFIXES = {
 
 DEVICE_LINK_CMD_SEPARATOR = '/'
 DEVICE_LINK_ARGS_SEPARATOR = '\\'
+
+
+class MISSION_STATUS(Names):
+    """
+    Constants representing various mission status codes.
+    """
+    NOT_LOADED = NamedConstant()
+    LOADED = NamedConstant()
+    PLAYING = NamedConstant()
+
+
+class PILOT_STATE(Names):
+    """
+    Constants representing pilot states provided by dedicated server.
+    """
+    IDLE = NamedConstant()
+    SPAWN = NamedConstant()
+    TKOFF = NamedConstant()
+    INFLIGHT = NamedConstant()
