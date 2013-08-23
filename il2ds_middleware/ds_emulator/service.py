@@ -269,7 +269,6 @@ class DeviceLinkService(Service):
                 opcode = OPCODE.lookupByValue(cmd)
             except ValueError as e:
                 log.err("Unknown command: {0}".format(cmd))
-                return
             else:
                 if opcode == OPCODE.RADAR_REFRESH:
                     self._refresh_radar()
@@ -281,8 +280,5 @@ class DeviceLinkService(Service):
         pass
 
     def _pilot_count(self, address, peer):
-        answer = {
-            'command': OPCODE.PILOT_COUNT.value,
-            'args': [len(self.known_air), ],
-        }
-        peer.send_answer(answer, address)
+        cmd = OPCODE.PILOT_COUNT.make_command(len(self.known_air))
+        peer.send_answer(cmd, address)

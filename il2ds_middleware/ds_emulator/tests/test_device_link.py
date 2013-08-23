@@ -26,18 +26,14 @@ class DeviceLinkTestCase(BaseTestCase):
     def test_radar_refresh(self):
         d = Deferred()
         self.dl_client.receiver = self._get_unexpecting_line_receiver(d)
-        request = {
-            'command': OPCODE.RADAR_REFRESH.value,
-        }
-        self.dl_client.send_request(request)
+        cmd = OPCODE.RADAR_REFRESH.make_command()
+        self.dl_client.send_request(cmd)
         return d
 
     def test_pilot_count(self):
         responses = ["A/1002\\0", ]
         d = Deferred()
         self._set_dl_expecting_receiver(responses, d)
-        request = {
-            'command': OPCODE.PILOT_COUNT.value,
-        }
-        self.dl_client.send_request(request)
+        cmd = OPCODE.PILOT_COUNT.make_command()
+        self.dl_client.send_request(cmd)
         return d
