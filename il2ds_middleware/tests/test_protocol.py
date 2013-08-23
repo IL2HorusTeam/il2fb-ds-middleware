@@ -3,7 +3,7 @@
 from twisted.internet import reactor
 from twisted.trial.unittest import TestCase
 
-from il2ds_middleware.console import ConsoleFactory as ClientFactory
+from il2ds_middleware.protocol import ConsoleFactory as ClientFactory
 
 from il2ds_middleware.ds_emulator.service import RootService as DSService
 from il2ds_middleware.ds_emulator.protocol import ConsoleFactory as DSFactory

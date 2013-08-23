@@ -4,7 +4,7 @@ from twisted.internet import defer
 from twisted.trial.unittest import TestCase
 
 from il2ds_middleware.ds_emulator.service import RootService
-from il2ds_middleware.ds_emulator.protocol import DeviceLinkProtocol
+from il2ds_middleware.ds_emulator.protocol import DeviceLinkServerProtocol
 from il2ds_middleware.ds_emulator.tests.protocol import (ConsoleServerFactory,
     ConsoleClientFactory, ConsoleClientProtocol, DeviceLinkClientProtocol, )
 
@@ -18,10 +18,11 @@ class BaseTestCase(TestCase):
     def _listen_server(self):
         self.console_server_factory = ConsoleServerFactory()
         self.service = RootService(self.console_server_factory)
-        self.dl_server = DeviceLinkProtocol()
+        self.dl_server = DeviceLinkServerProtocol()
 
-        self.console_server_factory.on_data = self.service.parse_line
-        self.dl_server.on_data = self.service.getServiceNamed('dl').got_data
+        self.console_server_factory.receiver = self.service.parse_line
+        self.dl_server.on_requests = self.service.getServiceNamed(
+            'dl').got_requests
 
         from twisted.internet import reactor
         self.console_server_port = reactor.listenTCP(
@@ -49,7 +50,7 @@ class BaseTestCase(TestCase):
 
     def tearDown(self):
         self.console_server_factory.on_data = None
-        self.dl_server.on_data = None
+        self.dl_server.on_request = None
         self.console_client_factory.receiver = None
         self.dl_client.receiver = None
 
@@ -70,7 +71,7 @@ class BaseTestCase(TestCase):
 
     def _make_timeout(self, callback):
         from twisted.internet import reactor
-        return reactor.callLater(0.1, callback, None)
+        return reactor.callLater(0.05, callback, None)
 
     def _get_unexpecting_line_receiver(self, d):
 

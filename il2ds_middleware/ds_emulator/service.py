@@ -6,6 +6,7 @@ from twisted.python import log
 from twisted.python.constants import ValueConstant, Values
 from zope.interface import implementer, Interface
 
+from il2ds_middleware.constants import DEVICE_LINK_OPCODE as OPCODE
 from il2ds_middleware.ds_emulator.interfaces import ILineBroadcaster
 
 
@@ -97,7 +98,7 @@ class PilotService(Service, _DSServiceMixin):
     port = 21000
 
     def __init__(self):
-        self.pilots = []
+        self.pilots = {}
 
     def parse_line(self, line):
         while True:
@@ -111,7 +112,6 @@ class PilotService(Service, _DSServiceMixin):
 
         def create_pilot():
             pilot = {
-                'callsign': callsign,
                 'ip': ip,
                 'channel': self.channel,
             }
@@ -119,18 +119,16 @@ class PilotService(Service, _DSServiceMixin):
             return pilot
 
         pilot = create_pilot()
-        self.pilots.append(pilot)
+        self.pilots[callsign] = pilot
 
         self.broadcast_line(
             "socket channel '{0}' start creating: ip {1}:{2}".format(
                 pilot['channel'], pilot['ip'], self.port))
-        self.broadcast_line(
-            "Chat: --- {0} joins the game.".format(
-                pilot['callsign']))
+        self.broadcast_line("Chat: --- {0} joins the game.".format(callsign))
         self.broadcast_line(
             "socket channel '{0}', ip {1}:{2}, {3}, "
             "is complete created.".format(
-                pilot['channel'], pilot['ip'], self.port, pilot['callsign']))
+                pilot['channel'], pilot['ip'], self.port, callsign))
 
     def leave(self, callsign):
         self._leave(callsign)
@@ -139,10 +137,11 @@ class PilotService(Service, _DSServiceMixin):
         self._leave(callsign, reason="You have been kicked from the server.")
 
     def _leave(self, callsign, reason=None):
-        pilot = self._pilot_by_callsign(callsign)
+        pilot = self.pilots.get(callsign)
         if pilot is None:
+            log.err("Pilot with callsign \"{0}\" not found.".format(callsign))
             return
-        self.pilots.remove(pilot)
+        del self.pilots[callsign]
 
         line = "socketConnection with {0}:{1} on channel {2} lost.  " \
             "Reason: ".format(pilot['ip'], self.port, pilot['channel'])
@@ -150,14 +149,7 @@ class PilotService(Service, _DSServiceMixin):
             line += reason
         self.broadcast_line(line)
         self.broadcast_line("Chat: --- {0} has left the game.".format(
-            pilot['callsign']))
-
-    def _pilot_by_callsign(self, callsign):
-        for p in self.pilots:
-            if p['callsign'] == callsign:
-                return p
-        log.err("Pilot with callsign \"{0}\" not found.".format(callsign))
-        return None
+            callsign))
 
     def stopService(self):
         self.pilots = None
@@ -261,6 +253,7 @@ class MissionService(Service, _DSServiceMixin):
 class DeviceLinkService(Service):
 
     name = "dl"
+    pilots = None
 
     def __init__(self):
         self.forget_everything()
@@ -269,5 +262,27 @@ class DeviceLinkService(Service):
         self.known_air = []
         self.known_static = []
 
-    def got_data(self, data, address, peer):
+    def got_requests(self, requests, address, peer):
+        for request in requests:
+            cmd = request['command']
+            try:
+                opcode = OPCODE.lookupByValue(cmd)
+            except ValueError as e:
+                log.err("Unknown command: {0}".format(cmd))
+                return
+            else:
+                if opcode == OPCODE.RADAR_REFRESH:
+                    self._refresh_radar()
+                if opcode == OPCODE.PILOT_COUNT:
+                    self._pilot_count(address, peer)
+
+    def _refresh_radar(self):
+        # TODO:
         pass
+
+    def _pilot_count(self, address, peer):
+        answer = {
+            'command': OPCODE.PILOT_COUNT.value,
+            'args': [len(self.known_air), ],
+        }
+        peer.send_answer(answer, address)

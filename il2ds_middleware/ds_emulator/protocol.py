@@ -1,27 +1,21 @@
 # -*- coding: utf-8 -*-
 
-from twisted.internet.protocol import DatagramProtocol, ServerFactory
+from twisted.internet.protocol import ServerFactory
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from zope.interface import implementer
 
+from il2ds_middleware.protocol import DeviceLinkProtocol
 from il2ds_middleware.ds_emulator.interfaces import ILineBroadcaster
 
 
-class DeviceLinkProtocol(DatagramProtocol):
+class DeviceLinkServerProtocol(DeviceLinkProtocol):
 
-    on_data = None
+    on_requests = None
 
-    def datagramReceived(self, data, (host, port)):
-        if self.on_data:
-            from twisted.internet import reactor
-            reactor.callLater(0, self.on_data, data, (host, port), self)
-
-    def answer(self, mesage, address):
-        self.transport.write("A/" + mesage, address)
-
-    def multi_answer(self, mesages, address):
-        self.answer('/'.join(messages), address)
+    def requests_received(self, requests, address):
+        if self.on_requests is not None:
+            self.on_requests(requests, address, self)
 
 
 class ConsoleProtocol(LineReceiver):
@@ -43,7 +37,6 @@ class ConsoleProtocol(LineReceiver):
 class ConsoleFactory(ServerFactory):
 
     protocol = ConsoleProtocol
-    on_data = None
 
     def __init__(self):
         self.clients = []
@@ -55,9 +48,8 @@ class ConsoleFactory(ServerFactory):
         self.clients.remove(client)
 
     def got_line(self, line):
-        if self.on_data:
-            from twisted.internet import reactor
-            reactor.callLater(0, self.on_data, line)
+        if self.receiver is not None:
+            self.receiver(line)
 
     def broadcast_line(self, line):
 

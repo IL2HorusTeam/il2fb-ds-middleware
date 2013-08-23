@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 
 from twisted.internet.defer import Deferred
-from twisted.internet.protocol import ClientFactory, DatagramProtocol
+from twisted.internet.protocol import ClientFactory
 from twisted.protocols.basic import LineReceiver
 
-from il2ds_middleware.device_link import OPCODE
-from il2ds_middleware.ds_emulator.protocol import (ConsoleFactory,
-    ConsoleProtocol, )
+from il2ds_middleware.protocol import DeviceLinkProtocol
+from il2ds_middleware.ds_emulator.protocol import ConsoleFactory
 
 
 class ConsoleServerFactory(ConsoleFactory):
@@ -29,13 +28,13 @@ class ConsoleClientProtocol(LineReceiver):
         self.factory.client_left(self)
 
     def lineReceived(self, line):
-        if self.factory.receiver:
-            self.factory.receiver(line)
+        self.factory.got_line(line)
 
 
 class ConsoleClientFactory(ClientFactory):
 
     protocol = ConsoleClientProtocol
+    receiver = None
 
     def __init__(self):
         self.clients = []
@@ -50,6 +49,10 @@ class ConsoleClientFactory(ClientFactory):
         self.on_connection_lost.callback(client)
         self.clients.remove(client)
 
+    def got_line(self, line):
+        if self.receiver is not None:
+            self.receiver(line)
+
     def message(self, message):
 
         def do_message(message):
@@ -60,28 +63,11 @@ class ConsoleClientFactory(ClientFactory):
         reactor.callLater(0, do_message, message)
 
 
-class DeviceLinkClientProtocol(DatagramProtocol):
+class DeviceLinkClientProtocol(DeviceLinkProtocol):
 
     receiver = None
 
-    def __init__(self, address):
-        self.host, self.port = address
-
-    def startProtocol(self):
-        self.transport.connect(self.host, self.port)
-
-    def datagramReceived(self, data, (host, port)):
-        if self.receiver:
-            self.receiver(data)
-
-    def request(self, message):
-        self.transport.write("R/" + message)
-
-    def multi_request(self, mesages):
-        self.request('/'.join(messages))
-
-    def radar_refresh(self):
-        self.request(OPCODE.RADAR_REFRESH.value)
-
-    def pilot_count(self):
-        self.request(OPCODE.PILOT_COUNT.value)
+    def answers_received(self, answers, address):
+        if self.receiver is not None:
+            line = "A/" + self._format(answers)
+            self.receiver(line)
