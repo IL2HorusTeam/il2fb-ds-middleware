@@ -61,44 +61,47 @@ class DeviceLinkTestCase(BaseTestCase):
             self.dl_client.send_request(cmd_radar)
             self.dl_client.send_request(cmd_count)
 
+        def do_test():
+            responses = ["A/1002\\0", "A/1002\\0", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_spawn0)
+
+            pilots.join('user0', '192.168.1.2')
+            pilots.join('user1', '192.168.1.3')
+            request_count_with_refresh()
+            return d
+
         def do_spawn0(_):
-            l_responses = ["A/1002\\0", "A/1002\\1", ]
-            l_d = Deferred()
-            self._set_dl_expecting_receiver(l_responses, l_d)
-            l_d.addCallback(do_spawn1)
+            responses = ["A/1002\\0", "A/1002\\1", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_spawn1)
 
             pilots.spawn('user0')
             request_count_with_refresh()
-            return l_d
+            return d
 
         def do_spawn1(_):
-            l_responses = ["A/1002\\1", "A/1002\\2", ]
-            l_d = Deferred()
-            self._set_dl_expecting_receiver(l_responses, l_d)
-            l_d.addCallback(do_idle)
+            responses = ["A/1002\\1", "A/1002\\2", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_idle)
 
             pilots.spawn('user1')
             request_count_with_refresh()
-            return l_d
+            return d
 
         def do_idle(_):
-            l_responses = ["A/1002\\2", "A/1002\\1", ]
-            l_d = Deferred()
-            self._set_dl_expecting_receiver(l_responses, l_d)
+            responses = ["A/1002\\2", "A/1002\\1", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
 
             pilots.idle('user0')
             request_count_with_refresh()
-            return l_d
+            return d
 
-        responses = ["A/1002\\0", "A/1002\\0", ]
-        d = Deferred()
-        self._set_dl_expecting_receiver(responses, d)
-        d.addCallback(do_spawn0)
-
-        pilots.join('user0', '192.168.1.2')
-        pilots.join('user1', '192.168.1.3')
-        request_count_with_refresh()
-        return d
+        return do_test()
 
     def test_pilot_pos(self):
         """
@@ -127,54 +130,64 @@ class DeviceLinkTestCase(BaseTestCase):
 
         pilots = self.service.getServiceNamed('pilots')
 
+        def do_test():
+            responses = ["A/1004\\0:BADINDEX", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_join_and_spawn0)
+
+            self.dl_client.send_request(OPCODE.PILOT_POS.make_command())
+            self.dl_client.send_request(cmd_pos0)
+            return d
+
         def do_join_and_spawn0(_):
-            l_responses = ["A/1004\\0:user0;100;200;5", ]
-            l_d = Deferred()
-            self._set_dl_expecting_receiver(l_responses, l_d)
-            l_d.addCallback(do_kill0)
+            responses = ["A/1004\\0:user0;100;200;5", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_kill0)
 
             pilots.join('user0', '192.168.1.2')
             pilots.spawn('user0', pos={
                 'x': 100, 'y': 200, 'z': 5, })
             self.dl_client.send_request(cmd_radar)
             self.dl_client.send_request(cmd_pos0)
-            return l_d
+            return d
 
         def do_kill0(_):
-            l_responses = ["A/1004\\0:INVALID", ]
-            l_d = Deferred()
-            self._set_dl_expecting_receiver(l_responses, l_d)
-            l_d.addCallback(do_idle0)
+            responses = ["A/1004\\0:INVALID", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_idle0)
 
             pilots.kill('user0')
             self.dl_client.send_request(cmd_pos0)
-            return l_d
+            return d
 
         def do_idle0(_):
-            l_responses = ["A/1004\\0:INVALID", ]
-            l_d = Deferred()
-            self._set_dl_expecting_receiver(l_responses, l_d)
-            l_d.addCallback(do_idle0_refreshed)
+            responses = ["A/1004\\0:INVALID", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_idle0_refreshed)
 
             pilots.idle('user0')
             self.dl_client.send_request(cmd_pos0)
-            return l_d
+            return d
 
         def do_idle0_refreshed(_):
-            l_responses = ["A/1004\\0:BADINDEX", ]
-            l_d = Deferred()
-            self._set_dl_expecting_receiver(l_responses, l_d)
-            l_d.addCallback(do_join1_and_spawn_both)
+            responses = ["A/1004\\0:BADINDEX", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_join1_and_spawn_both)
 
             self.dl_client.send_request(cmd_radar)
             self.dl_client.send_request(cmd_pos0)
-            return l_d
+            return d
 
         def do_join1_and_spawn_both(_):
-            l_responses = [
+            responses = [
                 "A/1004\\0:user0;400;500;90/1004\\1:user1;700;800;50", ]
-            l_d = Deferred()
-            self._set_dl_expecting_receiver(l_responses, l_d)
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
 
             pilots.join('user1', '192.168.1.3')
             pilots.spawn('user0', pos={
@@ -183,16 +196,9 @@ class DeviceLinkTestCase(BaseTestCase):
                 'x': 700, 'y': 800, 'z': 50, })
             self.dl_client.send_request(cmd_radar)
             self.dl_client.send_requests([cmd_pos0, cmd_pos1, ])
-            return l_d
+            return d
 
-        responses = ["A/1004\\0:BADINDEX", ]
-        d = Deferred()
-        self._set_dl_expecting_receiver(responses, d)
-        d.addCallback(do_join_and_spawn0)
-
-        self.dl_client.send_request(OPCODE.PILOT_POS.make_command())
-        self.dl_client.send_request(cmd_pos0)
-        return d
+        return do_test()
 
     def test_static_count(self):
         """
@@ -213,50 +219,53 @@ class DeviceLinkTestCase(BaseTestCase):
 
         static = self.service.getServiceNamed('static')
 
+        def do_test():
+            responses = ["A/1014\\0", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_spawn)
+
+            self.dl_client.send_request(cmd_count)
+            return d
+
         def do_spawn(_):
-            l_responses = ["A/1014\\0", ]
-            l_d = Deferred()
-            self._set_dl_expecting_receiver(l_responses, l_d)
-            l_d.addCallback(do_refresh)
+            responses = ["A/1014\\0", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_refresh)
 
             static.spawn('0_Static')
             static.spawn('1_Static')
             self.dl_client.send_request(cmd_count)
-            return l_d
+            return d
 
         def do_refresh(_):
-            l_responses = ["A/1014\\2", ]
-            l_d = Deferred()
-            self._set_dl_expecting_receiver(l_responses, l_d)
-            l_d.addCallback(do_destroy0)
+            responses = ["A/1014\\2", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_destroy0)
 
             self.dl_client.send_request(cmd_radar)
             self.dl_client.send_request(cmd_count)
-            return l_d
+            return d
 
         def do_destroy0(_):
-            l_responses = ["A/1014\\2", ]
-            l_d = Deferred()
-            self._set_dl_expecting_receiver(l_responses, l_d)
-            l_d.addCallback(do_refresh_again)
+            responses = ["A/1014\\2", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_refresh_again)
 
             static.destroy('0_Static')
             self.dl_client.send_request(cmd_count)
-            return l_d
+            return d
 
         def do_refresh_again(_):
-            l_responses = ["A/1014\\1", ]
-            l_d = Deferred()
-            self._set_dl_expecting_receiver(l_responses, l_d)
+            responses = ["A/1014\\1", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
 
             self.dl_client.send_request(cmd_radar)
             self.dl_client.send_request(cmd_count)
-            return l_d
+            return d
 
-        responses = ["A/1014\\0", ]
-        d = Deferred()
-        self._set_dl_expecting_receiver(responses, d)
-        d.addCallback(do_spawn)
-
-        self.dl_client.send_request(cmd_count)
-        return d
+        return do_test()
