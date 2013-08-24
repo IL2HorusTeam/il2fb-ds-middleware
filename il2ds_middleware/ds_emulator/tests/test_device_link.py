@@ -193,3 +193,70 @@ class DeviceLinkTestCase(BaseTestCase):
         self.dl_client.send_request(OPCODE.PILOT_POS.make_command())
         self.dl_client.send_request(cmd_pos0)
         return d
+
+    def test_static_count(self):
+        """
+        Scenario:
+        1. check count => 0
+        2. spawn 0_Static
+        3. spawn 1_Static
+        4. check count => 0
+        5. refresh radar
+        6. check count => 2
+        7. destroy 0_Static
+        8. check count => 2
+        9. refresh radar
+        10. check count => 1
+        """
+        cmd_radar = OPCODE.RADAR_REFRESH.make_command()
+        cmd_count = OPCODE.STATIC_COUNT.make_command()
+
+        static = self.service.getServiceNamed('static')
+
+        def do_spawn(_):
+            l_responses = ["A/1014\\0", ]
+            l_d = Deferred()
+            self._set_dl_expecting_receiver(l_responses, l_d)
+            l_d.addCallback(do_refresh)
+
+            static.spawn('0_Static')
+            static.spawn('1_Static')
+            self.dl_client.send_request(cmd_count)
+            return l_d
+
+        def do_refresh(_):
+            l_responses = ["A/1014\\2", ]
+            l_d = Deferred()
+            self._set_dl_expecting_receiver(l_responses, l_d)
+            l_d.addCallback(do_destroy0)
+
+            self.dl_client.send_request(cmd_radar)
+            self.dl_client.send_request(cmd_count)
+            return l_d
+
+        def do_destroy0(_):
+            l_responses = ["A/1014\\2", ]
+            l_d = Deferred()
+            self._set_dl_expecting_receiver(l_responses, l_d)
+            l_d.addCallback(do_refresh_again)
+
+            static.destroy('0_Static')
+            self.dl_client.send_request(cmd_count)
+            return l_d
+
+        def do_refresh_again(_):
+            l_responses = ["A/1014\\1", ]
+            l_d = Deferred()
+            self._set_dl_expecting_receiver(l_responses, l_d)
+
+            self.dl_client.send_request(cmd_radar)
+            self.dl_client.send_request(cmd_count)
+            return l_d
+
+        responses = ["A/1014\\0", ]
+        d = Deferred()
+        self._set_dl_expecting_receiver(responses, d)
+        d.addCallback(do_spawn)
+
+        self.dl_client.send_request(cmd_count)
+        return d

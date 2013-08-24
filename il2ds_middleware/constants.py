@@ -22,6 +22,8 @@ class DEVICE_LINK_OPCODE(Values):
     RADAR_REFRESH = DeviceLinkValueConstant("1001")
     PILOT_COUNT = DeviceLinkValueConstant("1002")
     PILOT_POS = DeviceLinkValueConstant("1004")
+    STATIC_COUNT = DeviceLinkValueConstant("1014")
+    STATIC_POS = DeviceLinkValueConstant("1016")
 
 
 DEVICE_LINK_PREFIXES = {
@@ -44,9 +46,17 @@ class MISSION_STATUS(Names):
 
 class PILOT_STATE(Names):
     """
-    Constants representing pilot states provided by dedicated server.
+    Constants representing pilot states.
     """
     IDLE = NamedConstant()
-    SPAWN = NamedConstant()
+    SPAWNED = NamedConstant()
     IN_FLIGHT = NamedConstant()
     DEAD = NamedConstant()
+
+
+class OBJECT_STATE(Names):
+    """
+    Constants representing object states.
+    """
+    ALIVE = NamedConstant()
+    DESTROYED = NamedConstant()

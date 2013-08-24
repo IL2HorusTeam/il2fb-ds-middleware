@@ -7,7 +7,7 @@ from twisted.python.constants import ValueConstant, Values
 from zope.interface import implementer, Interface
 
 from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as OPCODE,
-    MISSION_STATUS, PILOT_STATE, )
+    MISSION_STATUS, PILOT_STATE, OBJECT_STATE, )
 from il2ds_middleware.ds_emulator.interfaces import ILineBroadcaster
 
 
@@ -63,12 +63,16 @@ class RootService(MultiService, _DSServiceMixin):
         Initialize children services.
         """
         pilots = PilotService()
+        static = StaticService()
         dl = DeviceLinkService()
-        dl.pilots = pilots
         missions = MissionService()
+
+        # TODO: resolve this spaghetti
+        dl.pilot_srvc = pilots
+        dl.static_srvc = static
         missions.device_link = dl
 
-        for service in [pilots, missions, dl]:
+        for service in [pilots, static, missions, dl, ]:
             service.setServiceParent(self)
 
     def startService(self):
@@ -164,7 +168,7 @@ class PilotService(Service, _DSServiceMixin):
         if pilot is not None:
             pilot['pos'] = pos or {
                 'x': 0, 'y': 0, 'z': 0, }
-            pilot['state'] = PILOT_STATE.SPAWN
+            pilot['state'] = PILOT_STATE.SPAWNED
 
     def kill(self, callsign):
         pilot = self.pilots.get(callsign)
@@ -263,10 +267,34 @@ class MissionService(Service, _DSServiceMixin):
         return Service.stopService(self)
 
 
+class StaticService(Service):
+
+    name = "static"
+    objects = None
+
+    def __init__(self):
+        self.objects = {}
+
+    def spawn(self, name, pos=None):
+        self.objects[name] = {
+            'pos': pos or {
+                'x': 0, 'y': 0, 'z': 0, },
+            'state': OBJECT_STATE.ALIVE,
+        }
+
+    def destroy(self, name, attacker_name='landscape'):
+        self.objects[name]['state'] = OBJECT_STATE.DESTROYED
+
+    def get_active(self):
+        return [x for x in self.objects.keys()
+            if self.objects[x]['state'] != OBJECT_STATE.DESTROYED]
+
+
 class DeviceLinkService(Service):
 
     name = "dl"
-    pilots = None
+    pilot_srvc = None
+    static_srvc = None
 
     def __init__(self):
         self.forget_everything()
@@ -291,13 +319,16 @@ class DeviceLinkService(Service):
                     answer = self._pilot_count()
                 elif opcode == OPCODE.PILOT_POS:
                     answer = self._pilot_pos(request.get('args'))
+                elif opcode == OPCODE.STATIC_COUNT:
+                    answer = self._static_count()
                 if answer is not None:
                     answers.append(answer)
         if answers:
             peer.send_answers(answers, address)
 
     def _refresh_radar(self):
-        self.known_air = self.pilots.get_active()
+        self.known_air = self.pilot_srvc.get_active()
+        self.known_static = self.static_srvc.get_active()
 
     def _pilot_count(self):
         result = len(self.known_air)
@@ -312,7 +343,7 @@ class DeviceLinkService(Service):
         except Exception:
             data = 'BADINDEX'
         else:
-            pilot = self.pilots.pilots[callsign]
+            pilot = self.pilot_srvc.pilots[callsign]
             if pilot['state'] in [PILOT_STATE.IDLE, PILOT_STATE.DEAD, ]:
                 data = 'INVALID'
             else:
@@ -322,3 +353,7 @@ class DeviceLinkService(Service):
         finally:
             result = ':'.join([idx, data, ])
             return OPCODE.PILOT_POS.make_command(result)
+
+    def _static_count(self):
+        result = len(self.known_static)
+        return OPCODE.STATIC_COUNT.make_command(result)
