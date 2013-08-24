@@ -269,3 +269,83 @@ class DeviceLinkTestCase(BaseTestCase):
             return d
 
         return do_test()
+
+    def test_static_pos(self):
+        """
+        Scenario:
+        1. check pos with no index
+        2. check both pos => 0:BADINDEX, 1:BADINDEX
+        3. 0_Static spawns at (100, 200, 300)
+        4. 1_Static spawns at (400, 500, 600)
+        5. check both pos => 0:BADINDEX, 1:BADINDEX
+        6. refresh radar
+        7. check both pos => 0:0_Static;100;200;300, 1:1_Static;400;500;600
+        8. destroy 0_Static
+        9. check both pos => 0:INVALID, 1:1_Static;400;500;600
+        10. refresh radar
+        11. check both pos => 0:1_Static;400;500;600, 0:BADINDEX
+        """
+        cmd_radar = OPCODE.RADAR_REFRESH.make_command()
+        cmd_pos0 = OPCODE.STATIC_POS.make_command(0)
+        cmd_pos1 = OPCODE.STATIC_POS.make_command(1)
+        cmd_pos_both = [cmd_pos0, cmd_pos1, ]
+
+        static = self.service.getServiceNamed('static')
+
+        def do_test():
+            responses = ["A/1016\\0:BADINDEX/1016\\1:BADINDEX", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_spawn)
+
+            self.dl_client.send_request(OPCODE.STATIC_POS.make_command())
+            self.dl_client.send_requests(cmd_pos_both)
+            return d
+
+        def do_spawn(_):
+            responses = ["A/1016\\0:BADINDEX/1016\\1:BADINDEX", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_refresh)
+
+            static.spawn('0_Static', pos={
+                'x': 100, 'y': 200, 'z': 300, })
+            static.spawn('1_Static', pos={
+                'x': 400, 'y': 500, 'z': 600, })
+            self.dl_client.send_requests(cmd_pos_both)
+            return d
+
+        def do_refresh(_):
+            responses = [
+                "A/1016\\0:0_Static;100;200;300" \
+                "/1016\\1:1_Static;400;500;600", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_destroy0)
+
+            self.dl_client.send_request(cmd_radar)
+            self.dl_client.send_requests(cmd_pos_both)
+            return d
+
+        def do_destroy0(_):
+            responses = [
+                "A/1016\\0:INVALID" \
+                "/1016\\1:1_Static;400;500;600", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+            d.addCallback(do_refresh_again)
+
+            static.destroy('0_Static')
+            self.dl_client.send_requests(cmd_pos_both)
+            return d
+
+        def do_refresh_again(_):
+            responses = ["A/1016\\0:1_Static;400;500;600/1016\\1:BADINDEX", ]
+            d = Deferred()
+            self._set_dl_expecting_receiver(responses, d)
+
+            self.dl_client.send_request(cmd_radar)
+            self.dl_client.send_requests(cmd_pos_both)
+            return d
+
+        return do_test()

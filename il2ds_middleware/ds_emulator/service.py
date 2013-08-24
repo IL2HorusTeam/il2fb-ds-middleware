@@ -313,14 +313,17 @@ class DeviceLinkService(Service):
             except ValueError as e:
                 log.err("Unknown command: {0}".format(cmd))
             else:
+                args = request.get('args')
                 if opcode == OPCODE.RADAR_REFRESH:
                     self._refresh_radar()
                 elif opcode == OPCODE.PILOT_COUNT:
                     answer = self._pilot_count()
                 elif opcode == OPCODE.PILOT_POS:
-                    answer = self._pilot_pos(request.get('args'))
+                    answer = self._pilot_pos(args)
                 elif opcode == OPCODE.STATIC_COUNT:
                     answer = self._static_count()
+                elif opcode == OPCODE.STATIC_POS:
+                    answer = self._static_pos(args)
                 if answer is not None:
                     answers.append(answer)
         if answers:
@@ -335,25 +338,40 @@ class DeviceLinkService(Service):
         return OPCODE.PILOT_COUNT.make_command(result)
 
     def _pilot_pos(self, args):
-        if not args:
-            return None
-        idx = args[0]
-        try:
-            callsign = self.known_air[int(idx)]
-        except Exception:
-            data = 'BADINDEX'
-        else:
-            pilot = self.pilot_srvc.pilots[callsign]
-            if pilot['state'] in [PILOT_STATE.IDLE, PILOT_STATE.DEAD, ]:
-                data = 'INVALID'
-            else:
-                pos = pilot['pos']
-                data = ';'.join([str(_)
-                    for _ in [callsign, pos['x'], pos['y'], pos['z'], ]])
-        finally:
-            result = ':'.join([idx, data, ])
-            return OPCODE.PILOT_POS.make_command(result)
+        data = self._pos(
+            known_container=self.known_air,
+            primary_container=self.pilot_srvc.pilots,
+            invalid_states=[PILOT_STATE.IDLE, PILOT_STATE.DEAD, ],
+            args=args)
+        return OPCODE.PILOT_POS.make_command(data) if data else None
 
     def _static_count(self):
         result = len(self.known_static)
         return OPCODE.STATIC_COUNT.make_command(result)
+
+    def _static_pos(self, args):
+        data = self._pos(
+            known_container=self.known_static,
+            primary_container=self.static_srvc.objects,
+            invalid_states=[OBJECT_STATE.DESTROYED, ],
+            args=args)
+        return OPCODE.STATIC_POS.make_command(data) if data else None
+
+    def _pos(self, known_container, primary_container, invalid_states, args):
+        if not args:
+            return None
+        idx = args[0]
+        try:
+            key = known_container[int(idx)]
+        except Exception:
+            data = 'BADINDEX'
+        else:
+            handler = primary_container[key]
+            if handler['state'] in invalid_states:
+                data = 'INVALID'
+            else:
+                pos = handler['pos']
+                data = ';'.join([str(_)
+                    for _ in [key, pos['x'], pos['y'], pos['z'], ]])
+        finally:
+            return ':'.join([idx, data, ])
