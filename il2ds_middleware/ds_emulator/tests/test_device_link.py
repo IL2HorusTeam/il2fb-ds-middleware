@@ -33,69 +33,163 @@ class DeviceLinkTestCase(BaseTestCase):
     def test_pilot_count(self):
         """
         Scenario:
-        1. user1 joins
-        2. user2 joins
+        1. user0 joins
+        2. user1 joins
         3. check count => 0
         4. refresh radar
         5. check count => 0
-        6. spawn user1
+        6. spawn user0
         7. check count => 0
         8. refresh radar
         9. check count => 1
-        10. spawn user2
+        10. spawn user1
         11. check count => 1
         12. refresh radar
         13. check count => 2
-        14. idle user1
+        14. idle user0
         15. check count => 2
         16. refresh radar
         17. check count => 1
         """
         cmd_radar = OPCODE.RADAR_REFRESH.make_command()
-        cmd_pilots = OPCODE.PILOT_COUNT.make_command()
+        cmd_count = OPCODE.PILOT_COUNT.make_command()
 
         pilots = self.service.getServiceNamed('pilots')
 
         def request_count_with_refresh():
-            self.dl_client.send_request(cmd_pilots)
+            self.dl_client.send_request(cmd_count)
             self.dl_client.send_request(cmd_radar)
-            self.dl_client.send_request(cmd_pilots)
+            self.dl_client.send_request(cmd_count)
+
+        def do_spawn0(_):
+            l_responses = ["A/1002\\0", "A/1002\\1", ]
+            l_d = Deferred()
+            self._set_dl_expecting_receiver(l_responses, l_d)
+            l_d.addCallback(do_spawn1)
+
+            pilots.spawn('user0')
+            request_count_with_refresh()
+            return l_d
 
         def do_spawn1(_):
-            responses2 = ["A/1002\\0", "A/1002\\1", ]
-            d2 = Deferred()
-            self._set_dl_expecting_receiver(responses2, d2)
-            d2.addCallback(do_spawn2)
+            l_responses = ["A/1002\\1", "A/1002\\2", ]
+            l_d = Deferred()
+            self._set_dl_expecting_receiver(l_responses, l_d)
+            l_d.addCallback(do_idle)
 
             pilots.spawn('user1')
             request_count_with_refresh()
-            return d2
-
-        def do_spawn2(_):
-            responses3 = ["A/1002\\1", "A/1002\\2", ]
-            d3 = Deferred()
-            self._set_dl_expecting_receiver(responses3, d3)
-            d3.addCallback(do_idle)
-
-            pilots.spawn('user2')
-            request_count_with_refresh()
-            return d3
+            return l_d
 
         def do_idle(_):
-            responses4 = ["A/1002\\2", "A/1002\\1", ]
-            d4 = Deferred()
-            self._set_dl_expecting_receiver(responses4, d4)
+            l_responses = ["A/1002\\2", "A/1002\\1", ]
+            l_d = Deferred()
+            self._set_dl_expecting_receiver(l_responses, l_d)
 
-            pilots.idle('user1')
+            pilots.idle('user0')
             request_count_with_refresh()
-            return d4
+            return l_d
 
         responses = ["A/1002\\0", "A/1002\\0", ]
         d = Deferred()
         self._set_dl_expecting_receiver(responses, d)
-        d.addCallback(do_spawn1)
+        d.addCallback(do_spawn0)
 
-        pilots.join('user1', '192.168.1.2')
-        pilots.join('user2', '192.168.1.3')
+        pilots.join('user0', '192.168.1.2')
+        pilots.join('user1', '192.168.1.3')
         request_count_with_refresh()
+        return d
+
+    def test_pilot_pos(self):
+        """
+        Scenario:
+        1. check pos with no index
+        2. check user0 pos => 0:BADINDEX
+        3. user0 joins
+        4. user0 spawns at (100, 200, 5)
+        5. check user0 pos => 0:user0;100;200;5
+        6. kill user0
+        7. check user0 pos => 0:INVALID
+        8. idle user0
+        9. check user0 pos => 0:INVALID
+        10. refresh radar
+        11. check user0 pos => 0:BADINDEX
+        12. user1 joins
+        13. user0 spawns at (400, 500, 90)
+        14. user1 spawns at (700, 800, 50)
+        15. refresh radar
+        16. check user0 and user1 pos => 0:user0;400;500;90, 1:user1;700;800;50
+        """
+        cmd_radar = OPCODE.RADAR_REFRESH.make_command()
+        cmd_count = OPCODE.PILOT_COUNT.make_command()
+        cmd_pos0 = OPCODE.PILOT_POS.make_command(0)
+        cmd_pos1 = OPCODE.PILOT_POS.make_command(1)
+
+        pilots = self.service.getServiceNamed('pilots')
+
+        def do_join_and_spawn0(_):
+            l_responses = ["A/1004\\0:user0;100;200;5", ]
+            l_d = Deferred()
+            self._set_dl_expecting_receiver(l_responses, l_d)
+            l_d.addCallback(do_kill0)
+
+            pilots.join('user0', '192.168.1.2')
+            pilots.spawn('user0', pos={
+                'x': 100, 'y': 200, 'z': 5, })
+            self.dl_client.send_request(cmd_radar)
+            self.dl_client.send_request(cmd_pos0)
+            return l_d
+
+        def do_kill0(_):
+            l_responses = ["A/1004\\0:INVALID", ]
+            l_d = Deferred()
+            self._set_dl_expecting_receiver(l_responses, l_d)
+            l_d.addCallback(do_idle0)
+
+            pilots.kill('user0')
+            self.dl_client.send_request(cmd_pos0)
+            return l_d
+
+        def do_idle0(_):
+            l_responses = ["A/1004\\0:INVALID", ]
+            l_d = Deferred()
+            self._set_dl_expecting_receiver(l_responses, l_d)
+            l_d.addCallback(do_idle0_refreshed)
+
+            pilots.idle('user0')
+            self.dl_client.send_request(cmd_pos0)
+            return l_d
+
+        def do_idle0_refreshed(_):
+            l_responses = ["A/1004\\0:BADINDEX", ]
+            l_d = Deferred()
+            self._set_dl_expecting_receiver(l_responses, l_d)
+            l_d.addCallback(do_join1_and_spawn_both)
+
+            self.dl_client.send_request(cmd_radar)
+            self.dl_client.send_request(cmd_pos0)
+            return l_d
+
+        def do_join1_and_spawn_both(_):
+            l_responses = [
+                "A/1004\\0:user0;400;500;90/1004\\1:user1;700;800;50", ]
+            l_d = Deferred()
+            self._set_dl_expecting_receiver(l_responses, l_d)
+
+            pilots.join('user1', '192.168.1.3')
+            pilots.spawn('user0', pos={
+                'x': 400, 'y': 500, 'z': 90, })
+            pilots.spawn('user1', pos={
+                'x': 700, 'y': 800, 'z': 50, })
+            self.dl_client.send_request(cmd_radar)
+            self.dl_client.send_requests([cmd_pos0, cmd_pos1, ])
+            return l_d
+
+        responses = ["A/1004\\0:BADINDEX", ]
+        d = Deferred()
+        self._set_dl_expecting_receiver(responses, d)
+        d.addCallback(do_join_and_spawn0)
+
+        self.dl_client.send_request(OPCODE.PILOT_POS.make_command())
+        self.dl_client.send_request(cmd_pos0)
         return d

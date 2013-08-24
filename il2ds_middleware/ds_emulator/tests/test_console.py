@@ -91,52 +91,52 @@ class TestPilots(BaseTestCase):
 
     def test_join(self):
         responses = expected_join_responses(
-            1, "user1", "192.168.1.2", self.srvc.port)
+            1, "user0", "192.168.1.2", self.srvc.port)
         responses.extend(expected_join_responses(
-            3, "user2", "192.168.1.3", self.srvc.port))
+            3, "user1", "192.168.1.3", self.srvc.port))
 
         d = defer.Deferred()
         d.addCallback(self._get_pilots_count_checker(2))
         self.console_client_factory.receiver = \
             self._get_expecting_line_receiver(responses, d)
 
-        self.srvc.join("user1", "192.168.1.2")
-        self.srvc.join("user2", "192.168.1.3")
+        self.srvc.join("user0", "192.168.1.2")
+        self.srvc.join("user1", "192.168.1.3")
         return d
 
     def test_leave(self):
         responses = expected_join_responses(
-            1, "user1", "192.168.1.2", self.srvc.port)
+            1, "user0", "192.168.1.2", self.srvc.port)
         responses.extend(expected_join_responses(
-            3, "user2", "192.168.1.3", self.srvc.port))
+            3, "user1", "192.168.1.3", self.srvc.port))
         responses.extend(expected_leave_responses(
-            1, "user1", "192.168.1.2", self.srvc.port))
+            1, "user0", "192.168.1.2", self.srvc.port))
 
         d = defer.Deferred()
         d.addCallback(self._get_pilots_count_checker(1))
         self.console_client_factory.receiver = \
             self._get_expecting_line_receiver(responses, d)
-        self.srvc.join("user1", "192.168.1.2")
-        self.srvc.join("user2", "192.168.1.3")
-        self.srvc.leave("user1")
+        self.srvc.join("user0", "192.168.1.2")
+        self.srvc.join("user1", "192.168.1.3")
+        self.srvc.leave("user0")
         self.srvc.leave("fake_user")
         return d
 
     def test_kick(self):
         responses = expected_join_responses(
-            1, "user1", "192.168.1.2", self.srvc.port)
+            1, "user0", "192.168.1.2", self.srvc.port)
         responses.extend(expected_join_responses(
-            3, "user2", "192.168.1.3", self.srvc.port))
+            3, "user1", "192.168.1.3", self.srvc.port))
         responses.extend(expected_kick_responses(
-            1, "user1", "192.168.1.2", self.srvc.port))
+            1, "user0", "192.168.1.2", self.srvc.port))
 
         d = defer.Deferred()
         d.addCallback(self._get_pilots_count_checker(1))
         self.console_client_factory.receiver = \
             self._get_expecting_line_receiver(responses, d)
-        self.srvc.join("user1", "192.168.1.2")
-        self.srvc.join("user2", "192.168.1.3")
-        self.console_message("kick user1")
+        self.srvc.join("user0", "192.168.1.2")
+        self.srvc.join("user1", "192.168.1.3")
+        self.console_message("kick user0")
         return d
 
 

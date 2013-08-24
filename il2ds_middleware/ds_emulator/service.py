@@ -163,11 +163,13 @@ class PilotService(Service, _DSServiceMixin):
         pilot = self.pilots.get(callsign)
         if pilot is not None:
             pilot['pos'] = pos or {
-                'x': 0.0,
-                'y': 0.0,
-                'z': 0.0,
-            }
+                'x': 0, 'y': 0, 'z': 0, }
             pilot['state'] = PILOT_STATE.SPAWN
+
+    def kill(self, callsign):
+        pilot = self.pilots.get(callsign)
+        if pilot is not None:
+            pilot['state'] = PILOT_STATE.DEAD
 
     def get_active(self):
         return [x for x in self.pilots.keys()
@@ -274,8 +276,10 @@ class DeviceLinkService(Service):
         self.known_static = []
 
     def got_requests(self, requests, address, peer):
+        answers = []
         for request in requests:
             cmd = request['command']
+            answer = None
             try:
                 opcode = OPCODE.lookupByValue(cmd)
             except ValueError as e:
@@ -283,12 +287,38 @@ class DeviceLinkService(Service):
             else:
                 if opcode == OPCODE.RADAR_REFRESH:
                     self._refresh_radar()
-                if opcode == OPCODE.PILOT_COUNT:
-                    self._pilot_count(address, peer)
+                elif opcode == OPCODE.PILOT_COUNT:
+                    answer = self._pilot_count()
+                elif opcode == OPCODE.PILOT_POS:
+                    answer = self._pilot_pos(request.get('args'))
+                if answer is not None:
+                    answers.append(answer)
+        if answers:
+            peer.send_answers(answers, address)
 
     def _refresh_radar(self):
         self.known_air = self.pilots.get_active()
 
-    def _pilot_count(self, address, peer):
-        cmd = OPCODE.PILOT_COUNT.make_command(len(self.known_air))
-        peer.send_answer(cmd, address)
+    def _pilot_count(self):
+        result = len(self.known_air)
+        return OPCODE.PILOT_COUNT.make_command(result)
+
+    def _pilot_pos(self, args):
+        if not args:
+            return None
+        idx = args[0]
+        try:
+            callsign = self.known_air[int(idx)]
+        except Exception:
+            data = 'BADINDEX'
+        else:
+            pilot = self.pilots.pilots[callsign]
+            if pilot['state'] in [PILOT_STATE.IDLE, PILOT_STATE.DEAD, ]:
+                data = 'INVALID'
+            else:
+                pos = pilot['pos']
+                data = ';'.join([str(_)
+                    for _ in [callsign, pos['x'], pos['y'], pos['z'], ]])
+        finally:
+            result = ':'.join([idx, data, ])
+            return OPCODE.PILOT_POS.make_command(result)
