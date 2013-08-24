@@ -1,3 +1,8 @@
 [run]
 source = il2ds_middleware
 omit = */tests/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    raise NotImplementedError
