@@ -11,13 +11,16 @@ from il2ds_middleware.ds_emulator.tests.protocol import (ConsoleServerFactory,
 
 class BaseTestCase(TestCase):
 
+    timeout_value = 0.05
+    log_path = None
+
     def setUp(self):
         self._listen_server()
         return self._connect_client()
 
     def _listen_server(self):
         self.console_server_factory = ConsoleServerFactory()
-        self.service = RootService(self.console_server_factory)
+        self.service = RootService(self.console_server_factory, self.log_path)
         self.dl_server = DeviceLinkServerProtocol()
 
         self.console_server_factory.receiver = self.service.parse_line
@@ -71,7 +74,7 @@ class BaseTestCase(TestCase):
 
     def _make_timeout(self, callback):
         from twisted.internet import reactor
-        return reactor.callLater(0.05, callback, None)
+        return reactor.callLater(self.timeout_value, callback, None)
 
     def _get_unexpecting_line_receiver(self, d):
 
