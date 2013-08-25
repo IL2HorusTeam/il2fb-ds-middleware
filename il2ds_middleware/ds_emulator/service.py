@@ -25,24 +25,8 @@ class ILineParser(Interface):
 
 class IEventLogger(Interface):
 
-    def enlog_event(self, line):
+    def enlog(self, line):
         raise NotImplementedError
-
-
-@implementer(IService, IEventLogger)
-class _EventLoggerServiceMixin:
-
-    def enlog_event(self, line):
-        if self.log_file is not None:
-            self.log_file.write(line+'\n')
-        elif self.parent:
-            self.parent.enlog_event(line)
-        else:
-            log.msg("Logging event into nowhere: \"{0}\"".format(line))
-
-    @property
-    def log_file(self):
-        return None
 
 
 class _PropagatorMixin:
@@ -67,10 +51,10 @@ class _LineBroadcastingServiceMixin:
             log.msg("Broadcasting into nowhere: \"{0}\"".format(line))
 
 
-@implementer(ILineParser, IEventLogger)
-class _DSServiceMixin(
-    _LineBroadcastingServiceMixin, _PropagatorMixin, _EventLoggerServiceMixin):
-    pass
+@implementer(ILineParser)
+class _DSServiceMixin(_LineBroadcastingServiceMixin, _PropagatorMixin):
+
+    evt_log = None
 
 
 class RootService(MultiService, _DSServiceMixin):
@@ -78,12 +62,11 @@ class RootService(MultiService, _DSServiceMixin):
     """
     Top-level service.
     """
-    last_event_time = None
 
     def __init__(self, broadcaster, log_path=None):
         MultiService.__init__(self)
         self.broadcaster = broadcaster
-        self.log_path = log_path
+        self.evt_log = EventLoggingService(log_path)
         self._init_children()
 
     def _init_children(self):
@@ -93,15 +76,16 @@ class RootService(MultiService, _DSServiceMixin):
         pilots = PilotService()
         static = StaticService()
         dl = DeviceLinkService()
-        self.missions = MissionService(self.log_path)
+        missions = MissionService()
 
         # TODO: resolve this spaghetti
         dl.pilot_srvc = pilots
         dl.static_srvc = static
-        self.missions.device_link = dl
+        missions.device_link = dl
 
-        for service in [pilots, static, self.missions, dl, ]:
+        for service in [pilots, static, missions, dl, ]:
             service.setServiceParent(self)
+            service.evt_log = self.evt_log
 
     def startService(self):
         self.broadcaster.service = self
@@ -109,6 +93,7 @@ class RootService(MultiService, _DSServiceMixin):
 
     def stopService(self):
         self.broadcaster.service = None
+        self.evt_log.setServiceParent(self)
         return MultiService.stopService(self)
 
     def parse_line(self, line):
@@ -122,20 +107,6 @@ class RootService(MultiService, _DSServiceMixin):
         if not result:
             self.broadcast_line("Command not found: " + line)
         return self._autopropagate(result)
-
-    def enlog_event(self, line):
-        event_time = datetime.datetime.now()
-        use_long_format = event_time.day != self.last_event_time.day \
-            if self.last_event_time is not None else True
-        self.last_event_time = event_time
-        timestamp_fmt = "[%b %d, %Y -%I:%M:%S %p]" if use_long_format else "[-%I:%M:%S %p]"
-        timestamp = event_time.strftime(timestamp_fmt).replace('-0', '-').replace('-', '')
-        _line = ' '.join([timestamp, line, ])
-        _DSServiceMixin.enlog_event(self, _line)
-
-    @property
-    def log_file(self):
-        return self.missions._log_file
 
 
 class PilotService(Service, _DSServiceMixin):
@@ -179,7 +150,7 @@ class PilotService(Service, _DSServiceMixin):
             "socket channel '{0}', ip {1}:{2}, {3}, "
             "is complete created.".format(
                 pilot['channel'], pilot['ip'], self.port, callsign))
-        self.enlog_event("{0} has connected".format(callsign))
+        self.evt_log.enlog("{0} has connected".format(callsign))
 
     def leave(self, callsign):
         self._leave(callsign)
@@ -201,13 +172,13 @@ class PilotService(Service, _DSServiceMixin):
         self.broadcast_line(line)
         self.broadcast_line("Chat: --- {0} has left the game.".format(
             callsign))
-        self.enlog_event("{0} has disconnected".format(callsign))
+        self.evt_log.enlog("{0} has disconnected".format(callsign))
 
     def idle(self, callsign):
         pilot = self.pilots.get(callsign)
         if pilot is not None:
             pilot['state'] = PILOT_STATE.IDLE
-            self.enlog_event("{0} entered refly menu".format(callsign))
+            self.evt_log.enlog("{0} entered refly menu".format(callsign))
 
     def spawn(self, callsign, craft=None, pos=None):
         pilot = self.pilots.get(callsign)
@@ -220,11 +191,11 @@ class PilotService(Service, _DSServiceMixin):
                 'weapons': "1xdt",
                 'fuel': "100",
             }
-            self.enlog_event(
+            self.evt_log.enlog(
                 "{0}:{1}(0) seat occupied by {0} at {2} {3}".format(
                     callsign, pilot['craft']['name'],
                     pilot['pos']['x'], pilot['pos']['y']))
-            self.enlog_event(
+            self.evt_log.enlog(
                 "{0}:{1} loaded weapons '{2}' fuel {3}%".format(
                     callsign, pilot['craft']['name'],
                     pilot['craft']['weapons'], pilot['craft']['fuel']))
@@ -233,7 +204,7 @@ class PilotService(Service, _DSServiceMixin):
         pilot = self.pilots.get(callsign)
         if pilot is not None:
             pilot['state'] = PILOT_STATE.DEAD
-            self.enlog_event(
+            self.evt_log.enlog(
                 "{0}:{1}(0) was killed at {2} {3}".format(
                     callsign, pilot['craft']['name'],
                     pilot['pos']['x'], pilot['pos']['y']))
@@ -253,10 +224,6 @@ class MissionService(Service, _DSServiceMixin):
     status = MISSION_STATUS.NOT_LOADED
     mission = None
     device_link = None
-    _log_file = None
-
-    def __init__(self, log_path=None):
-        self.log_path = log_path
 
     def parse_line(self, line):
         if not line.startswith("mission"):
@@ -299,11 +266,11 @@ class MissionService(Service, _DSServiceMixin):
         if self.status == MISSION_STATUS.NOT_LOADED:
             self._mission_not_loaded()
         else:
-            self._open_log()
+            self.evt_log.start_log()
             self.status = MISSION_STATUS.PLAYING
             self._send_status()
-            self.enlog_event("Mission: {0} is Playing".format(self.mission))
-            self.enlog_event("Mission BEGIN")
+            self.evt_log.enlog("Mission: {0} is Playing".format(self.mission))
+            self.evt_log.enlog("Mission BEGIN")
 
     def _end_mission(self):
         if self.status == MISSION_STATUS.NOT_LOADED:
@@ -311,8 +278,8 @@ class MissionService(Service, _DSServiceMixin):
         else:
             self.status = MISSION_STATUS.LOADED
             self._send_status()
-            self.enlog_event("Mission END")
-            self._close_log()
+            self.evt_log.enlog("Mission END")
+            self.evt_log.stop_log()
 
     def _destroy_mission(self):
         if self.status == MISSION_STATUS.NOT_LOADED:
@@ -334,28 +301,12 @@ class MissionService(Service, _DSServiceMixin):
         elif self.status == MISSION_STATUS.PLAYING:
             self.broadcast_line("Mission: {0} is Playing".format(self.mission))
 
-    def _open_log(self):
-        if self._log_file is not None:
-            self._close_log()
-        if self.log_path is not None:
-            self._log_file = open(self.log_path, 'w')
-            self._log_file.write("hello")
-
-    def _close_log(self):
-        was_opened = self._log_file is not None
-        if was_opened:
-            self._log_file.close()
-            self._log_file = None
-        return was_opened
-
     def stopService(self):
         self.mission = None
-        if self._close_log():
-            os.remove(self.log_path)
         return Service.stopService(self)
 
 
-class StaticService(Service, _EventLoggerServiceMixin):
+class StaticService(Service):
 
     name = "static"
     objects = None
@@ -373,12 +324,66 @@ class StaticService(Service, _EventLoggerServiceMixin):
     def destroy(self, name, attacker_name='landscape'):
         obj = self.objects[name]
         obj['state'] = OBJECT_STATE.DESTROYED
-        self.enlog_event("{0} destroyed by {1} at {2} {3}".format(
+        self.evt_log.enlog("{0} destroyed by {1} at {2} {3}".format(
             name, attacker_name, obj['pos']['x'], obj['pos']['y']))
 
     def get_active(self):
         return [x for x in self.objects.keys()
             if self.objects[x]['state'] != OBJECT_STATE.DESTROYED]
+
+
+@implementer(IEventLogger)
+class EventLoggingService(Service):
+
+    def __init__(self, log_path=None, keep_log=True):
+        self.log_path = log_path
+        self.keep_log = keep_log
+        self.log_file = None
+        self.last_evt_time = None
+
+    def enlog(self, line):
+        if self.log_file is not None:
+            self._do_log(line)
+        else:
+            log.msg("Logging event into nowhere: \"{0}\"".format(line))
+
+    def _do_log(self, line):
+        evt_time = datetime.datetime.now()
+        timestamp = self._get_formated_time(evt_time)
+        _line = "[{0}] {1}\n".format(timestamp, line)
+        self.log_file.write(_line)
+        self.last_evt_time = evt_time
+
+    def _get_formated_time(self, timestamp):
+        """
+        We do not need leading zero before hours, so we will replace it
+        if it is present. To find it we use symbol '-'.
+        """
+        format = "-%I:%M:%S %p"
+        if self._day_differs(timestamp):
+            format = "%b %d, %Y " + format
+        return timestamp.strftime(format).replace('-0', '').replace('-', '')
+
+    def _day_differs(self, timestamp):
+        return timestamp.day != self.last_evt_time.day \
+            if self.last_evt_time is not None else True
+
+    def start_log(self):
+        self.stop_log()
+        if self.log_path is not None:
+            self.log_file = open(self.log_path, 'a' if self.keep_log else 'w')
+
+    def stop_log(self):
+        was_opened = self.log_file is not None
+        if was_opened:
+            self.log_file.close()
+            self.log_file = None
+        return was_opened
+
+    def stopService(self):
+        if self.stop_log():
+            os.remove(self.log_path)
+        return Service.stopService(self)
 
 
 class DeviceLinkService(Service):
