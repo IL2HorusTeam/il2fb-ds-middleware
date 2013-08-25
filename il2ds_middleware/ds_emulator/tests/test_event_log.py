@@ -32,8 +32,8 @@ class EventLogTestCase(BaseTestCase):
         d = Deferred()
         self._set_event_log_expecting_receiver(responses, d)
 
-        missions._load_mission("net/dogfight/test.mis")
-        missions._begin_mission()
+        missions.load("net/dogfight/test.mis")
+        missions.begin()
         self.log_watcher.startService()
 
         static.spawn("0_Static")
@@ -41,5 +41,5 @@ class EventLogTestCase(BaseTestCase):
         pilots.spawn("user0")
         pilots.kill("user0")
         static.destroy("0_Static")
-        missions._end_mission()
+        missions.end()
         return d

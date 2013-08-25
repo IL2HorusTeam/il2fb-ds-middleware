@@ -4,42 +4,24 @@ import datetime
 import os
 
 from twisted.application import internet
-from twisted.application.service import IService, Service, MultiService
+from twisted.application.service import Service, MultiService
 from twisted.python import log
-from twisted.python.constants import ValueConstant, Values
-from zope.interface import implementer, Interface
+from zope.interface import implementer
 
 from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as OPCODE,
     MISSION_STATUS, PILOT_STATE, OBJECT_STATE, )
-from il2ds_middleware.ds_emulator.interfaces import ILineBroadcaster
+from il2ds_middleware.interfaces import ILineParser
+from il2ds_middleware.mixin import PropagatingLineParserMixing
+from il2ds_middleware.ds_emulator.interfaces import (ILineBroadcaster,
+    IPilotService, IMissionService, IStaticObjectService, IDeviceLinkService,
+    IEventLogger, )
 
 
-class ILineParser(Interface):
+@implementer(ILineBroadcaster)
+class _CommonServiceMixin(PropagatingLineParserMixing):
 
-    def parse_line(self, line):
-        """
-        Return True if line was successfully parsed, otherwise return False.
-        """
-        raise NotImplementedError
-
-
-class IEventLogger(Interface):
-
-    def enlog(self, line):
-        raise NotImplementedError
-
-
-class _PropagatorMixin:
-
-    propagate = False
-
-    def _autopropagate(self, value=True):
-        return False if self.propagate else value
-
-
-@implementer(IService, ILineBroadcaster)
-class _LineBroadcastingServiceMixin:
-
+    evt_log = None
+    parent = None
     broadcaster = None
 
     def broadcast_line(self, line):
@@ -51,18 +33,10 @@ class _LineBroadcastingServiceMixin:
             log.msg("Broadcasting into nowhere: \"{0}\"".format(line))
 
 
-@implementer(ILineParser)
-class _DSServiceMixin(_LineBroadcastingServiceMixin, _PropagatorMixin):
-
-    evt_log = None
-
-
-class RootService(MultiService, _DSServiceMixin):
-
+class RootService(MultiService, _CommonServiceMixin):
     """
     Top-level service.
     """
-
     def __init__(self, broadcaster, log_path=None):
         MultiService.__init__(self)
         self.broadcaster = broadcaster
@@ -78,10 +52,9 @@ class RootService(MultiService, _DSServiceMixin):
         dl = DeviceLinkService()
         missions = MissionService()
 
-        # TODO: resolve this spaghetti
         dl.pilot_srvc = pilots
         dl.static_srvc = static
-        missions.device_link = dl
+        missions.dl_srvc = dl
 
         for service in [pilots, static, missions, dl, ]:
             service.setServiceParent(self)
@@ -109,7 +82,8 @@ class RootService(MultiService, _DSServiceMixin):
         return self._autopropagate(result)
 
 
-class PilotService(Service, _DSServiceMixin):
+@implementer(IPilotService)
+class PilotService(Service, _CommonServiceMixin):
 
     name = "pilots"
     channel = 1
@@ -218,12 +192,13 @@ class PilotService(Service, _DSServiceMixin):
         return Service.stopService(self)
 
 
-class MissionService(Service, _DSServiceMixin):
+@implementer(IMissionService)
+class MissionService(Service, _CommonServiceMixin):
 
     name = "missions"
     status = MISSION_STATUS.NOT_LOADED
     mission = None
-    device_link = None
+    dl_srvc = None
 
     def parse_line(self, line):
         if not line.startswith("mission"):
@@ -234,21 +209,21 @@ class MissionService(Service, _DSServiceMixin):
                 self._send_status()
                 break
             elif cmd.startswith("LOAD"):
-                self._load_mission(mission=cmd[4:].lstrip())
+                self.load(mission=cmd[4:].lstrip())
                 break
             elif cmd == "BEGIN":
-                self._begin_mission()
+                self.begin()
                 break
             elif cmd == "END":
-                self._end_mission()
+                self.end()
                 break
             elif cmd == "DESTROY":
-                self._destroy_mission()
+                self.destroy()
                 break
             return self._autopropagate(False)
         return self._autopropagate()
 
-    def _load_mission(self, mission):
+    def load(self, mission):
         self.mission = mission
         self.broadcast_line("Loading mission {0}...".format(self.mission))
         self.broadcast_line("Load bridges")
@@ -262,7 +237,7 @@ class MissionService(Service, _DSServiceMixin):
         self.status = MISSION_STATUS.LOADED
         self._send_status()
 
-    def _begin_mission(self):
+    def begin(self):
         if self.status == MISSION_STATUS.NOT_LOADED:
             self._mission_not_loaded()
         else:
@@ -272,7 +247,7 @@ class MissionService(Service, _DSServiceMixin):
             self.evt_log.enlog("Mission: {0} is Playing".format(self.mission))
             self.evt_log.enlog("Mission BEGIN")
 
-    def _end_mission(self):
+    def end(self):
         if self.status == MISSION_STATUS.NOT_LOADED:
             self._mission_not_loaded()
         else:
@@ -281,14 +256,14 @@ class MissionService(Service, _DSServiceMixin):
             self.evt_log.enlog("Mission END")
             self.evt_log.stop_log()
 
-    def _destroy_mission(self):
+    def destroy(self):
         if self.status == MISSION_STATUS.NOT_LOADED:
             self._mission_not_loaded()
         else:
             self.status = MISSION_STATUS.NOT_LOADED
             self.mission = None
-            if self.device_link:
-                self.device_link.forget_everything()
+            if self.dl_srvc:
+                self.dl_srvc.forget_everything()
 
     def _mission_not_loaded(self):
         self.broadcast_line("ERROR mission: Mission NOT loaded")
@@ -306,6 +281,7 @@ class MissionService(Service, _DSServiceMixin):
         return Service.stopService(self)
 
 
+@implementer(IStaticObjectService)
 class StaticService(Service):
 
     name = "static"
@@ -332,59 +308,7 @@ class StaticService(Service):
             if self.objects[x]['state'] != OBJECT_STATE.DESTROYED]
 
 
-@implementer(IEventLogger)
-class EventLoggingService(Service):
-
-    def __init__(self, log_path=None, keep_log=True):
-        self.log_path = log_path
-        self.keep_log = keep_log
-        self.log_file = None
-        self.last_evt_time = None
-
-    def enlog(self, line):
-        if self.log_file is not None:
-            self._do_log(line)
-        else:
-            log.msg("Logging event into nowhere: \"{0}\"".format(line))
-
-    def _do_log(self, line):
-        evt_time = datetime.datetime.now()
-        timestamp = self._get_formated_time(evt_time)
-        _line = "[{0}] {1}\n".format(timestamp, line)
-        self.log_file.write(_line)
-        self.last_evt_time = evt_time
-
-    def _get_formated_time(self, timestamp):
-        """
-        We do not need leading zero before hours, so we will replace it
-        if it is present. To find it we use symbol '-'.
-        """
-        format = "-%I:%M:%S %p"
-        if self._day_differs(timestamp):
-            format = "%b %d, %Y " + format
-        return timestamp.strftime(format).replace('-0', '').replace('-', '')
-
-    def _day_differs(self, timestamp):
-        return timestamp.day != self.last_evt_time.day \
-            if self.last_evt_time is not None else True
-
-    def start_log(self):
-        self.stop_log()
-        if self.log_path is not None:
-            self.log_file = open(self.log_path, 'a' if self.keep_log else 'w')
-
-    def stop_log(self):
-        if self.log_file is not None:
-            self.log_file.close()
-            self.log_file = None
-
-    def stopService(self):
-        self.stop_log()
-        if self.log_path is not None and os.path.isfile(self.log_path):
-            os.remove(self.log_path)
-        return Service.stopService(self)
-
-
+@implementer(IDeviceLinkService)
 class DeviceLinkService(Service):
 
     name = "dl"
@@ -470,3 +394,56 @@ class DeviceLinkService(Service):
                     for _ in [key, pos['x'], pos['y'], pos['z'], ]])
         finally:
             return ':'.join([idx, data, ])
+
+
+@implementer(IEventLogger)
+class EventLoggingService(Service):
+
+    def __init__(self, log_path=None, keep_log=True):
+        self.log_path = log_path
+        self.keep_log = keep_log
+        self.log_file = None
+        self.last_evt_time = None
+
+    def enlog(self, line):
+        if self.log_file is not None:
+            self._do_log(line)
+        else:
+            log.msg("Logging event into nowhere: \"{0}\"".format(line))
+
+    def _do_log(self, line):
+        evt_time = datetime.datetime.now()
+        timestamp = self._get_formated_time(evt_time)
+        _line = "[{0}] {1}\n".format(timestamp, line)
+        self.log_file.write(_line)
+        self.last_evt_time = evt_time
+
+    def _get_formated_time(self, timestamp):
+        """
+        We do not need leading zero before hours, so we will replace it
+        if it is present. To find it we use symbol '-'.
+        """
+        format = "-%I:%M:%S %p"
+        if self._day_differs(timestamp):
+            format = "%b %d, %Y " + format
+        return timestamp.strftime(format).replace('-0', '').replace('-', '')
+
+    def _day_differs(self, timestamp):
+        return timestamp.day != self.last_evt_time.day \
+            if self.last_evt_time is not None else True
+
+    def start_log(self):
+        self.stop_log()
+        if self.log_path is not None:
+            self.log_file = open(self.log_path, 'a' if self.keep_log else 'w')
+
+    def stop_log(self):
+        if self.log_file is not None:
+            self.log_file.close()
+            self.log_file = None
+
+    def stopService(self):
+        self.stop_log()
+        if self.log_path is not None and os.path.isfile(self.log_path):
+            os.remove(self.log_path)
+        return Service.stopService(self)
