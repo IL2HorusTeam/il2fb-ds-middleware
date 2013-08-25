@@ -374,14 +374,13 @@ class EventLoggingService(Service):
             self.log_file = open(self.log_path, 'a' if self.keep_log else 'w')
 
     def stop_log(self):
-        was_opened = self.log_file is not None
-        if was_opened:
+        if self.log_file is not None:
             self.log_file.close()
             self.log_file = None
-        return was_opened
 
     def stopService(self):
-        if self.stop_log():
+        self.stop_log()
+        if self.log_path is not None and os.path.isfile(self.log_path):
             os.remove(self.log_path)
         return Service.stopService(self)
 
