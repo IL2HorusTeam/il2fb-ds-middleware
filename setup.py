@@ -7,7 +7,6 @@ setup(
     long_description=open('README.md').read(),
     license='MIT',
     url='https://github.com/IL2HorusTeam/il2ds-middleware',
-    bugtrack_url='https://github.com/IL2HorusTeam/il2ds-middleware/issues',
     author='Alexander Oblovatniy',
     author_email='oblovatniy@gmail.com',
     packages=find_packages(),

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from twisted.internet import reactor
-from twisted.internet.protocol import ClientFactory, DatagramProtocol
+from twisted.internet import defer
+from twisted.internet.protocol import (ClientFactory, DatagramProtocol, )
 from twisted.protocols.basic import LineOnlyReceiver
 from twisted.python import log
 
@@ -10,36 +10,131 @@ from il2ds_middleware.constants import (DEVICE_LINK_OPCODE,
     DEVICE_LINK_ARGS_SEPARATOR as DL_ARGS_SEP, )
 
 
-class ConsoleProtocol(LineOnlyReceiver):
+class ConsoleClientProtocol(LineOnlyReceiver):
 
     def connectionMade(self):
-        log.msg("Connection established with {0}".format(
-            self.transport.getaddress()))
-
-    def connectionLost(self, reason):
-        log.err("Connection with {0} lost: {1}".format(
-            self.transport.getaddress(), reason))
+        self.factory.clientConnectionMade()
 
     def lineReceived(self, line):
         if line == '' or line == "exit\\n":
-            log.err("Game server is shut down")
-            reactor.stop()
+            log.err("Game server is shutting down")
+            self.transport.loseConnection()
             return
-        if line.startswith("<consoleN>"):
+        if line.startswith("<consoleN><"):
             return
-        if line.endswith("\\n"):
-            line = line[:-2]
-        if line.startswith("\\u0020"):
-            line = " " + line[6:]
+        self.factory.got_line(
+            line.replace("\\n", '').replace("\\u0020", ' '))
 
 
-class ConsoleFactory(ClientFactory):
+class ConsoleClientFactory(ClientFactory):
 
-    protocol = ConsoleProtocol
-    receiver = None
+    protocol = ConsoleClientProtocol
+    request_timeout = 0.1
+
+    def __init__(self, parser=None):
+        self._parser = parser
+        self._client = None
+        self._request_id = 0
+        self._responce_id = None
+        self.on_connecting = defer.Deferred()
+        self.on_connection_lost = defer.Deferred()
+        # { request_id: ([results], deferred, timeout, ), }
+        self._requests = {}
+
+    def buildProtocol(self, addr):
+        self._client = ClientFactory.buildProtocol(self, addr)
+        return self._client
+
+    def clientConnectionMade(self):
+        if self.on_connecting is not None:
+            d, self.on_connecting = self.on_connecting, None
+            d.callback(None)
 
     def clientConnectionFailed(self, connector, reason):
-        log.err("Connection failed: %s" % reason)
+        if self.on_connecting is not None:
+            d, self.on_connecting = self.on_connecting, None
+            d.errback(reason)
+
+    def clientConnectionLost(self, connector, reason):
+        if self.on_connection_lost is not None:
+            d, self.on_connection_lost = self.on_connection_lost, None
+            d.errback(reason)
+
+    def _generate_request_id(self):
+        self._request_id += 1
+        return self._request_id
+
+    def _send(self, data):
+        try:
+            self._client.sendLine(data)
+        except Exception as e:
+            return defer.fail(e)
+        else:
+            return defer.succeed(None)
+
+    def _send_request(self, request):
+        rid = self._generate_request_id()
+        d = defer.Deferred()
+
+        def on_timeout(_):
+            del self._requests[rid]
+            defer.timeout(d)
+
+        from twisted.internet import reactor
+        timeout = reactor.callLater(self.request_timeout, on_timeout, None)
+
+        self._requests[rid] = ([], d, timeout)
+        wrapper = "rid|{0}".format(rid)
+        try:
+            self._client.sendLine(wrapper)
+            self._client.sendLine(request)
+            self._client.sendLine(wrapper)
+        except Exception as e:
+            timeout.cancel()
+            del self._requests[rid]
+            return defer.fail(e)
+        else:
+            return d
+
+    def got_line(self, line):
+        if line.startswith("Command not found: rid"):
+            self._process_responce_id(line)
+        elif self._responce_id:
+            self._requests[self._responce_id][0].append(line)
+        elif self._parser:
+            self._parser.parse_line(line)
+
+    def _process_responce_id(self, line):
+        try:
+            rid = int(line.split('|')[1])
+        except Exception as e:
+            log.err("Could not get rid value from \"{0}\"".format(line))
+        else:
+            if rid not in self._requests:
+                log.err("Unexpected rid: {0}".format(rid))
+                return
+            if self._responce_id is None:
+                # start request processing
+                self._responce_id = rid
+            elif self._responce_id == rid:
+                # end request processing, send results to callback
+                self._responce_id = None
+                results, d, timeout = self._requests[rid]
+                timeout.cancel()
+                del self._requests[rid]
+                d.callback(results)
+
+    def server_info(self):
+        d = self._send_request("server")
+        if self._parser:
+            d.addCallback(self._parser.server_info)
+        return d
+
+    def mission_status(self):
+        d = self._send_request("mission")
+        if self._parser:
+            d.addCallback(self._parser.mission_status)
+        return d
 
 
 class DeviceLinkProtocol(DatagramProtocol):

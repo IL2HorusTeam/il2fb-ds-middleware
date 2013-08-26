@@ -13,3 +13,14 @@ class ILineParser(Interface):
 
         :returns: bool -- True if line was successfully parsed, otherwise False.
         """
+
+
+class IConsoleParser(ILineParser):
+
+    def server_info(self, line):
+        """
+        """
+
+    def mission_status(self, line):
+        """
+        """
