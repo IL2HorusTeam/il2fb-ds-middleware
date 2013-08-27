@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from twisted.internet.defer import Deferred
 from twisted.internet.protocol import ServerFactory
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
@@ -18,7 +19,7 @@ class DeviceLinkServerProtocol(DeviceLinkProtocol):
             self.on_requests(requests, address, self)
 
 
-class ConsoleProtocol(LineReceiver):
+class ConsoleServerProtocol(LineReceiver):
 
     def connectionMade(self):
         self.factory.client_joined(self)
@@ -34,18 +35,23 @@ class ConsoleProtocol(LineReceiver):
 
 
 @implementer(ILineBroadcaster)
-class ConsoleFactory(ServerFactory):
+class ConsoleServerFactory(ServerFactory):
 
-    protocol = ConsoleProtocol
+    protocol = ConsoleServerProtocol
+    receiver = None
 
     def __init__(self):
         self.clients = []
+        self.on_connection_lost = Deferred()
 
     def client_joined(self, client):
         self.clients.append(client)
 
     def client_left(self, client):
         self.clients.remove(client)
+        if self.on_connection_lost is not None:
+            d, self.on_connection_lost = self.on_connection_lost, None
+            d.callback(client)
 
     def got_line(self, line):
         if self.receiver is not None:

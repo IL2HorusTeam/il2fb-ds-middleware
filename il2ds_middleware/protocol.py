@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from twisted.internet import defer
+from twisted.internet.error import ConnectionDone
 from twisted.internet.protocol import (ClientFactory, DatagramProtocol, )
 from twisted.protocols.basic import LineOnlyReceiver
 from twisted.python import log
@@ -58,7 +59,10 @@ class ConsoleClientFactory(ClientFactory):
     def clientConnectionLost(self, connector, reason):
         if self.on_connection_lost is not None:
             d, self.on_connection_lost = self.on_connection_lost, None
-            d.errback(reason)
+            if isinstance(reason.value, ConnectionDone):
+                d.callback(None)
+            else:
+                d.errback(reason)
 
     def _generate_request_id(self):
         self._request_id += 1

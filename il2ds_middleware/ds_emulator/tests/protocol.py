@@ -5,18 +5,6 @@ from twisted.internet.protocol import ClientFactory
 from twisted.protocols.basic import LineReceiver
 
 from il2ds_middleware.protocol import DeviceLinkProtocol
-from il2ds_middleware.ds_emulator.protocol import ConsoleFactory
-
-
-class ConsoleServerFactory(ConsoleFactory):
-
-    def __init__(self):
-        ConsoleFactory.__init__(self)
-        self.on_connection_lost = Deferred()
-
-    def client_left(self, client):
-        ConsoleFactory.client_left(self, client)
-        self.on_connection_lost.callback(client)
 
 
 class ConsoleClientProtocol(LineReceiver):
