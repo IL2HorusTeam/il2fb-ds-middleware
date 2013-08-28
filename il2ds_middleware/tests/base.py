@@ -72,7 +72,7 @@ class BaseTestCase(TestCase):
             # dl_client_stopped,
             self.service.stopService(), ]
         if self.console_client_connector is not None:
-            dlist.extent([
+            dlist.extend([
                 self.console_client_factory.on_connection_lost,
                 self.console_server_factory.on_connection_lost, ])
             self.console_client_connector.disconnect()

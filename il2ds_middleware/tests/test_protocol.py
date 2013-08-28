@@ -17,7 +17,7 @@ class ConsoleClientFactoryConnectionFailTestCase(BaseTestCase):
             if isinstance(err.value, error.ConnectionRefusedError):
                 self.console_client_connector = None
 
-        d = super(TestConsoleClientFactoryWrongAddress, self).setUp()
+        d = super(ConsoleClientFactoryConnectionFailTestCase, self).setUp()
         return d.addErrback(on_connection_fail)
 
     def test_connection_fail(self):
@@ -30,3 +30,9 @@ class ConsoleClientFactoryConnectionFailTestCase(BaseTestCase):
     @property
     def device_link_host_for_client(self):
         return self.device_link_server_host, self.device_link_server_port+1
+
+
+class ConsoleClientFactoryTestCase(BaseTestCase):
+
+    def test_connection(self):
+        self.assertTrue(self.console_client_connector)
