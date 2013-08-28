@@ -36,3 +36,48 @@ class ConsoleClientFactoryTestCase(BaseTestCase):
 
     def test_connection(self):
         self.assertTrue(self.console_client_connector)
+
+    def test_wrong_rid(self):
+        return self.console_client_factory._send("rid|0")
+
+    def test_mission_status(self):
+
+        srvc = self.service.getServiceNamed('missions')
+
+        def do_test():
+            d = self.console_client_factory.mission_status()
+            d.addCallback(check_not_loaded)
+            d.addCallback(do_load)
+            return d
+
+        def do_load(_):
+            srvc.load("net/dogfight/test.mis")
+            d = self.console_client_factory.mission_status()
+            d.addCallback(check_loaded)
+            d.addCallback(do_begin)
+            return d
+
+        def do_begin(_):
+            srvc.begin()
+            d = self.console_client_factory.mission_status()
+            d.addCallback(check_playing)
+            return d
+
+        def check_not_loaded(response):
+            self.assertIsInstance(response, list)
+            self.assertEqual(len(response), 1)
+            self.assertEqual(response[0], "Mission NOT loaded")
+
+        def check_loaded(response):
+            self.assertIsInstance(response, list)
+            self.assertEqual(len(response), 1)
+            self.assertEqual(
+                response[0], "Mission: net/dogfight/test.mis is Loaded")
+
+        def check_playing(response):
+            self.assertIsInstance(response, list)
+            self.assertEqual(len(response), 1)
+            self.assertEqual(
+                response[0], "Mission: net/dogfight/test.mis is Playing")
+
+        return do_test()
