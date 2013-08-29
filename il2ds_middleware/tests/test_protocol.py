@@ -111,12 +111,12 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
             raise FakeError
 
         self.console_client_factory._client.sendLine = fake_sendLine
+
         d1 = self.console_client_factory._send_request("test")
+        self.assertFailure(d1, FakeError)
+
         d2 = self.console_client_factory._send("test")
-        return defer.gatherResults([
-            self.assertFailure(d1, FakeError),
-            self.assertFailure(d2, FakeError),
-        ])
+        self.assertFailure(d2, FakeError)
 
     def test_send(self):
         return self.console_client_factory._send("test")
@@ -145,6 +145,7 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
     def test_mission_load(self):
 
         def callback(response):
+            self.assertIsInstance(results, list)
             obligatory_responses = [
                 "Loading mission net/dogfight/test.mis...",
                 "Load bridges",
@@ -157,3 +158,22 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
 
         d = self.console_client_factory.mission_load("net/dogfight/test.mis")
         return d.addCallback(callback)
+
+    def test_mission_begin(self):
+
+        def do_test():
+            d = self.console_client_factory.mission_load(
+                "net/dogfight/test.mis")
+            return d.addCallback(do_load)
+
+        def do_load(_):
+            d = self.console_client_factory.mission_begin()
+            return d.addCallback(callback)
+
+        def callback(response):
+            self.assertIsInstance(response, list)
+            self.assertEqual(len(response), 1)
+            self.assertEqual(
+                response[0], "Mission: net/dogfight/test.mis is Playing")
+
+        return do_test()

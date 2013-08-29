@@ -140,7 +140,13 @@ class ConsoleClientFactory(ClientFactory):
     def mission_load(self, mission):
         d = self._send_request("mission LOAD {0}".format(mission))
         if self._parser:
-            d.addCallback(self._parser.mission_status)
+            d.addCallback(self._parser.mission_load)
+        return d
+
+    def mission_begin(self):
+        d = self._send_request("mission BEGIN")
+        if self._parser:
+            d.addCallback(self._parser.mission_begin)
         return d
 
 

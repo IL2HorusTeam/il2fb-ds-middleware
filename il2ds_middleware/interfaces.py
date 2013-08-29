@@ -17,10 +17,26 @@ class ILineParser(Interface):
 
 class IConsoleParser(ILineParser):
 
-    def server_info(self, line):
+    def server_info(self, lines):
         """
         """
 
-    def mission_status(self, line):
+    def mission_status(self, lines):
+        """
+        """
+
+    def mission_load(self, lines):
+        """
+        """
+
+    def mission_begin(self, lines):
+        """
+        """
+
+    def mission_end(self, lines):
+        """
+        """
+
+    def mission_destroy(self, lines):
         """
         """
