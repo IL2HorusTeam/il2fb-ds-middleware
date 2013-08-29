@@ -10,7 +10,9 @@ from il2ds_middleware.constants import (DEVICE_LINK_OPCODE,
     DEVICE_LINK_PREFIXES, DEVICE_LINK_CMD_SEPARATOR as DL_CMD_SEP,
     DEVICE_LINK_ARGS_SEPARATOR as DL_ARGS_SEP,
     REQUEST_TIMEOUT, REQUEST_MISSION_LOAD_TIMEOUT, )
-
+from il2ds_middleware.requests import (
+    REQ_SERVER_INFO, REQ_MISSION_STATUS, REQ_MISSION_LOAD, REQ_MISSION_BEGIN,
+    REQ_MISSION_END, REQ_MISSION_DESTROY, )
 
 class ConsoleClientProtocol(LineOnlyReceiver):
 
@@ -127,39 +129,39 @@ class ConsoleClientFactory(ClientFactory):
                 d.callback(results)
 
     def server_info(self):
-        d = self._send_request("server")
+        d = self._send_request(REQ_SERVER_INFO)
         if self._parser:
             d.addCallback(self._parser.server_info)
         return d
 
     def mission_status(self):
-        d = self._send_request("mission")
+        d = self._send_request(REQ_MISSION_STATUS)
         if self._parser:
             d.addCallback(self._parser.mission_status)
         return d
 
     def mission_load(self, mission):
         d = self._send_request(
-            "mission LOAD {0}".format(mission), REQUEST_MISSION_LOAD_TIMEOUT)
+            REQ_MISSION_LOAD.format(mission), REQUEST_MISSION_LOAD_TIMEOUT)
         if self._parser:
             d.addCallback(self._parser.mission_load)
         return d
 
     def mission_begin(self):
-        d = self._send_request("mission BEGIN")
+        d = self._send_request(REQ_MISSION_BEGIN)
         if self._parser:
             d.addCallback(self._parser.mission_begin)
         return d
 
     def mission_end(self):
-        d = self._send_request("mission END")
+        d = self._send_request(REQ_MISSION_END)
         d.addCallback(lambda _: self.mission_status())
         if self._parser:
             d.addCallback(self._parser.mission_end)
         return d
 
     def mission_destroy(self):
-        d = self._send_request("mission DESTROY")
+        d = self._send_request(REQ_MISSION_DESTROY)
         d.addCallback(lambda _: self.mission_status())
         if self._parser:
             d.addCallback(self._parser.mission_destroy)
