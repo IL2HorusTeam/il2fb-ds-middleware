@@ -3,10 +3,10 @@
 from twisted.internet.defer import Deferred
 
 from il2ds_middleware.protocol import DEVICE_LINK_OPCODE as OPCODE
-from il2ds_middleware.ds_emulator.tests.base import BaseTestCase
+from il2ds_middleware.ds_emulator.tests.base import BaseEmulatorTestCase
 
 
-class DeviceLinkTestCase(BaseTestCase):
+class DeviceLinkTestCase(BaseEmulatorTestCase):
 
     def test_wrong_format(self):
         d = Deferred()

@@ -26,15 +26,19 @@ class ConsoleClientFactory(ClientFactory):
 
     def __init__(self):
         self.clients = []
-        self.on_connection_made = Deferred()
+        self.on_connecting = Deferred()
         self.on_connection_lost = Deferred()
 
     def client_joined(self, client):
-        self.on_connection_made.callback(client)
+        if self.on_connecting:
+            d, self.on_connecting = self.on_connecting, None
+            d.callback(client)
         self.clients.append(client)
 
     def client_left(self, client):
-        self.on_connection_lost.callback(client)
+        if self.on_connection_lost:
+            d, self.on_connection_lost = self.on_connection_lost, None
+            d.callback(client)
         self.clients.remove(client)
 
     def got_line(self, line):

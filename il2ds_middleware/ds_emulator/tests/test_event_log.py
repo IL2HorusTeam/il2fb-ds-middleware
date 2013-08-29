@@ -4,15 +4,15 @@ import tempfile
 
 from twisted.internet.defer import Deferred
 
-from il2ds_middleware.ds_emulator.tests.base import BaseTestCase
+from il2ds_middleware.ds_emulator.tests.base import BaseEmulatorTestCase
 
 
-class EventLogTestCase(BaseTestCase):
+class EventLogTestCase(BaseEmulatorTestCase):
 
     def setUp(self):
         self.timeout_value = 0.5
         self.log_path = tempfile.mktemp()
-        return BaseTestCase.setUp(self)
+        return super(EventLogTestCase, self).setUp()
 
     def test_event_log(self):
         pilots = self.service.getServiceNamed('pilots')

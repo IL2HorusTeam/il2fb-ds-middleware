@@ -3,10 +3,10 @@
 from twisted.internet import defer
 from twisted.internet import error
 
-from il2ds_middleware.tests.base import BaseTestCase
+from il2ds_middleware.tests.base import BaseMiddlewareTestCase
 
 
-class ConsoleClientFactoryConnectionFailTestCase(BaseTestCase):
+class ConsoleClientFactoryConnectionFailTestCase(BaseMiddlewareTestCase):
 
     console_server_port = 20000
     device_link_server_port = 10000
@@ -32,7 +32,7 @@ class ConsoleClientFactoryConnectionFailTestCase(BaseTestCase):
         return self.device_link_server_host, self.device_link_server_port+1
 
 
-class ConsoleClientFactoryTestCase(BaseTestCase):
+class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
 
     def test_connection(self):
         self.assertTrue(self.console_client_connector)

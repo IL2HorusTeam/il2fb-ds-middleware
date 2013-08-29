@@ -2,7 +2,7 @@
 
 from twisted.internet import defer
 
-from il2ds_middleware.ds_emulator.tests.base import BaseTestCase
+from il2ds_middleware.ds_emulator.tests.base import BaseEmulatorTestCase
 
 
 def expected_join_responses(channel, callsign, ip, port):
@@ -45,7 +45,7 @@ def expected_load_responses(path):
         "Mission: {0} is Loaded\\n".format(path)]
 
 
-class CommonsTestCase(BaseTestCase):
+class CommonsTestCase(BaseEmulatorTestCase):
 
     def test_connect(self):
         self.assertEqual(len(self.console_server_factory.clients), 1)
@@ -54,7 +54,7 @@ class CommonsTestCase(BaseTestCase):
         self.console_server_factory.on_connection_lost.addBoth(
             lambda _: self.assertEqual(
                 len(self.console_server_factory.clients), 0))
-        self.console_client_port.disconnect()
+        self.console_client_connector.disconnect()
 
     def test_receive_line(self):
         d = defer.Deferred()
@@ -102,7 +102,7 @@ class CommonsTestCase(BaseTestCase):
         return do_test()
 
 
-class PilotsTestCase(BaseTestCase):
+class PilotsTestCase(BaseEmulatorTestCase):
 
     def setUp(self):
         r = super(PilotsTestCase, self).setUp()
@@ -169,7 +169,7 @@ class PilotsTestCase(BaseTestCase):
         return d
 
 
-class MissionsTestCase(BaseTestCase):
+class MissionsTestCase(BaseEmulatorTestCase):
 
     def setUp(self):
         r = super(MissionsTestCase, self).setUp()
