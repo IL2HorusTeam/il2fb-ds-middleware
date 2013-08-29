@@ -130,3 +130,6 @@ class ConsoleClientFactoryTestCase(BaseTestCase):
             d1.addCallbacks(callback, errback),
             d2.addCallbacks(callback, errback),
         ])
+
+    def test_send(self):
+        return self.console_client_factory._send("test")

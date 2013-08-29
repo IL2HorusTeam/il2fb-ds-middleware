@@ -23,8 +23,7 @@ class ConsoleClientProtocol(LineOnlyReceiver):
             return
         if line.startswith("<consoleN><"):
             return
-        self.factory.got_line(
-            line.replace("\\n", '').replace("\\u0020", ' '))
+        self.factory.got_line(line.replace("\\n", '').replace("\\u0020", ' '))
 
 
 class ConsoleClientFactory(ClientFactory):
