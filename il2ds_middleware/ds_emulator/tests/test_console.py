@@ -45,7 +45,7 @@ def expected_load_responses(path):
         "Mission: {0} is Loaded\\n".format(path)]
 
 
-class TestConnection(BaseTestCase):
+class CommonsTestCase(BaseTestCase):
 
     def test_connect(self):
         self.assertEqual(len(self.console_server_factory.clients), 1)
@@ -72,17 +72,46 @@ class TestConnection(BaseTestCase):
         self.console_message("abracadabracadabr")
         return d
 
+    def test_server_info(self):
 
-class TestPilots(BaseTestCase):
+        def do_test():
+            responses =[
+                "Type: Local server\\n",
+                "Name: Server\\n",
+                "Description: \\n",]
+            d = defer.Deferred()
+            self.console_client_factory.receiver = \
+                self._get_expecting_line_receiver(responses, d)
+            d.addCallback(change_info)
+            self.console_message("server")
+            return d
+
+        def change_info(_):
+            self.service.set_server_info(
+                "Test server", "This is a server emulator")
+            responses =[
+                "Type: Local server\\n",
+                "Name: Test server\\n",
+                "Description: This is a server emulator\\n",]
+            d = defer.Deferred()
+            self.console_client_factory.receiver = \
+                self._get_expecting_line_receiver(responses, d)
+            self.console_message("server")
+            return d
+
+        return do_test()
+
+
+class PilotsTestCase(BaseTestCase):
 
     def setUp(self):
-        r = super(TestPilots, self).setUp()
+        r = super(PilotsTestCase, self).setUp()
         self.srvc = self.service.getServiceNamed('pilots')
         return r
 
     def tearDown(self):
         self.srvc = None
-        return super(TestPilots, self).tearDown()
+        return super(PilotsTestCase, self).tearDown()
 
     def _get_pilots_count_checker(self, expected_count):
         def check(_):
@@ -96,9 +125,9 @@ class TestPilots(BaseTestCase):
             3, "user1", "192.168.1.3", self.srvc.port))
 
         d = defer.Deferred()
-        d.addCallback(self._get_pilots_count_checker(2))
         self.console_client_factory.receiver = \
             self._get_expecting_line_receiver(responses, d)
+        d.addCallback(self._get_pilots_count_checker(2))
 
         self.srvc.join("user0", "192.168.1.2")
         self.srvc.join("user1", "192.168.1.3")
@@ -113,9 +142,9 @@ class TestPilots(BaseTestCase):
             1, "user0", "192.168.1.2", self.srvc.port))
 
         d = defer.Deferred()
-        d.addCallback(self._get_pilots_count_checker(1))
         self.console_client_factory.receiver = \
             self._get_expecting_line_receiver(responses, d)
+        d.addCallback(self._get_pilots_count_checker(1))
         self.srvc.join("user0", "192.168.1.2")
         self.srvc.join("user1", "192.168.1.3")
         self.srvc.leave("user0")
@@ -131,25 +160,25 @@ class TestPilots(BaseTestCase):
             1, "user0", "192.168.1.2", self.srvc.port))
 
         d = defer.Deferred()
-        d.addCallback(self._get_pilots_count_checker(1))
         self.console_client_factory.receiver = \
             self._get_expecting_line_receiver(responses, d)
+        d.addCallback(self._get_pilots_count_checker(1))
         self.srvc.join("user0", "192.168.1.2")
         self.srvc.join("user1", "192.168.1.3")
         self.console_message("kick user0")
         return d
 
 
-class TestMissions(BaseTestCase):
+class MissionsTestCase(BaseTestCase):
 
     def setUp(self):
-        r = super(TestMissions, self).setUp()
+        r = super(MissionsTestCase, self).setUp()
         self.srvc = self.service.getServiceNamed('missions')
         return r
 
     def tearDown(self):
         self.srvc = None
-        return super(TestMissions, self).tearDown()
+        return super(MissionsTestCase, self).tearDown()
 
     def test_no_mission(self):
         d = defer.Deferred()

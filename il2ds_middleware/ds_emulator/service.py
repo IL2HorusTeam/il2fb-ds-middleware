@@ -41,6 +41,7 @@ class RootService(MultiService, _CommonServiceMixin):
         MultiService.__init__(self)
         self.broadcaster = broadcaster
         self.evt_log = EventLoggingService(log_path)
+        self.set_server_info()
         self._init_children()
 
     def _init_children(self):
@@ -77,9 +78,32 @@ class RootService(MultiService, _CommonServiceMixin):
             result = service.parse_line(line)
             if result:
                 break
-        if not result:
+        if not result and not self._parse(line):
             self.broadcast_line("Command not found: " + line)
         return self._autopropagate(result)
+
+    def _parse(self, line):
+        while True:
+            if line == 'server':
+                self._server_info()
+                break
+            return False
+        return True
+
+    def _server_info(self):
+        response = [
+            "Type: Local server",
+            "Name: {0}".format(self.info['name'] or "Server"),
+            "Description: {0}".format(self.info['description'] or ""),
+        ]
+        for line in response:
+            self.broadcast_line(line)
+
+    def set_server_info(self, name="", description=""):
+        self.info = {
+            'name': name,
+            'description': description,
+        }
 
 
 @implementer(IPilotService)

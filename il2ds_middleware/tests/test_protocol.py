@@ -85,3 +85,15 @@ class ConsoleClientFactoryTestCase(BaseTestCase):
                 response[0], "Mission: net/dogfight/test.mis is Playing")
 
         return do_test()
+
+    def test_server_info(self):
+
+        def callback(response):
+            self.assertIsInstance(response, list)
+            self.assertEqual(len(response), 3)
+            self.assertEqual(response[0], "Type: Local server")
+            self.assertEqual(response[1], "Name: Server")
+            self.assertEqual(response[2], "Description: ")
+
+        d = self.console_client_factory.server_info()
+        return d.addCallback(callback)
