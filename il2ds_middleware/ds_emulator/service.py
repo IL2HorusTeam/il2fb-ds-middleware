@@ -43,6 +43,7 @@ class RootService(MultiService, _CommonServiceMixin):
         MultiService.__init__(self)
         self.broadcaster = broadcaster
         self.evt_log = EventLoggingService(log_path)
+        self.user_command_id = 0
         self.set_server_info()
         self._init_children()
 
@@ -113,6 +114,13 @@ class RootService(MultiService, _CommonServiceMixin):
             'name': name,
             'description': description,
         }
+
+    def manual_input(self, line):
+        self.broadcast_line(line)
+        self.parse_line(line)
+
+        self.user_command_id += 1
+        self.broadcast_line("<consoleN><{0}>".format(self.user_command_id))
 
 
 @implementer(IPilotService)

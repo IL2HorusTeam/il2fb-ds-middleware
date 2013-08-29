@@ -133,3 +133,24 @@ class ConsoleClientFactoryTestCase(BaseTestCase):
 
     def test_send(self):
         return self.console_client_factory._send("test")
+
+    def test_manual_input(self):
+
+        def do_test():
+            results = [
+                "mission",
+                "Mission NOT loaded",
+            ]
+            d = defer.Deferred()
+            self._set_console_expecting_receiver(results, d)
+            self.service.manual_input("mission")
+            return d.addCallback(wait_a_bit)
+
+        def wait_a_bit(_):
+            """Wait to receive <consoleN><0>"""
+            d = defer.Deferred()
+            from twisted.internet import reactor
+            reactor.callLater(0.05, d.callback, None)
+            return d
+
+        return do_test()

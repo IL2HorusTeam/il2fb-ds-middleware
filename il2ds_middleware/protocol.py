@@ -17,10 +17,6 @@ class ConsoleClientProtocol(LineOnlyReceiver):
         self.factory.clientConnectionMade()
 
     def lineReceived(self, line):
-        if line == '' or line == "exit\\n":
-            log.err("Game server is shutting down")
-            self.transport.loseConnection()
-            return
         if line.startswith("<consoleN><"):
             return
         self.factory.got_line(line.replace("\\n", '').replace("\\u0020", ' '))

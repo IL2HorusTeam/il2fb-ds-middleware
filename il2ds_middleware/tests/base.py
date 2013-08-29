@@ -16,6 +16,7 @@ class BaseTestCase(TestCase):
     console_server_port = 0
     device_link_server_host = "127.0.0.1"
     device_link_server_port = 0
+    timeout_value = 0.05
 
     def setUp(self):
         self._listen_server()
@@ -77,6 +78,36 @@ class BaseTestCase(TestCase):
                 self.console_server_factory.on_connection_lost, ])
             self.console_client_connector.disconnect()
         return defer.gatherResults(dlist)
+
+    def _get_expecting_line_receiver(self, expected_lines, d):
+
+        def got_line(line):
+            try:
+                self.assertEqual(line, expected_lines.pop(0))
+            except Exception as e:
+                timeout.cancel()
+                d.errback(e)
+            else:
+                if expected_lines:
+                    return
+                timeout.cancel()
+                d.callback(None)
+
+        def on_timeout(_):
+            from twisted.trial.unittest import FailTest
+            d.errback(FailTest(
+                'Timed out, remaining lines:\n\t'+'\n\t'.join(expected_lines)))
+
+        timeout = self._make_timeout(on_timeout)
+        return got_line
+
+    def _make_timeout(self, callback):
+        from twisted.internet import reactor
+        return reactor.callLater(self.timeout_value, callback, None)
+
+    def _set_console_expecting_receiver(self, expected_lines, d):
+        self.console_client_factory.got_line = \
+            self._get_expecting_line_receiver(expected_lines, d)
 
     @property
     def console_client_host_for_client(self):
