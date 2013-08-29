@@ -101,10 +101,32 @@ class ConsoleClientFactoryTestCase(BaseTestCase):
     def test_long_operation(self):
 
         def callback(_):
-            self.fail()
+            self.fail("Error was expected")
 
         def errback(err):
             self.assertIsInstance(err.value, defer.TimeoutError)
 
         d = self.console_client_factory._send_request("horus long operation")
         return d.addCallbacks(callback, errback)
+
+    def test_sending_line_error(self):
+
+        class FakeError(Exception):
+            pass
+
+        def fake_sendLine(line):
+            raise FakeError
+
+        def callback(_):
+            self.fail("Error was expected")
+
+        def errback(err):
+            self.assertIsInstance(err.value, FakeError)
+
+        self.console_client_factory._client.sendLine = fake_sendLine
+        d1 = self.console_client_factory._send_request("test")
+        d2 = self.console_client_factory._send("test")
+        return defer.gatherResults([
+            d1.addCallbacks(callback, errback),
+            d2.addCallbacks(callback, errback),
+        ])
