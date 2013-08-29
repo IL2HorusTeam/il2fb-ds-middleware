@@ -111,11 +111,13 @@ class ConsoleClientFactory(ClientFactory):
     def _process_responce_id(self, line):
         try:
             rid = int(line.split('|')[1])
-        except Exception as e:
-            log.err("Could not get rid value from \"{0}\"".format(line))
+        except IndexError:
+            log.err("RID format is malformed in \"{0}\"".format(line))
+        except ValueError:
+            log.err("Could not get RID value from \"{0}\"".format(line))
         else:
             if rid not in self._requests:
-                log.err("Unexpected rid: {0}".format(rid))
+                log.err("Unexpected RID: {0}".format(rid))
                 return
             if self._responce_id is None:
                 # start request processing

@@ -38,7 +38,11 @@ class ConsoleClientFactoryTestCase(BaseTestCase):
         self.assertTrue(self.console_client_connector)
 
     def test_wrong_rid(self):
-        return self.console_client_factory._send("rid|0")
+        self.console_client_factory._process_responce_id("rid|0")
+
+    def test_malformed_rid(self):
+        self.console_client_factory._process_responce_id("rid/smth")
+        self.console_client_factory._process_responce_id("rid|smth")
 
     def test_mission_status(self):
 
