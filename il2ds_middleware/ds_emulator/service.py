@@ -37,6 +37,8 @@ class RootService(MultiService, _CommonServiceMixin):
     """
     Top-level service.
     """
+    long_operation_duration = 0.2
+
     def __init__(self, broadcaster, log_path=None):
         MultiService.__init__(self)
         self.broadcaster = broadcaster
@@ -87,6 +89,9 @@ class RootService(MultiService, _CommonServiceMixin):
             if line == 'server':
                 self._server_info()
                 break
+            if line == 'horus long operation':
+                self._long_operation()
+                break
             return False
         return True
 
@@ -98,6 +103,10 @@ class RootService(MultiService, _CommonServiceMixin):
         ]
         for line in response:
             self.broadcast_line(line)
+
+    def _long_operation(self):
+        import time
+        time.sleep(self.long_operation_duration)
 
     def set_server_info(self, name="", description=""):
         self.info = {

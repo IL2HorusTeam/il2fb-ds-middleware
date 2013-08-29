@@ -97,3 +97,14 @@ class ConsoleClientFactoryTestCase(BaseTestCase):
 
         d = self.console_client_factory.server_info()
         return d.addCallback(callback)
+
+    def test_long_operation(self):
+
+        def callback(_):
+            self.fail()
+
+        def errback(err):
+            self.assertIsInstance(err.value, defer.TimeoutError)
+
+        d = self.console_client_factory._send_request("horus long operation")
+        return d.addCallbacks(callback, errback)
