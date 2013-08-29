@@ -8,7 +8,8 @@ from twisted.python import log
 
 from il2ds_middleware.constants import (DEVICE_LINK_OPCODE,
     DEVICE_LINK_PREFIXES, DEVICE_LINK_CMD_SEPARATOR as DL_CMD_SEP,
-    DEVICE_LINK_ARGS_SEPARATOR as DL_ARGS_SEP, )
+    DEVICE_LINK_ARGS_SEPARATOR as DL_ARGS_SEP,
+    REQUEST_TIMEOUT, REQUEST_MISSION_LOAD_TIMEOUT, )
 
 
 class ConsoleClientProtocol(LineOnlyReceiver):
@@ -25,7 +26,6 @@ class ConsoleClientProtocol(LineOnlyReceiver):
 class ConsoleClientFactory(ClientFactory):
 
     protocol = ConsoleClientProtocol
-    request_timeout = 0.1
 
     def __init__(self, parser=None):
         self._parser = parser
@@ -71,7 +71,7 @@ class ConsoleClientFactory(ClientFactory):
         else:
             return defer.succeed(None)
 
-    def _send_request(self, request):
+    def _send_request(self, request, timeout_value=None):
         rid = self._generate_request_id()
         d = defer.Deferred()
 
@@ -80,7 +80,8 @@ class ConsoleClientFactory(ClientFactory):
             defer.timeout(d)
 
         from twisted.internet import reactor
-        timeout = reactor.callLater(self.request_timeout, on_timeout, None)
+        timeout = reactor.callLater(
+            timeout_value or REQUEST_TIMEOUT, on_timeout, None)
 
         self._requests[rid] = ([], d, timeout)
         wrapper = "rid|{0}".format(rid)
@@ -138,7 +139,8 @@ class ConsoleClientFactory(ClientFactory):
         return d
 
     def mission_load(self, mission):
-        d = self._send_request("mission LOAD {0}".format(mission))
+        d = self._send_request(
+            "mission LOAD {0}".format(mission), REQUEST_MISSION_LOAD_TIMEOUT)
         if self._parser:
             d.addCallback(self._parser.mission_load)
         return d
@@ -149,6 +151,19 @@ class ConsoleClientFactory(ClientFactory):
             d.addCallback(self._parser.mission_begin)
         return d
 
+    def mission_end(self):
+        d = self._send_request("mission END")
+        d.addCallback(lambda _: self.mission_status())
+        if self._parser:
+            d.addCallback(self._parser.mission_end)
+        return d
+
+    def mission_destroy(self):
+        d = self._send_request("mission DESTROY")
+        d.addCallback(lambda _: self.mission_status())
+        if self._parser:
+            d.addCallback(self._parser.mission_destroy)
+        return d
 
 class DeviceLinkProtocol(DatagramProtocol):
 

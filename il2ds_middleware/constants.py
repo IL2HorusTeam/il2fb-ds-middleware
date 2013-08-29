@@ -60,3 +60,6 @@ class OBJECT_STATE(Names):
     """
     ALIVE = NamedConstant()
     DESTROYED = NamedConstant()
+
+REQUEST_TIMEOUT = 0.1
+REQUEST_MISSION_LOAD_TIMEOUT = 30

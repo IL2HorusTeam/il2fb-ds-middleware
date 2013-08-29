@@ -145,7 +145,7 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
     def test_mission_load(self):
 
         def callback(response):
-            self.assertIsInstance(results, list)
+            self.assertIsInstance(response, list)
             obligatory_responses = [
                 "Loading mission net/dogfight/test.mis...",
                 "Load bridges",
@@ -164,9 +164,9 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
         def do_test():
             d = self.console_client_factory.mission_load(
                 "net/dogfight/test.mis")
-            return d.addCallback(do_load)
+            return d.addCallback(do_begin)
 
-        def do_load(_):
+        def do_begin(_):
             d = self.console_client_factory.mission_begin()
             return d.addCallback(callback)
 
@@ -175,5 +175,50 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
             self.assertEqual(len(response), 1)
             self.assertEqual(
                 response[0], "Mission: net/dogfight/test.mis is Playing")
+
+        return do_test()
+
+    def test_mission_end(self):
+
+        def do_test():
+            d = self.console_client_factory.mission_load(
+                "net/dogfight/test.mis")
+            return d.addCallback(do_begin)
+
+        def do_begin(_):
+            d = self.console_client_factory.mission_begin()
+            return d.addCallback(do_end)
+
+        def do_end(_):
+            d = self.console_client_factory.mission_end()
+            return d.addCallback(callback)
+
+        def callback(response):
+            self.assertIsInstance(response, list)
+            self.assertEqual(len(response), 1)
+            self.assertEqual(
+                response[0], "Mission: net/dogfight/test.mis is Loaded")
+
+        return do_test()
+
+    def test_mission_destroy(self):
+
+        def do_test():
+            d = self.console_client_factory.mission_load(
+                "net/dogfight/test.mis")
+            return d.addCallback(do_begin)
+
+        def do_begin(_):
+            d = self.console_client_factory.mission_begin()
+            return d.addCallback(do_destroy)
+
+        def do_destroy(_):
+            d = self.console_client_factory.mission_destroy()
+            return d.addCallback(callback)
+
+        def callback(response):
+            self.assertIsInstance(response, list)
+            self.assertEqual(len(response), 1)
+            self.assertEqual(response[0], "Mission NOT loaded")
 
         return do_test()
