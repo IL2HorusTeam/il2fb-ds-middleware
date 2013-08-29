@@ -137,6 +137,12 @@ class ConsoleClientFactory(ClientFactory):
             d.addCallback(self._parser.mission_status)
         return d
 
+    def mission_load(self, mission):
+        d = self._send_request("mission LOAD {0}".format(mission))
+        if self._parser:
+            d.addCallback(self._parser.mission_status)
+        return d
+
 
 class DeviceLinkProtocol(DatagramProtocol):
 

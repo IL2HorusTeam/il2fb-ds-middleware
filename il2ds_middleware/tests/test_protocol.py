@@ -154,3 +154,19 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
             return d
 
         return do_test()
+
+    def test_mission_load(self):
+
+        def callback(response):
+            obligatory_responses = [
+                "Loading mission net/dogfight/test.mis...",
+                "Load bridges",
+                "Load static objects",
+                "Mission: net/dogfight/test.mis is Loaded",
+            ]
+            for obligatory_response in obligatory_responses:
+                self.assertIn(obligatory_response, response)
+                self.assertEqual(response.count(obligatory_response), 1)
+
+        d = self.console_client_factory.mission_load("net/dogfight/test.mis")
+        return d.addCallback(callback)
