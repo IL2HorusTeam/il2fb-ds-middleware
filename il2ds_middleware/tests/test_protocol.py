@@ -8,8 +8,8 @@ from il2ds_middleware.tests.base import BaseMiddlewareTestCase
 
 class ConsoleClientFactoryConnectionFailTestCase(BaseMiddlewareTestCase):
 
-    console_server_port = 20000
-    device_link_server_port = 10000
+    console_server_port = 20001
+    device_link_server_port = 10001
 
     def setUp(self):
 
@@ -101,25 +101,6 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
     def test_long_operation(self):
         d = self.console_client_factory._send_request("horus long operation")
         return self.assertFailure(d, defer.TimeoutError)
-
-    def test_sending_line_error(self):
-
-        class FakeError(Exception):
-            pass
-
-        def fake_sendLine(line):
-            raise FakeError
-
-        self.console_client_factory._client.sendLine = fake_sendLine
-
-        d1 = self.console_client_factory._send_request("test")
-        self.assertFailure(d1, FakeError)
-
-        d2 = self.console_client_factory._send("test")
-        self.assertFailure(d2, FakeError)
-
-    def test_send(self):
-        return self.console_client_factory._send("test")
 
     def test_manual_input(self):
 
@@ -222,3 +203,121 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
             self.assertEqual(response[0], "Mission NOT loaded")
 
         return do_test()
+
+
+class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
+
+    def setUp(self):
+        d = BaseMiddlewareTestCase.setUp(self)
+        self.pilots = self.service.getServiceNamed('pilots')
+        self.static = self.service.getServiceNamed('static')
+        return d
+
+    def _spawn_pilots(self):
+        for i in xrange(2, 255):
+            callsign = "user{0}".format(i-2)
+            self.pilots.join(callsign, "192.168.1.{0}".format(i))
+            self.pilots.spawn(callsign, pos={
+                'x': i*100, 'y': 0, 'z': 0, })
+
+    def _spawn_static(self):
+        for i in xrange(10000):
+            self.static.spawn("{0}_Static".format(i), pos={
+                'x': i*100, 'y': 0, 'z': 0, })
+
+    def test_pilot_count(self):
+
+        def on_count(response):
+            self.assertIsInstance(response, list)
+            self.assertEqual(len(response), 1)
+            self.assertEqual(response[0], '0')
+            self._spawn_pilots()
+            return self.dl_client.refresh_radar().addCallback(
+                lambda _: self.dl_client.pilot_count().addCallback(
+                    on_recount))
+
+        def on_recount(response):
+            self.assertIsInstance(response, list)
+            self.assertEqual(len(response), 1)
+            self.assertEqual(response[0], '253')
+
+        return self.dl_client.pilot_count().addCallback(on_count)
+
+    def test_pilot_pos(self):
+
+        def on_pos(response):
+            self.assertIsInstance(response, list)
+            self.assertEqual(len(response), 1)
+            self.assertEqual(response[0], '0:user0;100;200;300')
+
+        self.pilots.join("user0", "192.168.1.{0}")
+        self.pilots.spawn("user0", pos={
+            'x': 100, 'y': 200, 'z': 300, })
+        return self.dl_client.refresh_radar().addCallback(
+            lambda _: self.dl_client.pilot_pos(0).addCallback(
+                on_pos))
+
+    def test_all_pilots_pos(self):
+
+        def on_pos(response):
+            self.assertIsInstance(response, list)
+            self.assertEqual(len(response), 253)
+            checked = []
+            for x in response:
+                s = x[0]
+                idx = int(s[s.index('user')+4:s.index(';')])
+                self.assertNotIn(idx, checked)
+                checked.append(idx)
+
+        self._spawn_pilots()
+        return self.dl_client.refresh_radar().addCallback(
+            lambda _: self.dl_client.all_pilots_pos().addCallback(
+                on_pos))
+
+    def test_static_count(self):
+
+        def on_count(response):
+            self.assertIsInstance(response, list)
+            self.assertEqual(len(response), 1)
+            self.assertEqual(response[0], '0')
+            self._spawn_static()
+            return self.dl_client.refresh_radar().addCallback(
+                lambda _: self.dl_client.static_count().addCallback(
+                    on_recount))
+
+        def on_recount(response):
+            self.assertIsInstance(response, list)
+            self.assertEqual(len(response), 1)
+            self.assertEqual(response[0], '10000')
+
+        return self.dl_client.static_count().addCallback(on_count)
+
+    def test_static_pos(self):
+
+        def on_pos(response):
+            self.assertIsInstance(response, list)
+            self.assertEqual(len(response), 1)
+            self.assertEqual(response[0], '0:0_Static;100;200;300')
+
+        self.static.spawn("0_Static", pos={
+            'x': 100, 'y': 200, 'z': 300, })
+        return self.dl_client.refresh_radar().addCallback(
+            lambda _: self.dl_client.static_pos(0).addCallback(
+                on_pos))
+
+    def test_all_static_pos(self):
+
+        def on_pos(response):
+            self.assertIsInstance(response, list)
+            self.assertEqual(len(response), 10000)
+            checked = []
+            for x in response:
+                s = x[0]
+                idx = int(s[s.index(':')+1:s.index('_')])
+                self.assertNotIn(idx, checked)
+                checked.append(idx)
+
+        self._spawn_static()
+        return self.dl_client.refresh_radar().addCallback(
+            lambda _: self.dl_client.all_static_pos().addCallback(
+                on_pos))

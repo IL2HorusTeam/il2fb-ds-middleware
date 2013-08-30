@@ -6,9 +6,9 @@ from twisted.internet.protocol import (ClientFactory, DatagramProtocol, )
 from twisted.protocols.basic import LineOnlyReceiver
 from twisted.python import log
 
-from il2ds_middleware.constants import (DEVICE_LINK_OPCODE,
+from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as DL_OPCODE,
     DEVICE_LINK_PREFIXES, DEVICE_LINK_CMD_SEPARATOR as DL_CMD_SEP,
-    DEVICE_LINK_ARGS_SEPARATOR as DL_ARGS_SEP,
+    DEVICE_LINK_ARGS_SEPARATOR as DL_ARGS_SEP, DEVICE_LINK_CMD_GROUP_MAX_SIZE,
     REQUEST_TIMEOUT, REQUEST_MISSION_LOAD_TIMEOUT, )
 from il2ds_middleware.requests import (
     REQ_SERVER_INFO, REQ_MISSION_STATUS, REQ_MISSION_LOAD, REQ_MISSION_BEGIN,
@@ -65,17 +65,8 @@ class ConsoleClientFactory(ClientFactory):
         self._request_id += 1
         return self._request_id
 
-    def _send(self, data):
-        try:
-            self._client.sendLine(data)
-        except Exception as e:
-            return defer.fail(e)
-        else:
-            return defer.succeed(None)
-
-    def _send_request(self, request, timeout_value=None):
+    def _make_request(self, d, timeout_value):
         rid = self._generate_request_id()
-        d = defer.Deferred()
 
         def on_timeout(_):
             del self._requests[rid]
@@ -84,19 +75,18 @@ class ConsoleClientFactory(ClientFactory):
         from twisted.internet import reactor
         timeout = reactor.callLater(
             timeout_value or REQUEST_TIMEOUT, on_timeout, None)
+        return rid, ([], d, timeout, )
 
-        self._requests[rid] = ([], d, timeout)
+    def _send_request(self, data, timeout_value=None):
+        d = defer.Deferred()
+        rid, request = self._make_request(d, timeout_value)
+        self._requests[rid] = request
+
         wrapper = "rid|{0}".format(rid)
-        try:
-            self._client.sendLine(wrapper)
-            self._client.sendLine(request)
-            self._client.sendLine(wrapper)
-        except Exception as e:
-            timeout.cancel()
-            del self._requests[rid]
-            return defer.fail(e)
-        else:
-            return d
+        self._client.sendLine(wrapper)
+        self._client.sendLine(data)
+        self._client.sendLine(wrapper)
+        return d
 
     def got_line(self, line):
         if line.startswith("Command not found: rid"):
@@ -228,3 +218,127 @@ class DeviceLinkProtocol(DatagramProtocol):
                 chunk.extend([str(_) for _ in raw_args])
             chunks.append(DL_ARGS_SEP.join(chunk))
         return DL_CMD_SEP.join(chunks)
+
+
+class DeviceLinkClientProtocol(DeviceLinkProtocol):
+
+    cmd_group_max_size = DEVICE_LINK_CMD_GROUP_MAX_SIZE
+
+    def __init__(self, address):
+        DeviceLinkProtocol.__init__(self, address)
+        # [ (opcode, deferred, timeout) ]
+        self._requests = []
+
+    def answers_received(self, answers, address):
+        if address != self.address:
+            log.err("Got answer from unknown peer {0}: {1}".format(
+                address, answers))
+            return
+        for answer in answers:
+            self._answer_received(answer)
+
+    def _answer_received(self, answer):
+        for request in self._requests:
+            opcode, d, timeout = request
+            if opcode != answer['command']:
+                continue
+            timeout.cancel()
+            self._requests.remove(request)
+            d.callback(answer['args'])
+            break
+
+    def _make_request(self, command, d, timeout_value=None):
+
+        def on_timeout(_):
+            self._requests.remove(request)
+            defer.timeout(d)
+
+        from twisted.internet import reactor
+        timeout = reactor.callLater(
+            timeout_value or REQUEST_TIMEOUT, on_timeout, None)
+        request = (command['command'], d, timeout, )
+        return request
+
+    def _deferred_request(self, command, timeout_value=None):
+        d = defer.Deferred()
+        self._requests.append(
+            self._make_request(command, d, timeout_value))
+        self.send_request(command)
+        return d
+
+    def _deferred_requests_iterator(self, commands):
+        step = self.cmd_group_max_size
+        count = len(commands)
+        for i in xrange((count/step)+1):
+            start = i*step
+            yield commands[start:start+min((count-start), step)]
+
+    def _deferred_requests_group(self, iterator, timeout_value=None):
+        try:
+            group = iterator.next()
+        except StopIteration:
+            return defer.succeed(None)
+        else:
+            dlist = []
+            for cmd in group:
+                d = defer.Deferred()
+                self._requests.append(
+                    self._make_request(cmd, d, timeout_value))
+                dlist.append(d)
+            self.send_requests(group)
+            return defer.gatherResults(dlist)
+
+    def _deferred_requests(self, commands, timeout_value=None):
+        """
+        Send requests in portions. Each next portion is send after result
+        of the previous one was received. All results are collected in one
+        place and are returned if there no requests has left.
+        """
+        all_results = []
+        iterator = self._deferred_requests_iterator(commands)
+
+        def on_results(results):
+            if results:
+                all_results.extend(results)
+                return do_next()
+            else:
+                return all_results
+
+        def do_next():
+            return self._deferred_requests_group(
+                iterator, timeout_value).addCallback(on_results)
+
+        return do_next()
+
+    def refresh_radar(self):
+        self.send_request(DL_OPCODE.RADAR_REFRESH.make_command())
+        return defer.succeed(None)
+
+    def pilot_count(self):
+        return self._deferred_request(DL_OPCODE.PILOT_COUNT.make_command())
+
+    def pilot_pos(self, index):
+        return self._deferred_request(DL_OPCODE.PILOT_POS.make_command(index))
+
+    def all_pilots_pos(self):
+        return self._all_pos(self.pilot_count, DL_OPCODE.PILOT_POS)
+
+    def static_count(self):
+        return self._deferred_request(DL_OPCODE.STATIC_COUNT.make_command())
+
+    def static_pos(self, index):
+        return self._deferred_request(DL_OPCODE.STATIC_POS.make_command(index))
+
+    def all_static_pos(self):
+        return self._all_pos(self.static_count, DL_OPCODE.STATIC_POS)
+
+    def _all_pos(self, get_count, pos_opcode):
+
+        def on_count(result):
+            count = int(result[0])
+            if not count:
+                return []
+            return self._deferred_requests([
+                pos_opcode.make_command(i) for i in xrange(count)])
+
+        return get_count().addCallback(on_count)
