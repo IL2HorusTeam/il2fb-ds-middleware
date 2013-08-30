@@ -17,9 +17,7 @@ class DeviceLinkTestCase(BaseEmulatorTestCase):
     def test_unknown_command(self):
         d = Deferred()
         self.dl_client.receiver = self._get_unexpecting_line_receiver(d)
-        request = {
-            'command': 'fake_command',
-        }
+        request = ('fake_command', None, )
         self.dl_client.send_request(request)
         return d
 

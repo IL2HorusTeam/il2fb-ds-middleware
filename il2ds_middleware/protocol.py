@@ -178,12 +178,8 @@ class DeviceLinkProtocol(DatagramProtocol):
         results = []
         for chunk in data.split(DL_CMD_SEP):
             command = chunk.split(DL_ARGS_SEP)
-            result = {}
-            result['command'] = command[0]
-            args = command[1:]
-            if args:
-                result['args'] = args
-            results.append(result)
+            arg = command[1:]
+            results.append((command[0], arg[0] if arg else None, ))
         return results
 
     def answers_received(self, answers, address):
@@ -212,11 +208,9 @@ class DeviceLinkProtocol(DatagramProtocol):
     def _format(self, payloads):
         chunks = []
         for payload in payloads:
-            chunk = [payload['command'], ]
-            raw_args = payload.get('args')
-            if raw_args:
-                chunk.extend([str(_) for _ in raw_args])
-            chunks.append(DL_ARGS_SEP.join(chunk))
+            cmd, arg = payload
+            chunks.append(
+                DL_ARGS_SEP.join([cmd, str(arg)]) if arg is not None else cmd)
         return DL_CMD_SEP.join(chunks)
 
 
@@ -238,13 +232,14 @@ class DeviceLinkClientProtocol(DeviceLinkProtocol):
             self._answer_received(answer)
 
     def _answer_received(self, answer):
+        cmd, arg = answer
         for request in self._requests:
             opcode, d, timeout = request
-            if opcode != answer['command']:
+            if opcode != cmd:
                 continue
             timeout.cancel()
             self._requests.remove(request)
-            d.callback(answer['args'])
+            d.callback(arg)
             break
 
     def _make_request(self, command, d, timeout_value=None):
@@ -256,7 +251,7 @@ class DeviceLinkClientProtocol(DeviceLinkProtocol):
         from twisted.internet import reactor
         timeout = reactor.callLater(
             timeout_value or REQUEST_TIMEOUT, on_timeout, None)
-        request = (command['command'], d, timeout, )
+        request = (command[0], d, timeout, )
         return request
 
     def _deferred_request(self, command, timeout_value=None):
@@ -335,7 +330,7 @@ class DeviceLinkClientProtocol(DeviceLinkProtocol):
     def _all_pos(self, get_count, pos_opcode):
 
         def on_count(result):
-            count = int(result[0])
+            count = int(result)
             if not count:
                 return []
             return self._deferred_requests([

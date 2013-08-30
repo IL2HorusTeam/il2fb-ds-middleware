@@ -6,13 +6,8 @@ from twisted.python.constants import (ValueConstant, Values, NamedConstant,
 
 class DeviceLinkValueConstant(ValueConstant):
 
-    def make_command(self, *args):
-        cmd = {
-            'command': self.value,
-        }
-        if args:
-           cmd['args'] = list(args)
-        return cmd
+    def make_command(self, arg=None):
+        return (self.value, arg, )
 
 
 class DEVICE_LINK_OPCODE(Values):

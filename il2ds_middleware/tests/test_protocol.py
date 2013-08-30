@@ -228,27 +228,24 @@ class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
     def test_pilot_count(self):
 
         def on_count(response):
-            self.assertIsInstance(response, list)
-            self.assertEqual(len(response), 1)
-            self.assertEqual(response[0], '0')
+            self.assertIsInstance(response, str)
+            self.assertEqual(response, '0')
             self._spawn_pilots()
             return self.dl_client.refresh_radar().addCallback(
                 lambda _: self.dl_client.pilot_count().addCallback(
                     on_recount))
 
         def on_recount(response):
-            self.assertIsInstance(response, list)
-            self.assertEqual(len(response), 1)
-            self.assertEqual(response[0], '253')
+            self.assertIsInstance(response, str)
+            self.assertEqual(response, '253')
 
         return self.dl_client.pilot_count().addCallback(on_count)
 
     def test_pilot_pos(self):
 
         def on_pos(response):
-            self.assertIsInstance(response, list)
-            self.assertEqual(len(response), 1)
-            self.assertEqual(response[0], '0:user0;100;200;300')
+            self.assertIsInstance(response, str)
+            self.assertEqual(response, '0:user0;100;200;300')
 
         self.pilots.join("user0", "192.168.1.{0}")
         self.pilots.spawn("user0", pos={
@@ -259,12 +256,11 @@ class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
 
     def test_all_pilots_pos(self):
 
-        def on_pos(response):
+        def on_pos_list(response):
             self.assertIsInstance(response, list)
             self.assertEqual(len(response), 253)
             checked = []
-            for x in response:
-                s = x[0]
+            for s in response:
                 idx = int(s[s.index('user')+4:s.index(';')])
                 self.assertNotIn(idx, checked)
                 checked.append(idx)
@@ -272,32 +268,29 @@ class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
         self._spawn_pilots()
         return self.dl_client.refresh_radar().addCallback(
             lambda _: self.dl_client.all_pilots_pos().addCallback(
-                on_pos))
+                on_pos_list))
 
     def test_static_count(self):
 
         def on_count(response):
-            self.assertIsInstance(response, list)
-            self.assertEqual(len(response), 1)
-            self.assertEqual(response[0], '0')
+            self.assertIsInstance(response, str)
+            self.assertEqual(response, '0')
             self._spawn_static()
             return self.dl_client.refresh_radar().addCallback(
                 lambda _: self.dl_client.static_count().addCallback(
                     on_recount))
 
         def on_recount(response):
-            self.assertIsInstance(response, list)
-            self.assertEqual(len(response), 1)
-            self.assertEqual(response[0], '10000')
+            self.assertIsInstance(response, str)
+            self.assertEqual(response, '10000')
 
         return self.dl_client.static_count().addCallback(on_count)
 
     def test_static_pos(self):
 
         def on_pos(response):
-            self.assertIsInstance(response, list)
-            self.assertEqual(len(response), 1)
-            self.assertEqual(response[0], '0:0_Static;100;200;300')
+            self.assertIsInstance(response, str)
+            self.assertEqual(response, '0:0_Static;100;200;300')
 
         self.static.spawn("0_Static", pos={
             'x': 100, 'y': 200, 'z': 300, })
@@ -307,12 +300,11 @@ class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
 
     def test_all_static_pos(self):
 
-        def on_pos(response):
+        def on_pos_list(response):
             self.assertIsInstance(response, list)
             self.assertEqual(len(response), 10000)
             checked = []
-            for x in response:
-                s = x[0]
+            for s in response:
                 idx = int(s[s.index(':')+1:s.index('_')])
                 self.assertNotIn(idx, checked)
                 checked.append(idx)
@@ -320,4 +312,4 @@ class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
         self._spawn_static()
         return self.dl_client.refresh_radar().addCallback(
             lambda _: self.dl_client.all_static_pos().addCallback(
-                on_pos))
+                on_pos_list))
