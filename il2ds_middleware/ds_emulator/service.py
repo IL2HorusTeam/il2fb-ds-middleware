@@ -11,12 +11,12 @@ from zope.interface import implementer
 from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as OPCODE,
     MISSION_STATUS, PILOT_STATE, OBJECT_STATE, )
 from il2ds_middleware.interfaces import ILineParser
-from il2ds_middleware.mixin import PropagatingLineParserMixing
 from il2ds_middleware.ds_emulator.interfaces import (IPilotService,
     IMissionService, IStaticObjectService, IDeviceLinkService, IEventLogger, )
 
 
-class _CommonServiceMixin(PropagatingLineParserMixing):
+@implementer(ILineParser)
+class _CommonServiceMixin():
 
     evt_log = None
     parent = None
@@ -27,8 +27,6 @@ class _CommonServiceMixin(PropagatingLineParserMixing):
             self.client.message(line)
         elif self.parent:
             self.parent.send(line)
-        else:
-            log.msg("Broadcasting into nowhere: \"{0}\"".format(line))
 
 
 class RootService(MultiService, _CommonServiceMixin):
@@ -78,7 +76,7 @@ class RootService(MultiService, _CommonServiceMixin):
                 break
         if not result and not self._parse(line):
             self.send("Command not found: " + line)
-        return self._autopropagate(result)
+        return True
 
     def _parse(self, line):
         while True:
@@ -134,8 +132,8 @@ class PilotService(Service, _CommonServiceMixin):
             if line.startswith("kick"):
                 self._kick(callsign=line[4:].strip())
                 break
-            return self._autopropagate(False)
-        return self._autopropagate()
+            return False
+        return True
 
     def join(self, callsign, ip):
 
@@ -238,7 +236,7 @@ class MissionService(Service, _CommonServiceMixin):
 
     def parse_line(self, line):
         if not line.startswith("mission"):
-            return self._autopropagate(False)
+            return False
         cmd = line[7:].strip()
         while True:
             if not cmd:
@@ -256,8 +254,8 @@ class MissionService(Service, _CommonServiceMixin):
             elif cmd == "DESTROY":
                 self.destroy()
                 break
-            return self._autopropagate(False)
-        return self._autopropagate()
+            return False
+        return True
 
     def load(self, mission):
         self.mission = mission
