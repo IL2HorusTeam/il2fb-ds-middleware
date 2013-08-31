@@ -12,23 +12,21 @@ from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as OPCODE,
     MISSION_STATUS, PILOT_STATE, OBJECT_STATE, )
 from il2ds_middleware.interfaces import ILineParser
 from il2ds_middleware.mixin import PropagatingLineParserMixing
-from il2ds_middleware.ds_emulator.interfaces import (ILineBroadcaster,
-    IPilotService, IMissionService, IStaticObjectService, IDeviceLinkService,
-    IEventLogger, )
+from il2ds_middleware.ds_emulator.interfaces import (IPilotService,
+    IMissionService, IStaticObjectService, IDeviceLinkService, IEventLogger, )
 
 
-@implementer(ILineBroadcaster)
 class _CommonServiceMixin(PropagatingLineParserMixing):
 
     evt_log = None
     parent = None
-    broadcaster = None
+    client = None
 
-    def broadcast_line(self, line):
-        if self.broadcaster:
-            self.broadcaster.broadcast_line(line)
+    def send(self, line):
+        if self.client:
+            self.client.message(line)
         elif self.parent:
-            self.parent.broadcast_line(line)
+            self.parent.send(line)
         else:
             log.msg("Broadcasting into nowhere: \"{0}\"".format(line))
 
@@ -39,9 +37,8 @@ class RootService(MultiService, _CommonServiceMixin):
     """
     long_operation_duration = 0.2
 
-    def __init__(self, broadcaster, log_path=None):
+    def __init__(self, log_path=None):
         MultiService.__init__(self)
-        self.broadcaster = broadcaster
         self.evt_log = EventLoggingService(log_path)
         self.user_command_id = 0
         self.set_server_info()
@@ -65,11 +62,9 @@ class RootService(MultiService, _CommonServiceMixin):
             service.evt_log = self.evt_log
 
     def startService(self):
-        self.broadcaster.service = self
         MultiService.startService(self)
 
     def stopService(self):
-        self.broadcaster.service = None
         self.evt_log.setServiceParent(self)
         return MultiService.stopService(self)
 
@@ -82,7 +77,7 @@ class RootService(MultiService, _CommonServiceMixin):
             if result:
                 break
         if not result and not self._parse(line):
-            self.broadcast_line("Command not found: " + line)
+            self.send("Command not found: " + line)
         return self._autopropagate(result)
 
     def _parse(self, line):
@@ -103,7 +98,7 @@ class RootService(MultiService, _CommonServiceMixin):
             "Description: {0}".format(self.info['description'] or ""),
         ]
         for line in response:
-            self.broadcast_line(line)
+            self.send(line)
 
     def _long_operation(self):
         import time
@@ -116,11 +111,11 @@ class RootService(MultiService, _CommonServiceMixin):
         }
 
     def manual_input(self, line):
-        self.broadcast_line(line)
+        self.send(line)
         self.parse_line(line)
 
         self.user_command_id += 1
-        self.broadcast_line("<consoleN><{0}>".format(self.user_command_id))
+        self.send("<consoleN><{0}>".format(self.user_command_id))
 
 
 @implementer(IPilotService)
@@ -157,11 +152,11 @@ class PilotService(Service, _CommonServiceMixin):
         pilot = create_pilot()
         self.pilots[callsign] = pilot
 
-        self.broadcast_line(
+        self.send(
             "socket channel '{0}' start creating: ip {1}:{2}".format(
                 pilot['channel'], pilot['ip'], self.port))
-        self.broadcast_line("Chat: --- {0} joins the game.".format(callsign))
-        self.broadcast_line(
+        self.send("Chat: --- {0} joins the game.".format(callsign))
+        self.send(
             "socket channel '{0}', ip {1}:{2}, {3}, "
             "is complete created.".format(
                 pilot['channel'], pilot['ip'], self.port, callsign))
@@ -184,8 +179,8 @@ class PilotService(Service, _CommonServiceMixin):
             "Reason: ".format(pilot['ip'], self.port, pilot['channel'])
         if reason:
             line += reason
-        self.broadcast_line(line)
-        self.broadcast_line("Chat: --- {0} has left the game.".format(
+        self.send(line)
+        self.send("Chat: --- {0} has left the game.".format(
             callsign))
         self.evt_log.enlog("{0} has disconnected".format(callsign))
 
@@ -266,14 +261,14 @@ class MissionService(Service, _CommonServiceMixin):
 
     def load(self, mission):
         self.mission = mission
-        self.broadcast_line("Loading mission {0}...".format(self.mission))
-        self.broadcast_line("Load bridges")
-        self.broadcast_line("Load static objects")
-        self.broadcast_line("##### House without collision "
+        self.send("Loading mission {0}...".format(self.mission))
+        self.send("Load bridges")
+        self.send("Load static objects")
+        self.send("##### House without collision "
             "(3do/Tree/Tree2.sim)")
-        self.broadcast_line("##### House without collision "
+        self.send("##### House without collision "
             "(3do/Buildings/Port/Floor/live.sim)")
-        self.broadcast_line("##### House without collision "
+        self.send("##### House without collision "
             "(3do/Buildings/Port/BaseSegment/live.sim)")
         self.status = MISSION_STATUS.LOADED
         self._send_status()
@@ -307,15 +302,15 @@ class MissionService(Service, _CommonServiceMixin):
                 self.dl_srvc.forget_everything()
 
     def _mission_not_loaded(self):
-        self.broadcast_line("ERROR mission: Mission NOT loaded")
+        self.send("ERROR mission: Mission NOT loaded")
 
     def _send_status(self):
         if self.status == MISSION_STATUS.NOT_LOADED:
-            self.broadcast_line("Mission NOT loaded")
+            self.send("Mission NOT loaded")
         elif self.status == MISSION_STATUS.LOADED:
-            self.broadcast_line("Mission: {0} is Loaded".format(self.mission))
+            self.send("Mission: {0} is Loaded".format(self.mission))
         elif self.status == MISSION_STATUS.PLAYING:
-            self.broadcast_line("Mission: {0} is Playing".format(self.mission))
+            self.send("Mission: {0} is Playing".format(self.mission))
 
     def stopService(self):
         self.mission = None

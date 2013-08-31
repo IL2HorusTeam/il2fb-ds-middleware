@@ -17,50 +17,15 @@ from il2ds_middleware.requests import (
 
 class ConsoleClient(LineOnlyReceiver):
 
-    def connectionMade(self):
-        self.factory.clientConnectionMade()
-
-    def lineReceived(self, line):
-        if line.startswith("<consoleN><"):
-            return
-        self.factory.got_line(line.replace("\\n", '').replace("\\u0020", ' '))
-
-
-class ConsoleClientFactory(ClientFactory):
-
-    protocol = ConsoleClient
-
     def __init__(self, parser=None):
         self._parser = parser
-        self._client = None
         self._request_id = 0
         self._responce_id = None
-        self.on_connecting = defer.Deferred()
-        self.on_connection_lost = defer.Deferred()
         # { request_id: ([results], deferred, timeout, ), }
         self._requests = {}
 
-    def buildProtocol(self, addr):
-        self._client = ClientFactory.buildProtocol(self, addr)
-        return self._client
-
-    def clientConnectionMade(self):
-        if self.on_connecting is not None:
-            d, self.on_connecting = self.on_connecting, None
-            d.callback(None)
-
-    def clientConnectionFailed(self, connector, reason):
-        if self.on_connecting is not None:
-            d, self.on_connecting = self.on_connecting, None
-            d.errback(reason)
-
-    def clientConnectionLost(self, connector, reason):
-        if self.on_connection_lost is not None:
-            d, self.on_connection_lost = self.on_connection_lost, None
-            if isinstance(reason.value, ConnectionDone):
-                d.callback(None)
-            else:
-                d.errback(reason)
+    def connectionMade(self):
+        self.factory.clientConnectionMade(self)
 
     def _generate_request_id(self):
         self._request_id += 1
@@ -78,16 +43,21 @@ class ConsoleClientFactory(ClientFactory):
             timeout_value or REQUEST_TIMEOUT, on_timeout, None)
         return rid, ([], d, timeout, )
 
-    def _send_request(self, data, timeout_value=None):
+    def _send_request(self, line, timeout_value=None):
         d = defer.Deferred()
         rid, request = self._make_request(d, timeout_value)
         self._requests[rid] = request
 
         wrapper = "rid|{0}".format(rid)
-        self._client.sendLine(wrapper)
-        self._client.sendLine(data)
-        self._client.sendLine(wrapper)
+        self.sendLine(wrapper)
+        self.sendLine(line)
+        self.sendLine(wrapper)
         return d
+
+    def lineReceived(self, line):
+        if line.startswith("<consoleN><"):
+            return
+        self.got_line(line.replace("\\n", '').replace("\\u0020", ' '))
 
     def got_line(self, line):
         if line.startswith("Command not found: rid"):
@@ -159,6 +129,38 @@ class ConsoleClientFactory(ClientFactory):
         return d
 
 
+class ConsoleClientFactory(ClientFactory):
+
+    protocol = ConsoleClient
+
+    def __init__(self, parser=None):
+        self._client = None
+        self.on_connecting = defer.Deferred()
+        self.on_connection_lost = defer.Deferred()
+
+    def buildProtocol(self, addr):
+        self._client = ClientFactory.buildProtocol(self, addr)
+        return self._client
+
+    def clientConnectionMade(self, client):
+        if self.on_connecting is not None:
+            d, self.on_connecting = self.on_connecting, None
+            d.callback(client)
+
+    def clientConnectionFailed(self, connector, reason):
+        if self.on_connecting is not None:
+            d, self.on_connecting = self.on_connecting, None
+            d.errback(reason)
+
+    def clientConnectionLost(self, connector, reason):
+        if self.on_connection_lost is not None:
+            d, self.on_connection_lost = self.on_connection_lost, None
+            if isinstance(reason.value, ConnectionDone):
+                d.callback(None)
+            else:
+                d.errback(reason)
+
+
 class DeviceLinkProtocol(DatagramProtocol):
 
     def __init__(self, address=None):
@@ -222,7 +224,7 @@ class DeviceLinkClient(DeviceLinkProtocol):
 
     def __init__(self, address):
         DeviceLinkProtocol.__init__(self, address)
-        # [ (opcode, deferred, timeout) ]
+        # [ (opcode, deferred, timeout), ]
         self._requests = []
 
     def answers_received(self, answers, address):

@@ -5,19 +5,6 @@ from zope.interface import Interface
 from twisted.application.service import IService
 
 
-class ILineBroadcaster(Interface):
-    """
-    All clients of dedicated server's console must receive the same output.
-    This interface describes method for sending same data to all clients.
-    """
-    def broadcast_line(self, line):
-        """Broadcast line to all console clients.
-
-        :param line: line to broadcast.
-        :type line: str.
-        """
-
-
 class IPilotService(IService):
 
     def join(self, callsign, ip):

@@ -16,7 +16,11 @@ class ConsoleClient(LineReceiver):
         self.factory.client_left(self)
 
     def lineReceived(self, line):
-        self.factory.got_line(line)
+        self.got_line(line)
+
+    def got_line(self, line):
+        if self.factory.receiver is not None:
+            self.factory.receiver(line)
 
 
 class ConsoleClientFactory(ClientFactory):
@@ -40,19 +44,6 @@ class ConsoleClientFactory(ClientFactory):
             d, self.on_connection_lost = self.on_connection_lost, None
             d.callback(client)
         self.clients.remove(client)
-
-    def got_line(self, line):
-        if self.receiver is not None:
-            self.receiver(line)
-
-    def message(self, message):
-
-        def do_message(message):
-            for client in self.clients:
-                client.sendLine(message)
-
-        from twisted.internet import reactor
-        reactor.callLater(0, do_message, message)
 
 
 class DeviceLinkClient(DeviceLinkProtocol):

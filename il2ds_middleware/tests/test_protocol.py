@@ -38,32 +38,32 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
         self.assertTrue(self.console_client_connector)
 
     def test_wrong_rid(self):
-        self.console_client_factory._process_responce_id("rid|0")
+        self.console_client._process_responce_id("rid|0")
 
     def test_malformed_rid(self):
-        self.console_client_factory._process_responce_id("rid/smth")
-        self.console_client_factory._process_responce_id("rid|smth")
+        self.console_client._process_responce_id("rid/smth")
+        self.console_client._process_responce_id("rid|smth")
 
     def test_mission_status(self):
 
         srvc = self.service.getServiceNamed('missions')
 
         def do_test():
-            d = self.console_client_factory.mission_status()
+            d = self.console_client.mission_status()
             d.addCallback(check_not_loaded)
             d.addCallback(do_load)
             return d
 
         def do_load(_):
             srvc.load("net/dogfight/test.mis")
-            d = self.console_client_factory.mission_status()
+            d = self.console_client.mission_status()
             d.addCallback(check_loaded)
             d.addCallback(do_begin)
             return d
 
         def do_begin(_):
             srvc.begin()
-            d = self.console_client_factory.mission_status()
+            d = self.console_client.mission_status()
             d.addCallback(check_playing)
             return d
 
@@ -95,11 +95,11 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
             self.assertEqual(response[1], "Name: Server")
             self.assertEqual(response[2], "Description: ")
 
-        d = self.console_client_factory.server_info()
+        d = self.console_client.server_info()
         return d.addCallback(callback)
 
     def test_long_operation(self):
-        d = self.console_client_factory._send_request("horus long operation")
+        d = self.console_client._send_request("horus long operation")
         return self.assertFailure(d, defer.TimeoutError)
 
     def test_manual_input(self):
@@ -107,8 +107,7 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
         def do_test():
             results = [
                 "mission",
-                "Mission NOT loaded",
-            ]
+                "Mission NOT loaded", ]
             d = defer.Deferred()
             self._set_console_expecting_receiver(results, d)
             self.service.manual_input("mission")
@@ -131,24 +130,22 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
                 "Loading mission net/dogfight/test.mis...",
                 "Load bridges",
                 "Load static objects",
-                "Mission: net/dogfight/test.mis is Loaded",
-            ]
+                "Mission: net/dogfight/test.mis is Loaded", ]
             for obligatory_response in obligatory_responses:
                 self.assertIn(obligatory_response, response)
                 self.assertEqual(response.count(obligatory_response), 1)
 
-        d = self.console_client_factory.mission_load("net/dogfight/test.mis")
+        d = self.console_client.mission_load("net/dogfight/test.mis")
         return d.addCallback(callback)
 
     def test_mission_begin(self):
 
         def do_test():
-            d = self.console_client_factory.mission_load(
-                "net/dogfight/test.mis")
+            d = self.console_client.mission_load("net/dogfight/test.mis")
             return d.addCallback(do_begin)
 
         def do_begin(_):
-            d = self.console_client_factory.mission_begin()
+            d = self.console_client.mission_begin()
             return d.addCallback(callback)
 
         def callback(response):
@@ -162,16 +159,15 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
     def test_mission_end(self):
 
         def do_test():
-            d = self.console_client_factory.mission_load(
-                "net/dogfight/test.mis")
+            d = self.console_client.mission_load("net/dogfight/test.mis")
             return d.addCallback(do_begin)
 
         def do_begin(_):
-            d = self.console_client_factory.mission_begin()
+            d = self.console_client.mission_begin()
             return d.addCallback(do_end)
 
         def do_end(_):
-            d = self.console_client_factory.mission_end()
+            d = self.console_client.mission_end()
             return d.addCallback(callback)
 
         def callback(response):
@@ -185,16 +181,15 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
     def test_mission_destroy(self):
 
         def do_test():
-            d = self.console_client_factory.mission_load(
-                "net/dogfight/test.mis")
+            d = self.console_client.mission_load("net/dogfight/test.mis")
             return d.addCallback(do_begin)
 
         def do_begin(_):
-            d = self.console_client_factory.mission_begin()
+            d = self.console_client.mission_begin()
             return d.addCallback(do_destroy)
 
         def do_destroy(_):
-            d = self.console_client_factory.mission_destroy()
+            d = self.console_client.mission_destroy()
             return d.addCallback(callback)
 
         def callback(response):

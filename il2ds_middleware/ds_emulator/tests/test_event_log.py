@@ -27,8 +27,7 @@ class EventLogTestCase(BaseEmulatorTestCase):
             "user0:A6M2-21 loaded weapons '1xdt' fuel 100%\n",
             "user0:A6M2-21(0) was killed at 0 0\n",
             "0_Static destroyed by landscape at 0 0\n",
-            "Mission END\n",
-        ]
+            "Mission END\n", ]
         d = Deferred()
         self._set_event_log_expecting_receiver(responses, d)
 

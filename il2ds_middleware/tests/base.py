@@ -39,15 +39,30 @@ class BaseTestCase(TestCase):
     def _listen_server(self):
         self._listen_console_server()
         self._listen_device_link_server()
-        self.service = DSService(self.console_server_factory, self.log_path)
-        self.service.startService()
 
-        self.console_server_factory.receiver = self.service.parse_line
-        self.dl_server.on_requests = self.service.getServiceNamed('dl'
-            ).got_requests
+        self.service = DSService(self.log_path)
+        self.service.startService()
+        self.dl_server.receiver = self.service.getServiceNamed(
+            'dl').got_requests
 
     def _listen_console_server(self):
+
+        def on_connected(client):
+            self.console_server = client
+            client.service = self.service
+            self.service.client = client
+            return client
+
+        def on_disconnected(client):
+            self.console_server = None
+            client.service = None
+            self.service.client = None
+            return client
+
         self.console_server_factory = ConsoleServerFactory()
+        self.console_server_factory.on_connected.addCallback(on_connected)
+        self.console_server_factory.on_connection_lost.addBoth(
+            on_disconnected)
 
         from twisted.internet import reactor
         self.console_server_listener = reactor.listenTCP(
@@ -67,11 +82,21 @@ class BaseTestCase(TestCase):
         return self._connect_console_client()
 
     def _connect_console_client(self):
+
+        def on_connected(client):
+            self.console_client = client
+
+        def on_disconnected(client):
+            self.console_client = None
+
         if self.console_client_class is None:
             self.console_client_connector = None
             return defer.succeed(_)
 
         self.console_client_factory = self.console_client_class()
+        self.console_client_factory.on_connecting.addCallback(on_connected)
+        self.console_client_factory.on_connection_lost.addBoth(on_disconnected)
+
         host, port = self.console_client_host_for_client
 
         from twisted.internet import reactor
@@ -106,12 +131,12 @@ class BaseTestCase(TestCase):
         return results
 
     def _stop_console_server(self):
-        self.console_server_factory.on_data = None
         results = [
-            defer.maybeDeferred(self.console_server_listener.stopListening),
-        ]
+            defer.maybeDeferred(self.console_server_listener.stopListening), ]
         if self.console_client_connector is not None:
-            results.append(self.console_server_factory.on_connection_lost)
+            d = self.console_server_factory.on_connection_lost
+            if d is not None:
+                results.append(d)
         return results
 
     def _stop_device_link_server(self):
@@ -180,7 +205,7 @@ class BaseTestCase(TestCase):
         return got_line
 
     def _set_console_expecting_receiver(self, expected_lines, d):
-        self.console_client_factory.got_line = \
+        self.console_client.got_line = \
             self._get_expecting_line_receiver(expected_lines, d)
 
     def _set_dl_expecting_receiver(self, expected_lines, d):
@@ -190,9 +215,6 @@ class BaseTestCase(TestCase):
     def _set_event_log_expecting_receiver(self, expected_lines, d):
         self.log_watcher.receiver = \
             self._get_expecting_line_receiver(expected_lines, d)
-
-    def console_message(self, msg):
-        self.console_client_factory.message(msg)
 
     @property
     def console_client_host_for_client(self):

@@ -12,7 +12,7 @@ def expected_join_responses(channel, callsign, ip, port):
         "Chat: --- {0} joins the game.\\n".format(callsign),
         "socket channel '{0}', ip {1}:{2}, {3}, "
         "is complete created.\\n".format(
-            channel, ip, port, callsign)]
+            channel, ip, port, callsign), ]
 
 
 def expected_leave_responses(channel, callsign, ip, port):
@@ -21,7 +21,7 @@ def expected_leave_responses(channel, callsign, ip, port):
         "Reason: \\n".format(
             ip, port, channel),
         "Chat: --- {0} has left the game.\\n".format(
-            callsign)]
+            callsign), ]
 
 
 def expected_kick_responses(channel, callsign, ip, port):
@@ -30,7 +30,7 @@ def expected_kick_responses(channel, callsign, ip, port):
         "Reason: You have been kicked from the server.\\n".format(
             ip, port, channel),
         "Chat: --- {0} has left the game.\\n".format(
-            callsign)]
+            callsign), ]
 
 
 def expected_load_responses(path):
@@ -42,18 +42,17 @@ def expected_load_responses(path):
         "##### House without collision (3do/Buildings/Port/Floor/live.sim)\\n",
         "##### House without collision (3do/Buildings/Port/BaseSegment/"
             "live.sim)\\n",
-        "Mission: {0} is Loaded\\n".format(path)]
+        "Mission: {0} is Loaded\\n".format(path), ]
 
 
 class CommonsTestCase(BaseEmulatorTestCase):
 
     def test_connect(self):
-        self.assertEqual(len(self.console_server_factory.clients), 1)
+        self.assertNotEqual(self.service.client, None)
 
     def test_disconnect(self):
         self.console_server_factory.on_connection_lost.addBoth(
-            lambda _: self.assertEqual(
-                len(self.console_server_factory.clients), 0))
+            lambda _: self.assertEqual(self.service.client, None))
         self.console_client_connector.disconnect()
 
     def test_receive_line(self):
@@ -61,7 +60,7 @@ class CommonsTestCase(BaseEmulatorTestCase):
         responses = ["test\\n", ]
         self.console_client_factory.receiver = \
             self._get_expecting_line_receiver(responses, d)
-        self.console_server_factory.broadcast_line("test")
+        self.console_server.message("test")
         return d
 
     def test_unknown_command(self):
@@ -69,7 +68,7 @@ class CommonsTestCase(BaseEmulatorTestCase):
         responses = ["Command not found: abracadabracadabr\\n", ]
         self.console_client_factory.receiver = \
             self._get_expecting_line_receiver(responses, d)
-        self.console_message("abracadabracadabr")
+        self.console_client.sendLine("abracadabracadabr")
         return d
 
     def test_server_info(self):
@@ -78,12 +77,12 @@ class CommonsTestCase(BaseEmulatorTestCase):
             responses =[
                 "Type: Local server\\n",
                 "Name: Server\\n",
-                "Description: \\n",]
+                "Description: \\n", ]
             d = defer.Deferred()
             self.console_client_factory.receiver = \
                 self._get_expecting_line_receiver(responses, d)
             d.addCallback(change_info)
-            self.console_message("server")
+            self.console_client.sendLine("server")
             return d
 
         def change_info(_):
@@ -92,11 +91,11 @@ class CommonsTestCase(BaseEmulatorTestCase):
             responses =[
                 "Type: Local server\\n",
                 "Name: Test server\\n",
-                "Description: This is a server emulator\\n",]
+                "Description: This is a server emulator\\n", ]
             d = defer.Deferred()
             self.console_client_factory.receiver = \
                 self._get_expecting_line_receiver(responses, d)
-            self.console_message("server")
+            self.console_client.sendLine("server")
             return d
 
         return do_test()
@@ -165,7 +164,7 @@ class PilotsTestCase(BaseEmulatorTestCase):
         d.addCallback(self._get_pilots_count_checker(1))
         self.srvc.join("user0", "192.168.1.2")
         self.srvc.join("user1", "192.168.1.3")
-        self.console_message("kick user0")
+        self.console_client.sendLine("kick user0")
         return d
 
 
@@ -185,7 +184,7 @@ class MissionsTestCase(BaseEmulatorTestCase):
         responses = ["Mission NOT loaded\\n", ]
         self.console_client_factory.receiver = \
             self._get_expecting_line_receiver(responses, d)
-        self.console_message("mission")
+        self.console_client.sendLine("mission")
         return d
 
     def test_load_mission(self):
@@ -194,8 +193,8 @@ class MissionsTestCase(BaseEmulatorTestCase):
 
         d = defer.Deferred()
         self._set_console_expecting_receiver(responses, d)
-        self.console_message("mission LOAD net/dogfight/test.mis")
-        self.console_message("mission")
+        self.console_client.sendLine("mission LOAD net/dogfight/test.mis")
+        self.console_client.sendLine("mission")
         return d
 
     def test_begin_mission(self):
@@ -206,10 +205,10 @@ class MissionsTestCase(BaseEmulatorTestCase):
 
         d = defer.Deferred()
         self._set_console_expecting_receiver(responses, d)
-        self.console_message("mission BEGIN")
-        self.console_message("mission LOAD net/dogfight/test.mis")
-        self.console_message("mission BEGIN")
-        self.console_message("mission")
+        self.console_client.sendLine("mission BEGIN")
+        self.console_client.sendLine("mission LOAD net/dogfight/test.mis")
+        self.console_client.sendLine("mission BEGIN")
+        self.console_client.sendLine("mission")
         return d
 
     def test_end_mission(self):
@@ -221,12 +220,12 @@ class MissionsTestCase(BaseEmulatorTestCase):
         d = defer.Deferred()
         self.console_client_factory.receiver = \
             self._get_expecting_line_receiver(responses, d)
-        self.console_message("mission END")
-        self.console_message("mission LOAD net/dogfight/test.mis")
-        self.console_message("mission BEGIN")
-        self.console_message("mission END")
-        self.console_message("mission END END END")
-        self.console_message("mission")
+        self.console_client.sendLine("mission END")
+        self.console_client.sendLine("mission LOAD net/dogfight/test.mis")
+        self.console_client.sendLine("mission BEGIN")
+        self.console_client.sendLine("mission END")
+        self.console_client.sendLine("mission END END END")
+        self.console_client.sendLine("mission")
         return d
 
     def test_destroy_mission(self):
@@ -239,11 +238,11 @@ class MissionsTestCase(BaseEmulatorTestCase):
         d = defer.Deferred()
         self.console_client_factory.receiver = \
             self._get_expecting_line_receiver(responses, d)
-        self.console_message("mission DESTROY")
-        self.console_message("mission LOAD net/dogfight/test.mis")
-        self.console_message("mission DESTROY")
-        self.console_message("mission LOAD net/dogfight/test.mis")
-        self.console_message("mission BEGIN")
-        self.console_message("mission DESTROY")
-        self.console_message("mission")
+        self.console_client.sendLine("mission DESTROY")
+        self.console_client.sendLine("mission LOAD net/dogfight/test.mis")
+        self.console_client.sendLine("mission DESTROY")
+        self.console_client.sendLine("mission LOAD net/dogfight/test.mis")
+        self.console_client.sendLine("mission BEGIN")
+        self.console_client.sendLine("mission DESTROY")
+        self.console_client.sendLine("mission")
         return d
