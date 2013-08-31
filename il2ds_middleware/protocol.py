@@ -228,23 +228,19 @@ class DeviceLinkClient(DeviceLinkProtocol):
         self._requests = []
 
     def answers_received(self, answers, address):
-        if address != self.address:
-            log.err("Got answer from unknown peer {0}: {1}".format(
-                address, answers))
-            return
-        for answer in answers:
-            self._answer_received(answer)
+        if address == self.address:
+            for answer in answers:
+                self._answer_received(answer)
 
     def _answer_received(self, answer):
         cmd, arg = answer
         for request in self._requests:
             opcode, d, timeout = request
-            if opcode != cmd:
-                continue
-            timeout.cancel()
-            self._requests.remove(request)
-            d.callback(arg)
-            break
+            if opcode == cmd:
+                timeout.cancel()
+                self._requests.remove(request)
+                d.callback(arg)
+                break
 
     def _make_request(self, command, d, timeout_value=None):
 

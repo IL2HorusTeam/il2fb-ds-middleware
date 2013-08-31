@@ -4,7 +4,7 @@ from twisted.internet import defer
 from twisted.internet import error
 
 from il2ds_middleware.tests.base import BaseMiddlewareTestCase
-
+from il2ds_middleware.ds_emulator.constants import LONG_OPERATION_CMD
 
 class ConsoleClientFactoryConnectionFailTestCase(BaseMiddlewareTestCase):
 
@@ -99,7 +99,7 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
         return d.addCallback(callback)
 
     def test_long_operation(self):
-        d = self.console_client._send_request("horus long operation")
+        d = self.console_client._send_request(LONG_OPERATION_CMD)
         return self.assertFailure(d, defer.TimeoutError)
 
     def test_manual_input(self):
@@ -219,6 +219,10 @@ class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
         for i in xrange(10000):
             self.static.spawn("{0}_Static".format(i), pos={
                 'x': i*100, 'y': 0, 'z': 0, })
+
+    def test_long_operation(self):
+        d = self.dl_client._deferred_request((LONG_OPERATION_CMD, None))
+        return self.assertFailure(d, defer.TimeoutError)
 
     def test_pilot_count(self):
 

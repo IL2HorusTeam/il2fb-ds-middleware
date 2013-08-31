@@ -11,6 +11,8 @@ from zope.interface import implementer
 from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as OPCODE,
     MISSION_STATUS, PILOT_STATE, OBJECT_STATE, )
 from il2ds_middleware.interfaces import ILineParser
+from il2ds_middleware.ds_emulator.constants import (LONG_OPERATION_DURATION,
+    LONG_OPERATION_CMD, )
 from il2ds_middleware.ds_emulator.interfaces import (IPilotService,
     IMissionService, IStaticObjectService, IDeviceLinkService, IEventLogger, )
 
@@ -33,7 +35,7 @@ class RootService(MultiService, _CommonServiceMixin):
     """
     Top-level service.
     """
-    long_operation_duration = 0.2
+    lop_duration = LONG_OPERATION_DURATION
 
     def __init__(self, log_path=None):
         MultiService.__init__(self)
@@ -83,7 +85,7 @@ class RootService(MultiService, _CommonServiceMixin):
             if line == 'server':
                 self._server_info()
                 break
-            if line == 'horus long operation':
+            if line == LONG_OPERATION_CMD:
                 self._long_operation()
                 break
             return False
@@ -100,7 +102,7 @@ class RootService(MultiService, _CommonServiceMixin):
 
     def _long_operation(self):
         import time
-        time.sleep(self.long_operation_duration)
+        time.sleep(self.lop_duration)
 
     def set_server_info(self, name="", description=""):
         self.info = {
@@ -346,6 +348,7 @@ class StaticService(Service):
 class DeviceLinkService(Service):
 
     name = "dl"
+    lop_duration = LONG_OPERATION_DURATION
     pilot_srvc = None
     static_srvc = None
 
@@ -364,7 +367,10 @@ class DeviceLinkService(Service):
             try:
                 opcode = OPCODE.lookupByValue(cmd)
             except ValueError as e:
-                log.err("Unknown command: {0}".format(cmd))
+                if cmd == LONG_OPERATION_CMD:
+                    answers.append(self._long_operation())
+                else:
+                    log.err("Unknown command: {0}".format(cmd))
             else:
                 if opcode == OPCODE.RADAR_REFRESH:
                     self._refresh_radar()
@@ -426,6 +432,11 @@ class DeviceLinkService(Service):
                     for _ in [key, pos['x'], pos['y'], pos['z'], ]])
         finally:
             return ':'.join([idx, data, ])
+
+    def _long_operation(self):
+        import time
+        time.sleep(self.lop_duration)
+        return (LONG_OPERATION_CMD, None, )
 
 
 @implementer(IEventLogger)
