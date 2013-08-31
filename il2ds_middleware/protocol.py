@@ -14,7 +14,8 @@ from il2ds_middleware.requests import (
     REQ_SERVER_INFO, REQ_MISSION_STATUS, REQ_MISSION_LOAD, REQ_MISSION_BEGIN,
     REQ_MISSION_END, REQ_MISSION_DESTROY, )
 
-class ConsoleClientProtocol(LineOnlyReceiver):
+
+class ConsoleClient(LineOnlyReceiver):
 
     def connectionMade(self):
         self.factory.clientConnectionMade()
@@ -27,7 +28,7 @@ class ConsoleClientProtocol(LineOnlyReceiver):
 
 class ConsoleClientFactory(ClientFactory):
 
-    protocol = ConsoleClientProtocol
+    protocol = ConsoleClient
 
     def __init__(self, parser=None):
         self._parser = parser
@@ -157,6 +158,7 @@ class ConsoleClientFactory(ClientFactory):
             d.addCallback(self._parser.mission_destroy)
         return d
 
+
 class DeviceLinkProtocol(DatagramProtocol):
 
     def __init__(self, address=None):
@@ -214,7 +216,7 @@ class DeviceLinkProtocol(DatagramProtocol):
         return DL_CMD_SEP.join(chunks)
 
 
-class DeviceLinkClientProtocol(DeviceLinkProtocol):
+class DeviceLinkClient(DeviceLinkProtocol):
 
     cmd_group_max_size = DEVICE_LINK_CMD_GROUP_MAX_SIZE
 

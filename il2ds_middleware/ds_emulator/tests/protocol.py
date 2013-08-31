@@ -7,7 +7,7 @@ from twisted.protocols.basic import LineReceiver
 from il2ds_middleware.protocol import DeviceLinkProtocol
 
 
-class ConsoleClientProtocol(LineReceiver):
+class ConsoleClient(LineReceiver):
 
     def connectionMade(self):
         self.factory.client_joined(self)
@@ -21,7 +21,7 @@ class ConsoleClientProtocol(LineReceiver):
 
 class ConsoleClientFactory(ClientFactory):
 
-    protocol = ConsoleClientProtocol
+    protocol = ConsoleClient
     receiver = None
 
     def __init__(self):
@@ -55,7 +55,7 @@ class ConsoleClientFactory(ClientFactory):
         reactor.callLater(0, do_message, message)
 
 
-class DeviceLinkClientProtocol(DeviceLinkProtocol):
+class DeviceLinkClient(DeviceLinkProtocol):
 
     receiver = None
 

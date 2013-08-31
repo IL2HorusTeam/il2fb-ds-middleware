@@ -4,7 +4,7 @@ from twisted.internet import defer
 from twisted.trial.unittest import TestCase
 
 from il2ds_middleware.protocol import (ConsoleClientFactory,
-    DeviceLinkClientProtocol, )
+    DeviceLinkClient, )
 
 from il2ds_middleware.ds_emulator.service import RootService as DSService
 from il2ds_middleware.ds_emulator.protocol import (ConsoleServerFactory,
@@ -13,9 +13,9 @@ from il2ds_middleware.ds_emulator.protocol import (ConsoleServerFactory,
 
 class BaseTestCase(TestCase):
 
-    ConsoleClient = None
-    DeviceLinkClient = None
-    LogWatcher = None
+    console_client_class = None
+    dl_client_class = None
+    log_watcher_class = None
 
     console_server_host = "127.0.0.1"
     console_server_port = 0
@@ -32,9 +32,9 @@ class BaseTestCase(TestCase):
         return self._connect_client()
 
     def _set_log_watcher(self):
-        self.log_watcher = self.LogWatcher(
+        self.log_watcher = self.log_watcher_class(
             self.log_path, self.log_watcher_interval
-        ) if self.LogWatcher else None
+        ) if self.log_watcher_class else None
 
     def _listen_server(self):
         self._listen_console_server()
@@ -67,11 +67,11 @@ class BaseTestCase(TestCase):
         return self._connect_console_client()
 
     def _connect_console_client(self):
-        if self.ConsoleClient is None:
+        if self.console_client_class is None:
             self.console_client_connector = None
             return defer.succeed(_)
 
-        self.console_client_factory = self.ConsoleClient()
+        self.console_client_factory = self.console_client_class()
         host, port = self.console_client_host_for_client
 
         from twisted.internet import reactor
@@ -81,11 +81,11 @@ class BaseTestCase(TestCase):
         return self.console_client_factory.on_connecting
 
     def _connect_device_link_client(self):
-        if self.DeviceLinkClient is None:
+        if self.dl_client_class is None:
             self.dl_client_connector = None
             return
 
-        self.dl_client = self.DeviceLinkClient(
+        self.dl_client = self.dl_client_class(
             self.device_link_host_for_client)
 
         from twisted.internet import reactor
@@ -211,5 +211,5 @@ class BaseTestCase(TestCase):
 
 class BaseMiddlewareTestCase(BaseTestCase):
 
-    ConsoleClient = ConsoleClientFactory
-    DeviceLinkClient = DeviceLinkClientProtocol
+    console_client_class = ConsoleClientFactory
+    dl_client_class = DeviceLinkClient
