@@ -6,6 +6,7 @@ from twisted.internet import error
 from il2ds_middleware.tests.base import BaseMiddlewareTestCase
 from il2ds_middleware.ds_emulator.constants import LONG_OPERATION_CMD
 
+
 class ConsoleClientFactoryConnectionFailTestCase(BaseMiddlewareTestCase):
 
     console_server_port = 20001

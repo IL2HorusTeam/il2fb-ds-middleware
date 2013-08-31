@@ -8,6 +8,8 @@ from twisted.internet import defer
 
 class LogWatchingBaseService(TimerService):
 
+    receiver = None
+
     def __init__(self, log_path, interval=0.1):
         self.log_file = None
         self.log_path = log_path
@@ -39,4 +41,6 @@ class LogWatchingBaseService(TimerService):
 class LogWatchingService(LogWatchingBaseService):
 
     def got_line(self, line):
-        pass
+        if self.receiver is not None:
+            timestamp = datetime.datetime.now()
+            self.receiver.got_event_line(line, timestamp)

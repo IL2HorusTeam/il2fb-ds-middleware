@@ -9,9 +9,7 @@ class ILineParser(Interface):
         """Parse line.
 
         :param line: line to parse.
-        :type line: str.
-
-        :returns: bool -- True if line was successfully parsed, otherwise False.
+        :type line: str..
         """
 
 
@@ -39,4 +37,16 @@ class IConsoleParser(ILineParser):
 
     def mission_destroy(self, lines):
         """
+        """
+
+class IEventLineGetter(Interface):
+
+    def got_event_line(self, line, timestamp):
+        """Process line from event log.
+
+        :param line: line which describes event.
+        :type line: str.
+
+        :param timestamp: timestamp provided by log watching service.
+        :type timestamp: datetime.
         """
