@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='il2ds-middleware',
-    version='0.5.1',
+    version='0.5.2',
     description='High-level access to IL-2 FB Dedicated Server.',
     long_description=open('README.md').read(),
     license='MIT',
