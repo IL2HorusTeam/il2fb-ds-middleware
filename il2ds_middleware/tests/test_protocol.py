@@ -3,6 +3,7 @@
 from twisted.internet import defer
 from twisted.internet import error
 
+from il2ds_middleware.parser import DeviceLinkParser
 from il2ds_middleware.tests.base import BaseMiddlewareTestCase
 from il2ds_middleware.ds_emulator.constants import LONG_OPERATION_CMD
 
@@ -201,7 +202,7 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
         return do_test()
 
 
-class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
+class DeviceLinkClientProtocolBaseTestCase(BaseMiddlewareTestCase):
 
     def setUp(self):
         d = BaseMiddlewareTestCase.setUp(self)
@@ -214,12 +215,15 @@ class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
             callsign = "user{0}".format(i-2)
             self.pilots.join(callsign, "192.168.1.{0}".format(i))
             self.pilots.spawn(callsign, pos={
-                'x': i*100, 'y': 0, 'z': 0, })
+                'x': i*100, 'y': i*200, 'z': i*300, })
 
     def _spawn_static(self):
         for i in xrange(10000):
             self.static.spawn("{0}_Static".format(i), pos={
-                'x': i*100, 'y': 0, 'z': 0, })
+                'x': i*100, 'y': i*200, 'z': i*300, })
+
+
+class DeviceLinkClientProtocolTestCase(DeviceLinkClientProtocolBaseTestCase):
 
     def test_long_operation(self):
         d = self.dl_client._deferred_request((LONG_OPERATION_CMD, None))
@@ -228,7 +232,6 @@ class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
     def test_pilot_count(self):
 
         def on_count(response):
-            self.assertIsInstance(response, str)
             self.assertEqual(response, '0')
             self._spawn_pilots()
             return self.dl_client.refresh_radar().addCallback(
@@ -236,7 +239,6 @@ class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
                     on_recount))
 
         def on_recount(response):
-            self.assertIsInstance(response, str)
             self.assertEqual(response, '253')
 
         return self.dl_client.pilot_count().addCallback(on_count)
@@ -244,7 +246,6 @@ class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
     def test_pilot_pos(self):
 
         def on_pos(response):
-            self.assertIsInstance(response, str)
             self.assertEqual(response, '0:user0;100;200;300')
 
         self.pilots.join("user0", "192.168.1.{0}")
@@ -256,11 +257,11 @@ class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
 
     def test_all_pilots_pos(self):
 
-        def on_pos_list(response):
-            self.assertIsInstance(response, list)
-            self.assertEqual(len(response), 253)
+        def on_pos_list(responses):
+            self.assertIsInstance(responses, list)
+            self.assertEqual(len(responses), 253)
             checked = []
-            for s in response:
+            for s in responses:
                 idx = int(s[s.index('user')+4:s.index(';')])
                 self.assertNotIn(idx, checked)
                 checked.append(idx)
@@ -273,7 +274,6 @@ class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
     def test_static_count(self):
 
         def on_count(response):
-            self.assertIsInstance(response, str)
             self.assertEqual(response, '0')
             self._spawn_static()
             return self.dl_client.refresh_radar().addCallback(
@@ -281,7 +281,6 @@ class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
                     on_recount))
 
         def on_recount(response):
-            self.assertIsInstance(response, str)
             self.assertEqual(response, '10000')
 
         return self.dl_client.static_count().addCallback(on_count)
@@ -289,7 +288,6 @@ class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
     def test_static_pos(self):
 
         def on_pos(response):
-            self.assertIsInstance(response, str)
             self.assertEqual(response, '0:0_Static;100;200;300')
 
         self.static.spawn("0_Static", pos={
@@ -300,12 +298,115 @@ class DeviceLinkClientProtocolTestCase(BaseMiddlewareTestCase):
 
     def test_all_static_pos(self):
 
-        def on_pos_list(response):
-            self.assertIsInstance(response, list)
-            self.assertEqual(len(response), 10000)
+        def on_pos_list(responses):
+            self.assertIsInstance(responses, list)
+            self.assertEqual(len(responses), 10000)
             checked = []
-            for s in response:
+            for s in responses:
                 idx = int(s[s.index(':')+1:s.index('_')])
+                self.assertNotIn(idx, checked)
+                checked.append(idx)
+
+        self._spawn_static()
+        return self.dl_client.refresh_radar().addCallback(
+            lambda _: self.dl_client.all_static_pos().addCallback(
+                on_pos_list))
+
+
+class PasredDeviceLinkClientProtocolTestCase(
+    DeviceLinkClientProtocolBaseTestCase):
+
+    dl_client_parser_class = DeviceLinkParser
+
+    def test_pilot_count(self):
+
+        def on_count(response):
+            self.assertEqual(response, 0)
+            self._spawn_pilots()
+            return self.dl_client.refresh_radar().addCallback(
+                lambda _: self.dl_client.pilot_count().addCallback(
+                    on_recount))
+
+        def on_recount(response):
+            self.assertEqual(response, 253)
+
+        return self.dl_client.pilot_count().addCallback(on_count)
+
+    def test_pilot_pos(self):
+
+        def on_pos(response):
+            self.assertIsInstance(response, dict)
+            self.assertEqual(response.get('idx'), 0)
+            self.assertEqual(response.get('callsign'), "user0")
+            self.assertIsInstance(response.get('pos'), dict)
+            self.assertEqual(response['pos'].get('x'), 100)
+            self.assertEqual(response['pos'].get('y'), 200)
+            self.assertEqual(response['pos'].get('z'), 300)
+
+        self.pilots.join("user0", "192.168.1.{0}")
+        self.pilots.spawn("user0", pos={
+            'x': 100, 'y': 200, 'z': 300, })
+        return self.dl_client.refresh_radar().addCallback(
+            lambda _: self.dl_client.pilot_pos(0).addCallback(
+                on_pos))
+
+    def test_all_pilots_pos(self):
+
+        def on_pos_list(responses):
+            self.assertIsInstance(responses, list)
+            self.assertEqual(len(responses), 253)
+            checked = []
+            for response in responses:
+                self.assertIsInstance(response, dict)
+                idx = response['idx']
+                self.assertNotIn(idx, checked)
+                checked.append(idx)
+
+        self._spawn_pilots()
+        return self.dl_client.refresh_radar().addCallback(
+            lambda _: self.dl_client.all_pilots_pos().addCallback(
+                on_pos_list))
+
+    def test_static_count(self):
+
+        def on_count(response):
+            self.assertEqual(response, 0)
+            self._spawn_static()
+            return self.dl_client.refresh_radar().addCallback(
+                lambda _: self.dl_client.static_count().addCallback(
+                    on_recount))
+
+        def on_recount(response):
+            self.assertEqual(response, 10000)
+
+        return self.dl_client.static_count().addCallback(on_count)
+
+    def test_static_pos(self):
+
+        def on_pos(response):
+            self.assertIsInstance(response, dict)
+            self.assertEqual(response.get('idx'), 0)
+            self.assertEqual(response.get('name'), "0_Static")
+            self.assertIsInstance(response.get('pos'), dict)
+            self.assertEqual(response['pos'].get('x'), 100)
+            self.assertEqual(response['pos'].get('y'), 200)
+            self.assertEqual(response['pos'].get('z'), 300)
+
+        self.static.spawn("0_Static", pos={
+            'x': 100, 'y': 200, 'z': 300, })
+        return self.dl_client.refresh_radar().addCallback(
+            lambda _: self.dl_client.static_pos(0).addCallback(
+                on_pos))
+
+    def test_all_static_pos(self):
+
+        def on_pos_list(responses):
+            self.assertIsInstance(responses, list)
+            self.assertEqual(len(responses), 10000)
+            checked = []
+            for response in responses:
+                self.assertIsInstance(response, dict)
+                idx = response['idx']
                 self.assertNotIn(idx, checked)
                 checked.append(idx)
 

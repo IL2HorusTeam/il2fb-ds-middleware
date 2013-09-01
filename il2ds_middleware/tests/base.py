@@ -14,6 +14,7 @@ class BaseTestCase(TestCase):
 
     console_client_class = None
     dl_client_class = None
+    dl_client_parser_class = None
     log_watcher_class = None
 
     console_server_host = "127.0.0.1"
@@ -109,8 +110,10 @@ class BaseTestCase(TestCase):
             self.dl_client_connector = None
             return
 
+        parser = (self.dl_client_parser_class()
+            if self.dl_client_parser_class else None)
         self.dl_client = self.dl_client_class(
-            self.device_link_host_for_client)
+            self.device_link_host_for_client, parser)
 
         from twisted.internet import reactor
         self.dl_client_connector = reactor.listenUDP(0, self.dl_client)

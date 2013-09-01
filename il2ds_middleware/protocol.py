@@ -163,8 +163,9 @@ class ConsoleClientFactory(ClientFactory):
 
 class DeviceLinkProtocol(DatagramProtocol):
 
-    def __init__(self, address=None):
+    def __init__(self, address=None, parser=None):
         self.address = address
+        self.parser = parser
 
     def datagramReceived(self, data, (host, port)):
         if data.startswith(DEVICE_LINK_PREFIXES['answer']):
@@ -222,8 +223,8 @@ class DeviceLinkClient(DeviceLinkProtocol):
 
     cmd_group_max_size = DEVICE_LINK_CMD_GROUP_MAX_SIZE
 
-    def __init__(self, address):
-        DeviceLinkProtocol.__init__(self, address)
+    def __init__(self, address, parser=None):
+        DeviceLinkProtocol.__init__(self, address, parser)
         # [ (opcode, deferred, timeout), ]
         self._requests = []
 
@@ -310,22 +311,40 @@ class DeviceLinkClient(DeviceLinkProtocol):
         return defer.succeed(None)
 
     def pilot_count(self):
-        return self._deferred_request(DL_OPCODE.PILOT_COUNT.make_command())
+        d = self._deferred_request(DL_OPCODE.PILOT_COUNT.make_command())
+        if self.parser is not None:
+            d.addCallback(self.parser.pilot_count)
+        return d
 
     def pilot_pos(self, index):
-        return self._deferred_request(DL_OPCODE.PILOT_POS.make_command(index))
+        d = self._deferred_request(DL_OPCODE.PILOT_POS.make_command(index))
+        if self.parser is not None:
+            d.addCallback(self.parser.pilot_pos)
+        return d
 
     def all_pilots_pos(self):
-        return self._all_pos(self.pilot_count, DL_OPCODE.PILOT_POS)
+        d = self._all_pos(self.pilot_count, DL_OPCODE.PILOT_POS)
+        if self.parser is not None:
+            d.addCallback(self.parser.all_pilots_pos)
+        return d
 
     def static_count(self):
-        return self._deferred_request(DL_OPCODE.STATIC_COUNT.make_command())
+        d = self._deferred_request(DL_OPCODE.STATIC_COUNT.make_command())
+        if self.parser is not None:
+            d.addCallback(self.parser.static_count)
+        return d
 
     def static_pos(self, index):
-        return self._deferred_request(DL_OPCODE.STATIC_POS.make_command(index))
+        d = self._deferred_request(DL_OPCODE.STATIC_POS.make_command(index))
+        if self.parser is not None:
+            d.addCallback(self.parser.static_pos)
+        return d
 
     def all_static_pos(self):
-        return self._all_pos(self.static_count, DL_OPCODE.STATIC_POS)
+        d = self._all_pos(self.static_count, DL_OPCODE.STATIC_POS)
+        if self.parser is not None:
+            d.addCallback(self.parser.all_static_pos)
+        return d
 
     def _all_pos(self, get_count, pos_opcode):
 
