@@ -3,8 +3,7 @@
 from twisted.internet import defer
 from twisted.trial.unittest import TestCase
 
-from il2ds_middleware.protocol import (ConsoleClientFactory,
-    DeviceLinkClient, )
+from il2ds_middleware.protocol import ConsoleClientFactory, DeviceLinkClient
 
 from il2ds_middleware.ds_emulator.service import RootService as DSService
 from il2ds_middleware.ds_emulator.protocol import (ConsoleServerFactory,

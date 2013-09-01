@@ -39,6 +39,34 @@ class IConsoleParser(ILineParser):
         """
         """
 
+
+class IDeviceLinkParser(Interface):
+
+    def pilot_count(self, data):
+        """
+        """
+
+    def pilot_pos(self, data):
+        """
+        """
+
+    def all_pilots_pos(self, datas):
+        """
+        """
+
+    def static_count(self, data):
+        """
+        """
+
+    def static_pos(self, data):
+        """
+        """
+
+    def all_static_pos(self, datas):
+        """
+        """
+
+
 class IEventLineGetter(Interface):
 
     def got_event_line(self, line, timestamp):
