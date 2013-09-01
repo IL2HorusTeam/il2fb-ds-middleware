@@ -218,7 +218,7 @@ class DeviceLinkClientProtocolBaseTestCase(BaseMiddlewareTestCase):
                 'x': i*100, 'y': i*200, 'z': i*300, })
 
     def _spawn_static(self):
-        for i in xrange(10000):
+        for i in xrange(1000):
             self.static.spawn("{0}_Static".format(i), pos={
                 'x': i*100, 'y': i*200, 'z': i*300, })
 
@@ -281,7 +281,7 @@ class DeviceLinkClientProtocolTestCase(DeviceLinkClientProtocolBaseTestCase):
                     on_recount))
 
         def on_recount(response):
-            self.assertEqual(response, '10000')
+            self.assertEqual(response, '1000')
 
         return self.dl_client.static_count().addCallback(on_count)
 
@@ -300,7 +300,7 @@ class DeviceLinkClientProtocolTestCase(DeviceLinkClientProtocolBaseTestCase):
 
         def on_pos_list(responses):
             self.assertIsInstance(responses, list)
-            self.assertEqual(len(responses), 10000)
+            self.assertEqual(len(responses), 1000)
             checked = []
             for s in responses:
                 idx = int(s[s.index(':')+1:s.index('_')])
@@ -311,6 +311,19 @@ class DeviceLinkClientProtocolTestCase(DeviceLinkClientProtocolBaseTestCase):
         return self.dl_client.refresh_radar().addCallback(
             lambda _: self.dl_client.all_static_pos().addCallback(
                 on_pos_list))
+
+    def test_all_pos_with_no_count(self):
+
+        def get_count():
+            d = defer.Deferred()
+            d.callback(0)
+            return d
+
+        def callback(result):
+            self.assertIsInstance(result, list)
+            self.assertEqual(result, [])
+
+        return self.dl_client._all_pos(get_count, 'foo').addCallback(callback)
 
 
 class PasredDeviceLinkClientProtocolTestCase(
@@ -377,7 +390,7 @@ class PasredDeviceLinkClientProtocolTestCase(
                     on_recount))
 
         def on_recount(response):
-            self.assertEqual(response, 10000)
+            self.assertEqual(response, 1000)
 
         return self.dl_client.static_count().addCallback(on_count)
 
@@ -402,7 +415,7 @@ class PasredDeviceLinkClientProtocolTestCase(
 
         def on_pos_list(responses):
             self.assertIsInstance(responses, list)
-            self.assertEqual(len(responses), 10000)
+            self.assertEqual(len(responses), 1000)
             checked = []
             for response in responses:
                 self.assertIsInstance(response, dict)
