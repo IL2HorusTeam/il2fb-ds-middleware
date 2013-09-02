@@ -39,6 +39,22 @@ class IConsoleParser(ILineParser):
         """
         """
 
+    def user_joined(self, line):
+        """
+        """
+
+    def on_user_joined(self, info):
+        """
+        """
+
+    def user_left(self, line):
+        """
+        """
+
+    def on_user_left(self, info):
+        """
+        """
+
 
 class IDeviceLinkParser(Interface):
 

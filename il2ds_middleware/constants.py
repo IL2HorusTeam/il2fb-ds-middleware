@@ -60,3 +60,11 @@ class OBJECT_STATE(Names):
 
 REQUEST_TIMEOUT = 0.1
 REQUEST_MISSION_LOAD_TIMEOUT = 30
+
+
+class PILOT_LEAVE_REASON(Names):
+    """
+    Constants representing the reason why a pilot has left.
+    """
+    DISCONNECTED = NamedConstant()
+    KICKED = NamedConstant()

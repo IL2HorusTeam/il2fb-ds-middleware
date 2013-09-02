@@ -10,7 +10,7 @@ class LogWatchingBaseService(TimerService):
 
     receiver = None
 
-    def __init__(self, log_path, interval=0.1):
+    def __init__(self, log_path, interval=1):
         self.log_file = None
         self.log_path = log_path
         TimerService.__init__(self, interval, self.do_watch)
