@@ -3,6 +3,7 @@
 import datetime
 
 from twisted.application.internet import TimerService
+from twisted.application.service import Service
 from twisted.internet import defer
 
 
@@ -44,3 +45,25 @@ class LogWatchingService(LogWatchingBaseService):
         if self.receiver is not None:
             timestamp = datetime.datetime.now()
             self.receiver.got_event_line(line, timestamp)
+
+
+class PilotBaseService(Service):
+
+    def __init__(self, parser=None):
+        self.parser = parser
+
+    def startService(self):
+        Service.startService(self)
+        if self.parser is not None:
+            self.parser.pilot_service = self
+
+    def stopService(self):
+        if self.parser is not None:
+            self.parser.pilot_service = None
+        return Service.stopService(self)
+
+    def user_join(self, info):
+        raise NotImplementedError
+
+    def user_left(self, info):
+        raise NotImplementedError

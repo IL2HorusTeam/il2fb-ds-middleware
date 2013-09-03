@@ -94,3 +94,14 @@ class IEventLineGetter(Interface):
         :param timestamp: timestamp provided by log watching service.
         :type timestamp: datetime.
         """
+
+
+class IPilotService(Interface):
+
+    def user_join(self, info):
+        """
+        """
+
+    def user_left(self, info):
+        """
+        """

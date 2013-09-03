@@ -4,15 +4,18 @@ from twisted.trial.unittest import TestCase
 
 from il2ds_middleware.constants import MISSION_STATUS, PILOT_LEAVE_REASON
 from il2ds_middleware.parser import ConsoleParser, DeviceLinkParser
+from il2ds_middleware.tests.service import PilotService
 
 
 class ConsoleParserTestCase(TestCase):
 
     def setUp(self):
         self.parser = ConsoleParser()
+        self.pilot_srvc = PilotService(self.parser)
+        self.pilot_srvc.startService()
 
     def tearDown(self):
-        self.parser = None
+        return self.pilot_srvc.stopService()
 
     def test_server_info(self):
         datas = [
@@ -87,16 +90,15 @@ class ConsoleParserTestCase(TestCase):
             self.assertEqual(info.get('channel'), 0)
             self.assertEqual(info.get('ip'), "192.168.1.2")
             self.assertEqual(info.get('callsign'), "user0")
-            self.parser.is_user_joined = True
 
-        self.parser.on_user_join = on_user_join
+        self.pilot_srvc.receiver = on_user_join
         self.parser.parse_line(
             "socket channel '0' start creating: ip 192.168.1.2:21000")
         self.parser.parse_line("Chat: --- user0 joins the game.")
         self.parser.parse_line(
             "socket channel '0', ip 192.168.1.2:21000, user0, "
             "is complete created.")
-        self.assertTrue(hasattr(self.parser, 'is_user_joined'))
+        self.assertEqual(len(self.pilot_srvc.joined), 1)
 
     def test_user_left(self):
 
@@ -107,14 +109,13 @@ class ConsoleParserTestCase(TestCase):
             self.assertEqual(info.get('callsign'), "user0")
             self.assertEqual(
                 info.get('reason'), PILOT_LEAVE_REASON.DISCONNECTED)
-            self.parser.is_user_left = True
 
-        self.parser.on_user_left = on_user_left
+        self.pilot_srvc.receiver = on_user_left
         self.parser.parse_line(
             "socketConnection with 192.168.1.2:21000 on channel 0 lost.  "
             "Reason: ")
         self.parser.parse_line("Chat: --- user0 has left the game.")
-        self.assertTrue(hasattr(self.parser, 'is_user_left'))
+        self.assertEqual(len(self.pilot_srvc.left), 1)
 
         def on_user_kicked(info):
             self.assertIsInstance(info, dict)
@@ -123,14 +124,13 @@ class ConsoleParserTestCase(TestCase):
             self.assertEqual(info.get('callsign'), "user1")
             self.assertEqual(
                 info.get('reason'), PILOT_LEAVE_REASON.KICKED)
-            self.parser.is_user_kicked = True
 
-        self.parser.on_user_left = on_user_kicked
+        self.pilot_srvc.receiver = on_user_kicked
         self.parser.parse_line(
             "socketConnection with 192.168.1.3:21000 on channel 1 lost.  "
             "Reason: You have been kicked from the server.")
         self.parser.parse_line("Chat: --- user1 has left the game.")
-        self.assertTrue(hasattr(self.parser, 'is_user_kicked'))
+        self.assertEqual(len(self.pilot_srvc.left), 2)
 
 
 class DeviceLinkParserTestCase(TestCase):

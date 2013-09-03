@@ -7,8 +7,9 @@ from il2ds_middleware.interfaces import IDeviceLinkParser, IConsoleParser
 
 
 @implementer(IConsoleParser)
-class ConsoleParser:
+class ConsoleParser(object):
 
+    pilot_service = None
     _buffer = None
 
     def parse_line(self, line):
@@ -47,11 +48,9 @@ class ConsoleParser:
                 'ip': chunks[1].split()[-1].split(':')[0],
                 'callsign': chunks[2].strip(),
             }
-            self.on_user_join(info)
+            if self.pilot_service is not None:
+                self.pilot_service.user_join(info)
         return result
-
-    def on_user_join(self, info):
-        raise NotImplementedError
 
     def user_left(self, line):
         if line.startswith("socketConnection with") and "lost" in line:
@@ -68,7 +67,8 @@ class ConsoleParser:
                 'callsign': line.split()[2],
                 'reason': reason,
             }
-            self.on_user_left(info)
+            if self.pilot_service is not None:
+                self.pilot_service.user_left(info)
             return True
         else:
             return False
@@ -77,7 +77,7 @@ class ConsoleParser:
         raise NotImplementedError
 
 @implementer(IDeviceLinkParser)
-class DeviceLinkParser:
+class DeviceLinkParser(object):
 
     def pilot_count(self, data):
         return int(data)
