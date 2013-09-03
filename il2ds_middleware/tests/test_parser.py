@@ -10,8 +10,8 @@ from il2ds_middleware.tests.service import PilotService
 class ConsoleParserTestCase(TestCase):
 
     def setUp(self):
-        self.parser = ConsoleParser()
-        self.pilot_srvc = PilotService(self.parser)
+        self.pilot_srvc = PilotService()
+        self.parser = ConsoleParser(self.pilot_srvc)
         self.pilot_srvc.startService()
 
     def tearDown(self):

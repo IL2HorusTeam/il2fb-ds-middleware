@@ -6,6 +6,10 @@ from twisted.application.internet import TimerService
 from twisted.application.service import Service
 from twisted.internet import defer
 
+from zope.interface import implementer
+
+from il2ds_middleware.interface.service import IPilotService
+
 
 class LogWatchingBaseService(TimerService):
 
@@ -47,20 +51,11 @@ class LogWatchingService(LogWatchingBaseService):
             self.receiver.got_event_line(line, timestamp)
 
 
+@implementer(IPilotService)
 class PilotBaseService(Service):
 
-    def __init__(self, parser=None):
-        self.parser = parser
-
-    def startService(self):
-        Service.startService(self)
-        if self.parser is not None:
-            self.parser.pilot_service = self
-
-    def stopService(self):
-        if self.parser is not None:
-            self.parser.pilot_service = None
-        return Service.stopService(self)
+    def __init__(self, console=None):
+        self.console = console
 
     def user_join(self, info):
         raise NotImplementedError

@@ -6,7 +6,7 @@ from twisted.python import log
 
 from zope.interface import implementer
 
-from il2ds_middleware.interfaces import ILineParser
+from il2ds_middleware.interface.parser import ILineParser
 from il2ds_middleware.service import LogWatchingBaseService
 
 

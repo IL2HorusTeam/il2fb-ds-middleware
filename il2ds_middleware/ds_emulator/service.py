@@ -10,7 +10,7 @@ from zope.interface import implementer
 
 from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as OPCODE,
     MISSION_STATUS, PILOT_STATE, OBJECT_STATE, )
-from il2ds_middleware.interfaces import ILineParser
+from il2ds_middleware.interface.parser import ILineParser
 from il2ds_middleware.ds_emulator.constants import (LONG_OPERATION_DURATION,
     LONG_OPERATION_CMD, )
 from il2ds_middleware.ds_emulator.interfaces import (IPilotService,

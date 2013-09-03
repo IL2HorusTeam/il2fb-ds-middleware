@@ -3,14 +3,17 @@
 from zope.interface import implementer
 
 from il2ds_middleware.constants import MISSION_STATUS, PILOT_LEAVE_REASON
-from il2ds_middleware.interfaces import IDeviceLinkParser, IConsoleParser
+from il2ds_middleware.interface.parser import (IDeviceLinkParser,
+    IConsoleParser, )
 
 
 @implementer(IConsoleParser)
 class ConsoleParser(object):
 
-    pilot_service = None
     _buffer = None
+
+    def __init__(self, pilot_service=None):
+        self.pilot_service = pilot_service
 
     def parse_line(self, line):
         if self.user_joined(line):
