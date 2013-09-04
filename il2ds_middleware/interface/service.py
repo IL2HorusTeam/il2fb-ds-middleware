@@ -25,3 +25,27 @@ class IPilotService(Interface):
     def user_left(self, info):
         """
         """
+
+    def seat_occupied(self, info):
+        """
+        """
+
+    def weapons_loaded(self, info):
+        """
+        """
+
+    def was_killed(self, info):
+        """
+        """
+
+    def was_shot_down(self, info):
+        """
+        """
+
+    def selected_army(self, info):
+        """
+        """
+
+    def went_to_menu(self, info):
+        """
+        """

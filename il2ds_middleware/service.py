@@ -62,3 +62,21 @@ class PilotBaseService(Service):
 
     def user_left(self, info):
         raise NotImplementedError
+
+    def seat_occupied(self, info):
+        raise NotImplementedError
+
+    def weapons_loaded(self, info):
+        raise NotImplementedError
+
+    def was_killed(self, info):
+        raise NotImplementedError
+
+    def was_shot_down(self, info):
+        raise NotImplementedError
+
+    def selected_army(self, info):
+        raise NotImplementedError
+
+    def went_to_menu(self, info):
+        raise NotImplementedError

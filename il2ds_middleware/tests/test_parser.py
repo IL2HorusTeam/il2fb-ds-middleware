@@ -3,7 +3,8 @@
 from twisted.trial.unittest import TestCase
 
 from il2ds_middleware.constants import MISSION_STATUS, PILOT_LEAVE_REASON
-from il2ds_middleware.parser import ConsoleParser, DeviceLinkParser
+from il2ds_middleware.parser import (ConsoleParser, EventLogParser,
+    DeviceLinkParser, )
 from il2ds_middleware.tests.service import PilotService
 
 
@@ -131,6 +132,102 @@ class ConsoleParserTestCase(TestCase):
             "Reason: You have been kicked from the server.")
         self.parser.parse_line("Chat: --- user1 has left the game.")
         self.assertEqual(len(self.pilot_srvc.left), 2)
+
+
+class EventLogParserTestCase(TestCase):
+
+    def setUp(self):
+        self.pilot_srvc = PilotService()
+        self.parser = EventLogParser(self.pilot_srvc)
+        self.pilot_srvc.startService()
+
+    def tearDown(self):
+        return self.pilot_srvc.stopService()
+
+    def test_occupied_seat(self):
+        data = "user0:A6M2-21(0) seat occupied by user0 at 100.99 200.99"
+        self.parser.parse_line(data)
+
+        self.assertEqual(len(self.pilot_srvc.occupied), 1)
+        result = self.pilot_srvc.occupied[0]
+
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result.get('callsign'), "user0")
+        self.assertEqual(result.get('seat'), 0)
+        self.assertEqual(result.get('aircraft'), "A6M2-21")
+        self.assertIsInstance(result.get('pos'), dict)
+        self.assertEqual(result['pos'].get('x'), 100.99)
+        self.assertEqual(result['pos'].get('y'), 200.99)
+
+    def test_weapons_loaded(self):
+        data = "user0:A6M2-21 loaded weapons '1xdt' fuel 100%"
+        self.parser.parse_line(data)
+
+        self.assertEqual(len(self.pilot_srvc.weapons), 1)
+        result = self.pilot_srvc.weapons[0]
+
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result.get('callsign'), "user0")
+        self.assertEqual(result.get('aircraft'), "A6M2-21")
+        self.assertEqual(result.get('weapons'), "1xdt")
+        self.assertEqual(result.get('fuel'), 100)
+
+    def test_was_killed(self):
+        data = "user0:A6M2-21(0) was killed at 100.99 200.99"
+        self.parser.parse_line(data)
+
+        self.assertEqual(len(self.pilot_srvc.killed), 1)
+        result = self.pilot_srvc.killed[0]
+
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result.get('callsign'), "user0")
+        self.assertEqual(result.get('seat'), 0)
+        self.assertEqual(result.get('aircraft'), "A6M2-21")
+        self.assertIsInstance(result.get('pos'), dict)
+        self.assertEqual(result['pos'].get('x'), 100.99)
+        self.assertEqual(result['pos'].get('y'), 200.99)
+
+    def test_was_shot_down(self):
+        data = "user0:A6M2-21 shot down by user1:B5N2 at 100.99 200.99"
+        self.parser.parse_line(data)
+
+        self.assertEqual(len(self.pilot_srvc.shot_down), 1)
+        result = self.pilot_srvc.shot_down[0]
+
+        self.assertIsInstance(result, dict)
+        self.assertIsInstance(result.get('victim'), dict)
+        self.assertEqual(result['victim'].get('callsign'), "user0")
+        self.assertEqual(result['victim'].get('aircraft'), "A6M2-21")
+        self.assertIsInstance(result.get('attacker'), dict)
+        self.assertEqual(result['attacker'].get('callsign'), "user1")
+        self.assertEqual(result['attacker'].get('aircraft'), "B5N2")
+        self.assertIsInstance(result.get('pos'), dict)
+        self.assertEqual(result['pos'].get('x'), 100.99)
+        self.assertEqual(result['pos'].get('y'), 200.99)
+
+    def test_selected_army(self):
+        data = "user0 selected army Red at 100.99 200.99"
+        self.parser.parse_line(data)
+
+        self.assertEqual(len(self.pilot_srvc.army_select), 1)
+        result = self.pilot_srvc.army_select[0]
+
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result.get('callsign'), "user0")
+        self.assertEqual(result.get('army'), 'Red')
+        self.assertIsInstance(result.get('pos'), dict)
+        self.assertEqual(result['pos'].get('x'), 100.99)
+        self.assertEqual(result['pos'].get('y'), 200.99)
+
+    def test_went_to_menu(self):
+        data = "user0 entered refly menu"
+        self.parser.parse_line(data)
+
+        self.assertEqual(len(self.pilot_srvc.to_menu), 1)
+        result = self.pilot_srvc.to_menu[0]
+
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result.get('callsign'), "user0")
 
 
 class DeviceLinkParserTestCase(TestCase):

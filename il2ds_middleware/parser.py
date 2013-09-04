@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 
+import re
+
+from twisted.python import log
+
 from zope.interface import implementer
 
 from il2ds_middleware.constants import MISSION_STATUS, PILOT_LEAVE_REASON
 from il2ds_middleware.interface.parser import (IDeviceLinkParser,
-    IConsoleParser, )
+    IEventLogParser, IConsoleParser, )
+from il2ds_middleware.regex import *
 
 
 @implementer(IConsoleParser)
@@ -12,7 +17,7 @@ class ConsoleParser(object):
 
     _buffer = None
 
-    def __init__(self, pilot_service=None):
+    def __init__(self, pilot_service):
         self.pilot_service = pilot_service
 
     def parse_line(self, line):
@@ -51,8 +56,7 @@ class ConsoleParser(object):
                 'ip': chunks[1].split()[-1].split(':')[0],
                 'callsign': chunks[2].strip(),
             }
-            if self.pilot_service is not None:
-                self.pilot_service.user_join(info)
+            self.pilot_service.user_join(info)
         return result
 
     def user_left(self, line):
@@ -70,14 +74,94 @@ class ConsoleParser(object):
                 'callsign': line.split()[2],
                 'reason': reason,
             }
-            if self.pilot_service is not None:
-                self.pilot_service.user_left(info)
+            self.pilot_service.user_left(info)
             return True
         else:
             return False
 
-    def on_user_left(self, info):
-        raise NotImplementedError
+
+@implementer(IEventLogParser)
+class EventLogParser(object):
+
+    def __init__(self, pilot_service):
+        ps = pilot_service
+        self.parsers = (
+            (RX_SEAT_OCCUPIED, self.seat_occupied, ps.seat_occupied),
+            (RX_WEAPONS_LOADED, self.weapons_loaded, ps.weapons_loaded),
+            (RX_KILLED, self.was_killed, ps.was_killed),
+            (RX_SHOT_DOWN, self.was_shot_down, ps.was_shot_down),
+            (RX_SELECTED_ARMY, self.selected_army, ps.selected_army),
+            (RX_WENT_TO_MENU, self.went_to_menu, ps.went_to_menu),
+        )
+
+    def parse_line(self, line):
+        for rx, parser, dst in self.parsers:
+            m = re.match(rx, line)
+            if m:
+                dst(parser(m.groups()))
+                return
+
+    def seat_occupied(self, groups):
+        return {
+            'callsign': groups[0],
+            'aircraft': groups[1],
+            'seat': int(groups[2]),
+            'pos': {
+                'x': float(groups[3]),
+                'y': float(groups[4]),
+            },
+        }
+
+    def weapons_loaded(self, groups):
+        return {
+            'callsign': groups[0],
+            'aircraft': groups[1],
+            'weapons': groups[2],
+            'fuel': int(groups[3]),
+        }
+
+    def was_killed(self, groups):
+        return {
+            'callsign': groups[0],
+            'aircraft': groups[1],
+            'seat': int(groups[2]),
+            'pos': {
+                'x': float(groups[3]),
+                'y': float(groups[4]),
+            },
+        }
+
+    def was_shot_down(self, groups):
+        return {
+            'victim': {
+                'callsign': groups[0],
+                'aircraft': groups[1],
+            },
+            'attacker': {
+                'callsign': groups[2],
+                'aircraft': groups[3],
+            },
+            'pos': {
+                'x': float(groups[4]),
+                'y': float(groups[5]),
+            },
+        }
+
+    def selected_army(self, groups):
+        return {
+            'callsign': groups[0],
+            'army': groups[1],
+            'pos': {
+                'x': float(groups[2]),
+                'y': float(groups[3]),
+            },
+        }
+
+    def went_to_menu(self, groups):
+        return {
+            'callsign': groups[0],
+        }
+
 
 @implementer(IDeviceLinkParser)
 class DeviceLinkParser(object):

@@ -48,6 +48,32 @@ class IConsoleParser(ILineParser):
         """
 
 
+class IEventLogParser(Interface):
+
+    def seat_occupied(self, data):
+        """
+        """
+
+    def weapons_loaded(self, data):
+        """
+        """
+
+    def was_killed(self, data):
+        """
+        """
+
+    def was_shot_down(self, data):
+        """
+        """
+
+    def selected_army(self, data):
+        """
+        """
+
+    def went_to_menu(self, data):
+        """
+        """
+
 class IDeviceLinkParser(Interface):
 
     def pilot_count(self, data):
