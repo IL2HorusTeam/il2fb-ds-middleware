@@ -85,14 +85,6 @@ class ConsoleParserTestCase(TestCase):
         self.assertEqual(mission, None)
 
     def test_user_joined(self):
-
-        def on_user_join(info):
-            self.assertIsInstance(info, dict)
-            self.assertEqual(info.get('channel'), 0)
-            self.assertEqual(info.get('ip'), "192.168.1.2")
-            self.assertEqual(info.get('callsign'), "user0")
-
-        self.pilot_srvc.receiver = on_user_join
         self.parser.parse_line(
             "socket channel '0' start creating: ip 192.168.1.2:21000")
         self.parser.parse_line("Chat: --- user0 joins the game.")
@@ -100,38 +92,39 @@ class ConsoleParserTestCase(TestCase):
             "socket channel '0', ip 192.168.1.2:21000, user0, "
             "is complete created.")
         self.assertEqual(len(self.pilot_srvc.joined), 1)
+        info = self.pilot_srvc.joined[0]
+
+        self.assertIsInstance(info, dict)
+        self.assertEqual(info.get('channel'), 0)
+        self.assertEqual(info.get('ip'), "192.168.1.2")
+        self.assertEqual(info.get('callsign'), "user0")
 
     def test_user_left(self):
-
-        def on_user_left(info):
-            self.assertIsInstance(info, dict)
-            self.assertEqual(info.get('channel'), 0)
-            self.assertEqual(info.get('ip'), "192.168.1.2")
-            self.assertEqual(info.get('callsign'), "user0")
-            self.assertEqual(
-                info.get('reason'), PILOT_LEAVE_REASON.DISCONNECTED)
-
-        self.pilot_srvc.receiver = on_user_left
         self.parser.parse_line(
             "socketConnection with 192.168.1.2:21000 on channel 0 lost.  "
             "Reason: ")
         self.parser.parse_line("Chat: --- user0 has left the game.")
         self.assertEqual(len(self.pilot_srvc.left), 1)
+        info = self.pilot_srvc.left[0]
 
-        def on_user_kicked(info):
-            self.assertIsInstance(info, dict)
-            self.assertEqual(info.get('channel'), 1)
-            self.assertEqual(info.get('ip'), "192.168.1.3")
-            self.assertEqual(info.get('callsign'), "user1")
-            self.assertEqual(
-                info.get('reason'), PILOT_LEAVE_REASON.KICKED)
+        self.assertIsInstance(info, dict)
+        self.assertEqual(info.get('channel'), 0)
+        self.assertEqual(info.get('ip'), "192.168.1.2")
+        self.assertEqual(info.get('callsign'), "user0")
+        self.assertEqual(info.get('reason'), PILOT_LEAVE_REASON.DISCONNECTED)
 
-        self.pilot_srvc.receiver = on_user_kicked
         self.parser.parse_line(
             "socketConnection with 192.168.1.3:21000 on channel 1 lost.  "
             "Reason: You have been kicked from the server.")
         self.parser.parse_line("Chat: --- user1 has left the game.")
         self.assertEqual(len(self.pilot_srvc.left), 2)
+        info = self.pilot_srvc.left[1]
+
+        self.assertIsInstance(info, dict)
+        self.assertEqual(info.get('channel'), 1)
+        self.assertEqual(info.get('ip'), "192.168.1.3")
+        self.assertEqual(info.get('callsign'), "user1")
+        self.assertEqual(info.get('reason'), PILOT_LEAVE_REASON.KICKED)
 
 
 class EventLogParserTestCase(TestCase):

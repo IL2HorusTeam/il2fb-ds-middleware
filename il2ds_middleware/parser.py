@@ -47,37 +47,37 @@ class ConsoleParser(object):
     mission_begin = mission_end = mission_status
 
     def user_joined(self, line):
-        result = (line.startswith("socket channel")
-            and line.endswith("is complete created."))
-        if result:
-            chunks = line.split(',')
+        m = re.match(RX_USER_JOIN, line)
+        if not m:
+            return False
+        else:
+            groups = m.groups()
             info = {
-                'channel': int(chunks[0].split()[-1].strip('\'')),
-                'ip': chunks[1].split()[-1].split(':')[0],
-                'callsign': chunks[2].strip(),
+                'channel': int(groups[0]),
+                'ip': groups[1],
+                'callsign': groups[2],
             }
             self.pilot_service.user_join(info)
-        return result
+            return True
 
     def user_left(self, line):
-        if line.startswith("socketConnection with") and "lost" in line:
-            self._buffer = line
-            return True
-        elif line.endswith("has left the game.") and self._buffer:
-            chunks = self._buffer.split()
-            reason = (PILOT_LEAVE_REASON.KICKED if 'kicked' in self._buffer
+        m = re.match(RX_USER_LEFT, line)
+        if m:
+            groups = m.groups()
+            reason = (PILOT_LEAVE_REASON.KICKED if 'kicked' in groups[2]
                 else PILOT_LEAVE_REASON.DISCONNECTED)
-            self._buffer = None
-            info = {
-                'channel': int(chunks[5]),
-                'ip': chunks[2].split(':')[0],
-                'callsign': line.split()[2],
+            self._buffer = {
+                'ip': groups[0],
+                'channel': int(groups[1]),
                 'reason': reason,
             }
+            return True
+        if line.endswith("has left the game.") and self._buffer:
+            info, self._buffer = self._buffer, None
+            info['callsign'] = line.split()[2]
             self.pilot_service.user_left(info)
             return True
-        else:
-            return False
+        return False
 
 
 @implementer(IEventLogParser)
