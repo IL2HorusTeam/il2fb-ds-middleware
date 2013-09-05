@@ -74,6 +74,11 @@ class IEventLogParser(Interface):
         """
         """
 
+    def was_destroyed(self, data):
+        """
+        """
+
+
 class IDeviceLinkParser(Interface):
 
     def pilot_count(self, data):

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from il2ds_middleware.service import PilotBaseService
+from il2ds_middleware.service import PilotBaseService, ObjectsBaseService
 
 
 class PilotService(PilotBaseService):
@@ -39,3 +39,13 @@ class PilotService(PilotBaseService):
 
     def went_to_menu(self, info):
         self.to_menu.append(info)
+
+
+class ObjectsService(ObjectsBaseService):
+
+    def __init__(self):
+        ObjectsBaseService.__init__(self)
+        self.destroyed = []
+
+    def was_destroyed(self, info):
+        self.destroyed.append(info)

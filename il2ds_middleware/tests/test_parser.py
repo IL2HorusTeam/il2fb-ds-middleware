@@ -5,7 +5,7 @@ from twisted.trial.unittest import TestCase
 from il2ds_middleware.constants import MISSION_STATUS, PILOT_LEAVE_REASON
 from il2ds_middleware.parser import (ConsoleParser, EventLogParser,
     DeviceLinkParser, )
-from il2ds_middleware.tests.service import PilotService
+from il2ds_middleware.tests.service import PilotService, ObjectsService
 
 
 class ConsoleParserTestCase(TestCase):
@@ -138,11 +138,13 @@ class EventLogParserTestCase(TestCase):
 
     def setUp(self):
         self.pilot_srvc = PilotService()
-        self.parser = EventLogParser(self.pilot_srvc)
+        self.obj_srvc = ObjectsService()
+        self.parser = EventLogParser((self.pilot_srvc, self.obj_srvc))
         self.pilot_srvc.startService()
 
     def tearDown(self):
-        return self.pilot_srvc.stopService()
+        self.pilot_srvc.stopService()
+        self.obj_srvc.stopService()
 
     def test_occupied_seat(self):
         data = "user0:A6M2-21(0) seat occupied by user0 at 100.99 200.99"
@@ -228,6 +230,20 @@ class EventLogParserTestCase(TestCase):
 
         self.assertIsInstance(result, dict)
         self.assertEqual(result.get('callsign'), "user0")
+
+    def test_was_destroyed(self):
+        data = "0_Static destroyed by landscape at 100.99 200.99"
+        self.parser.parse_line(data)
+
+        self.assertEqual(len(self.obj_srvc.destroyed), 1)
+        result = self.obj_srvc.destroyed[0]
+
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result.get('victim'), "0_Static")
+        self.assertEqual(result.get('attacker'), "landscape")
+        self.assertIsInstance(result.get('pos'), dict)
+        self.assertEqual(result['pos'].get('x'), 100.99)
+        self.assertEqual(result['pos'].get('y'), 200.99)
 
 
 class DeviceLinkParserTestCase(TestCase):

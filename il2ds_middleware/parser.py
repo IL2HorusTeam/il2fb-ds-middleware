@@ -83,8 +83,9 @@ class ConsoleParser(object):
 @implementer(IEventLogParser)
 class EventLogParser(object):
 
-    def __init__(self, pilot_service):
+    def __init__(self, (pilot_service, objects_service)):
         ps = pilot_service
+        obs = objects_service
         self.parsers = (
             (RX_SEAT_OCCUPIED, self.seat_occupied, ps.seat_occupied),
             (RX_WEAPONS_LOADED, self.weapons_loaded, ps.weapons_loaded),
@@ -92,6 +93,7 @@ class EventLogParser(object):
             (RX_SHOT_DOWN, self.was_shot_down, ps.was_shot_down),
             (RX_SELECTED_ARMY, self.selected_army, ps.selected_army),
             (RX_WENT_TO_MENU, self.went_to_menu, ps.went_to_menu),
+            (RX_DESTROYED, self.was_destroyed, obs.was_destroyed),
         )
 
     def parse_line(self, line):
@@ -106,10 +108,7 @@ class EventLogParser(object):
             'callsign': groups[0],
             'aircraft': groups[1],
             'seat': int(groups[2]),
-            'pos': {
-                'x': float(groups[3]),
-                'y': float(groups[4]),
-            },
+            'pos': self._get_pos((groups[3], groups[4])),
         }
 
     def weapons_loaded(self, groups):
@@ -125,10 +124,7 @@ class EventLogParser(object):
             'callsign': groups[0],
             'aircraft': groups[1],
             'seat': int(groups[2]),
-            'pos': {
-                'x': float(groups[3]),
-                'y': float(groups[4]),
-            },
+            'pos': self._get_pos((groups[3], groups[4])),
         }
 
     def was_shot_down(self, groups):
@@ -141,25 +137,32 @@ class EventLogParser(object):
                 'callsign': groups[2],
                 'aircraft': groups[3],
             },
-            'pos': {
-                'x': float(groups[4]),
-                'y': float(groups[5]),
-            },
+            'pos': self._get_pos((groups[4], groups[5])),
         }
 
     def selected_army(self, groups):
         return {
             'callsign': groups[0],
             'army': groups[1],
-            'pos': {
-                'x': float(groups[2]),
-                'y': float(groups[3]),
-            },
+            'pos': self._get_pos((groups[2], groups[3])),
         }
 
     def went_to_menu(self, groups):
         return {
             'callsign': groups[0],
+        }
+
+    def was_destroyed(self, groups):
+        return {
+            'victim': groups[0],
+            'attacker': groups[1],
+            'pos': self._get_pos((groups[2], groups[3])),
+        }
+
+    def _get_pos(self, (x, y)):
+        return {
+            'x': float(x),
+            'y': float(y),
         }
 
 

@@ -49,3 +49,10 @@ class IPilotService(Interface):
     def went_to_menu(self, info):
         """
         """
+
+
+class IObjectsService(Interface):
+
+    def was_destroyed(self, info):
+        """
+        """

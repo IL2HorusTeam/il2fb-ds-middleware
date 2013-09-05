@@ -8,7 +8,7 @@ from twisted.internet import defer
 
 from zope.interface import implementer
 
-from il2ds_middleware.interface.service import IPilotService
+from il2ds_middleware.interface.service import IPilotService, IObjectsService
 
 
 class LogWatchingBaseService(TimerService):
@@ -51,11 +51,14 @@ class LogWatchingService(LogWatchingBaseService):
             self.receiver.got_event_line(line, timestamp)
 
 
-@implementer(IPilotService)
-class PilotBaseService(Service):
+class ClientBaseService(Service):
 
     def __init__(self, console=None):
         self.console = console
+
+
+@implementer(IPilotService)
+class PilotBaseService(ClientBaseService):
 
     def user_join(self, info):
         raise NotImplementedError
@@ -79,4 +82,11 @@ class PilotBaseService(Service):
         raise NotImplementedError
 
     def went_to_menu(self, info):
+        raise NotImplementedError
+
+
+@implementer(IObjectsService)
+class ObjectsBaseService(ClientBaseService):
+
+    def was_destroyed(self, info):
         raise NotImplementedError
