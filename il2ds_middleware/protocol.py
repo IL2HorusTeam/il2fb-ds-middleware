@@ -166,6 +166,12 @@ class DeviceLinkProtocol(DatagramProtocol):
     def __init__(self, address=None, parser=None):
         self.address = address
         self.parser = parser
+        self.on_start = defer.Deferred()
+
+    def startProtocol(self):
+        if self.on_start is not None:
+            d, self.on_start = self.on_start, None
+            d.callback(None)
 
     def datagramReceived(self, data, (host, port)):
         if data.startswith(DEVICE_LINK_PREFIXES['answer']):
