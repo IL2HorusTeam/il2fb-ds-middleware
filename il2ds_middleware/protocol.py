@@ -19,6 +19,7 @@ from il2ds_middleware.requests import (
 
 class ConsoleClient(LineOnlyReceiver):
 
+    """Parser is set up by factory"""
     parser = None
 
     def __init__(self):

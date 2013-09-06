@@ -92,6 +92,16 @@ class ConsoleParser(object):
 
 
 @implementer(IEventLogParser)
+class EventLogPassthroughParser(object):
+
+    def passthrough(self, data):
+        return data
+
+    seat_occupied = weapons_loaded = was_killed = was_shot_down = passthrough
+    selected_army = went_to_menu = was_destroyed = passthrough
+
+
+@implementer(IEventLogParser)
 class EventLogParser(object):
 
     def __init__(self, (pilot_service, objects_service)):
