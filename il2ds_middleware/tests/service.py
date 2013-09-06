@@ -6,7 +6,6 @@ from il2ds_middleware.service import PilotBaseService, ObjectsBaseService
 class PilotService(PilotBaseService):
 
     def __init__(self):
-        PilotBaseService.__init__(self)
         self.joined = []
         self.left = []
         self.occupied = []
@@ -44,7 +43,6 @@ class PilotService(PilotBaseService):
 class ObjectsService(ObjectsBaseService):
 
     def __init__(self):
-        ObjectsBaseService.__init__(self)
         self.destroyed = []
 
     def was_destroyed(self, info):

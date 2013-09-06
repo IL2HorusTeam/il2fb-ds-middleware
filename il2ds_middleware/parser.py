@@ -13,6 +13,17 @@ from il2ds_middleware.regex import *
 
 
 @implementer(IConsoleParser)
+class ConsolePassthroughParser(object):
+
+    def passthrough(self, data):
+        return data
+
+    parse_line = server_info = mission_status = passthrough
+    mission_load = mission_destroy = mission_status
+    mission_begin = mission_end = mission_status
+
+
+@implementer(IConsoleParser)
 class ConsoleParser(object):
 
     _buffer = None
@@ -164,6 +175,16 @@ class EventLogParser(object):
             'x': float(x),
             'y': float(y),
         }
+
+
+@implementer(IDeviceLinkParser)
+class DeviceLinkPassthroughParser(object):
+
+    def passthrough(self, data):
+        return data
+
+    pilot_count = pilot_pos = all_pilots_pos = passthrough
+    static_count = static_pos = all_static_pos = passthrough
 
 
 @implementer(IDeviceLinkParser)

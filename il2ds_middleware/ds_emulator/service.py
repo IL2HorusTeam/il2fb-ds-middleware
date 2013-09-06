@@ -359,43 +359,15 @@ class DeviceLinkService(Service):
         self.known_air = []
         self.known_static = []
 
-    def got_requests(self, requests, address, peer):
-        answers = []
-        for request in requests:
-            cmd, arg = request
-            answer = None
-            try:
-                opcode = OPCODE.lookupByValue(cmd)
-            except ValueError as e:
-                if cmd == LONG_OPERATION_CMD:
-                    answers.append(self._long_operation())
-                else:
-                    log.err("Unknown command: {0}".format(cmd))
-            else:
-                if opcode == OPCODE.RADAR_REFRESH:
-                    self._refresh_radar()
-                elif opcode == OPCODE.PILOT_COUNT:
-                    answer = self._pilot_count()
-                elif opcode == OPCODE.PILOT_POS:
-                    answer = self._pilot_pos(arg)
-                elif opcode == OPCODE.STATIC_COUNT:
-                    answer = self._static_count()
-                elif opcode == OPCODE.STATIC_POS:
-                    answer = self._static_pos(arg)
-                if answer is not None:
-                    answers.append(answer)
-        if answers:
-            peer.send_answers(answers, address)
-
-    def _refresh_radar(self):
+    def refresh_radar(self):
         self.known_air = self.pilot_srvc.get_active()
         self.known_static = self.static_srvc.get_active()
 
-    def _pilot_count(self):
+    def pilot_count(self):
         result = len(self.known_air)
         return OPCODE.PILOT_COUNT.make_command(result)
 
-    def _pilot_pos(self, arg):
+    def pilot_pos(self, arg):
         data = self._pos(
             known_container=self.known_air,
             primary_container=self.pilot_srvc.pilots,
@@ -403,11 +375,11 @@ class DeviceLinkService(Service):
             idx=arg)
         return OPCODE.PILOT_POS.make_command(data) if data else None
 
-    def _static_count(self):
+    def static_count(self):
         result = len(self.known_static)
         return OPCODE.STATIC_COUNT.make_command(result)
 
-    def _static_pos(self, arg):
+    def static_pos(self, arg):
         data = self._pos(
             known_container=self.known_static,
             primary_container=self.static_srvc.objects,
@@ -433,7 +405,7 @@ class DeviceLinkService(Service):
         finally:
             return ':'.join([idx, data, ])
 
-    def _long_operation(self):
+    def long_operation(self):
         import time
         time.sleep(self.lop_duration)
         return (LONG_OPERATION_CMD, None, )

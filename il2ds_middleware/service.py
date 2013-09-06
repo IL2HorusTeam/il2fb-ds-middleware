@@ -53,8 +53,7 @@ class LogWatchingService(LogWatchingBaseService):
 
 class ClientBaseService(Service):
 
-    def __init__(self, console=None):
-        self.console = console
+    client = None
 
 
 @implementer(IPilotService)
