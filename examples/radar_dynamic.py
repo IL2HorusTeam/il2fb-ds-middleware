@@ -41,6 +41,9 @@ class PilotService(PilotBaseService):
     def went_to_menu(self, info):
         self.dlink.refresh_radar()
 
+    def user_chat(self, info):
+        print "%s says: %s" % info
+
 
 class ObjectsService(ObjectsBaseService):
 

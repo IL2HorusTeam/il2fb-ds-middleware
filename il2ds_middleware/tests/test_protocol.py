@@ -201,6 +201,17 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
 
         return do_test()
 
+    def test_chat(self):
+        results = ["Chat: Server: \ttest message"]*3
+        results.append("Command not found: chat test message")
+        d = defer.Deferred()
+        self._set_console_expecting_receiver(results, d)
+        self.console_client.chat_all("test message")
+        self.console_client.chat_user("test message", "user0")
+        self.console_client.chat_army("test message", "0")
+        self.console_client.sendLine("chat test message")
+        return d
+
 
 class DeviceLinkClientProtocolBaseTestCase(BaseMiddlewareTestCase):
 

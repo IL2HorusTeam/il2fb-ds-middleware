@@ -47,6 +47,10 @@ class IConsoleParser(ILineParser):
         """
         """
 
+    def user_chat(self, line):
+        """
+        """
+
 
 class IEventLogParser(ILineParser):
 

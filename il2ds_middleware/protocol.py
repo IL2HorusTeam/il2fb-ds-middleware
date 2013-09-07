@@ -9,12 +9,13 @@ from twisted.python import log
 from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as DL_OPCODE,
     DEVICE_LINK_PREFIXES, DEVICE_LINK_CMD_SEPARATOR as DL_CMD_SEP,
     DEVICE_LINK_ARGS_SEPARATOR as DL_ARGS_SEP, DEVICE_LINK_CMD_GROUP_MAX_SIZE,
-    REQUEST_TIMEOUT, REQUEST_MISSION_LOAD_TIMEOUT, )
+    REQUEST_TIMEOUT, REQUEST_MISSION_LOAD_TIMEOUT, CHAT_MAX_LENGTH, )
 from il2ds_middleware.parser import (ConsolePassthroughParser,
     DeviceLinkPassthroughParser, )
 from il2ds_middleware.requests import (
     REQ_SERVER_INFO, REQ_MISSION_STATUS, REQ_MISSION_LOAD, REQ_MISSION_BEGIN,
-    REQ_MISSION_END, REQ_MISSION_DESTROY, )
+    REQ_MISSION_END, REQ_MISSION_DESTROY, REQ_CHAT, CHAT_ALL, CHAT_USER,
+    CHAT_ARMY, )
 
 
 class ConsoleClient(LineOnlyReceiver):
@@ -125,6 +126,25 @@ class ConsoleClient(LineOnlyReceiver):
         d.addCallback(lambda _: self.mission_status())
         d.addCallback(self.parser.mission_destroy)
         return d
+
+    def chat_all(self, message):
+        self._chat(message, CHAT_ALL)
+
+    def chat_user(self, message, callsign):
+        self._chat(message, CHAT_USER.format(callsign))
+
+    def chat_army(self, message, army):
+        self._chat(message, CHAT_ARMY.format(army))
+
+    def _chat(self, message, suffix):
+        last = 0
+        total = len(message)
+        while last < total:
+            step = min(CHAT_MAX_LENGTH, total-last)
+            chunk = message[last:last+step]
+            self.sendLine(
+                REQ_CHAT.format(chunk.encode('unicode-escape'), suffix))
+            last += step
 
 
 class ConsoleClientFactory(ClientFactory):

@@ -37,6 +37,10 @@ class IPilotService(Interface):
         """
         """
 
+    def user_chat(self, info):
+        """
+        """
+
 
 class IObjectsService(Interface):
 

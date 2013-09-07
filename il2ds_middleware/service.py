@@ -46,6 +46,9 @@ class PilotBaseService(ClientBaseService):
     def went_to_menu(self, info):
         raise NotImplementedError
 
+    def user_chat(self, info):
+        raise NotImplementedError
+
 
 @implementer(IObjectsService)
 class ObjectsBaseService(ClientBaseService):

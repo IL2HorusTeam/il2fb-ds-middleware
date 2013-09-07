@@ -15,6 +15,7 @@ class PilotService(PilotBaseService):
         self.shot_down = []
         self.army_select = []
         self.to_menu = []
+        self.chat = []
 
     def user_join(self, info):
         self.joined.append(info)
@@ -39,6 +40,9 @@ class PilotService(PilotBaseService):
 
     def went_to_menu(self, info):
         self.to_menu.append(info)
+
+    def user_chat(self, info):
+        self.chat.append(info)
 
 
 class ObjectsService(ObjectsBaseService):

@@ -88,6 +88,8 @@ class RootService(MultiService, _CommonServiceMixin):
             if line == LONG_OPERATION_CMD:
                 self._long_operation()
                 break
+            if self._chat(line):
+                break
             return False
         return True
 
@@ -103,6 +105,20 @@ class RootService(MultiService, _CommonServiceMixin):
     def _long_operation(self):
         import time
         time.sleep(self.lop_duration)
+
+    def _chat(self, line):
+        if not line.startswith("chat"):
+            return False
+        idx = line.find('ALL')
+        if idx < 0:
+            idx = line.find('TO')
+        if idx < 0:
+            idx = line.find('ARMY')
+        if idx < 0:
+            return False
+        msg = line[4:idx].strip()
+        self.send("Chat: Server: \t{0}".format(msg))
+        return True
 
     def set_server_info(self, name="", description=""):
         self.info = {

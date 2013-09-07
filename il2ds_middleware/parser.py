@@ -33,12 +33,13 @@ class ConsoleParser(object):
         self.mission_service = mission_service
 
     def parse_line(self, line):
+        if self.user_chat(line):
+            return
         if self.user_joined(line):
             return
-        elif self.user_left(line):
+        if self.user_left(line):
             return
-        else:
-            self._mission_status(line)
+        self._mission_status(line)
 
     def server_info(self, lines):
         result = {}
@@ -98,6 +99,17 @@ class ConsoleParser(object):
             self.pilot_service.user_left(info)
             return True
         return False
+
+    def user_chat(self, line):
+        m = re.match(RX_USER_CHAT, line)
+        if not m:
+            return False
+        else:
+            callsign, msg = m.groups()
+            if callsign != "Server":
+                info = (callsign, msg.decode('unicode-escape'))
+                self.pilot_service.user_chat(info)
+            return True
 
 
 @implementer(IEventLogParser)
