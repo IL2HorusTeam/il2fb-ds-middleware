@@ -23,22 +23,6 @@ class IConsoleParser(ILineParser):
         """
         """
 
-    def mission_load(self, lines):
-        """
-        """
-
-    def mission_begin(self, lines):
-        """
-        """
-
-    def mission_end(self, lines):
-        """
-        """
-
-    def mission_destroy(self, lines):
-        """
-        """
-
     def user_joined(self, line):
         """
         """

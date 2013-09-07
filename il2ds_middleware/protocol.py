@@ -20,8 +20,9 @@ from il2ds_middleware.requests import (
 
 class ConsoleClient(LineOnlyReceiver):
 
-    """Parser is set up by factory"""
+    """Parser and timeout_value are set up by factory"""
     parser = None
+    timeout_value = None
 
     def __init__(self):
         self._request_id = 0
@@ -45,7 +46,7 @@ class ConsoleClient(LineOnlyReceiver):
 
         from twisted.internet import reactor
         timeout = reactor.callLater(
-            timeout_value or REQUEST_TIMEOUT, on_timeout, None)
+            timeout_value or self.timeout_value, on_timeout, None)
         return rid, ([], d, timeout, )
 
     def _send_request(self, line, timeout_value=None):
@@ -99,7 +100,7 @@ class ConsoleClient(LineOnlyReceiver):
         d.addCallback(self.parser.server_info)
         return d
 
-    def mission_status(self):
+    def mission_status(self, *args):
         d = self._send_request(REQ_MISSION_STATUS)
         d.addCallback(self.parser.mission_status)
         return d
@@ -107,24 +108,22 @@ class ConsoleClient(LineOnlyReceiver):
     def mission_load(self, mission):
         d = self._send_request(
             REQ_MISSION_LOAD.format(mission), REQUEST_MISSION_LOAD_TIMEOUT)
-        d.addCallback(self.parser.mission_load)
+        d.addCallback(self.parser.mission_status)
         return d
 
     def mission_begin(self):
         d = self._send_request(REQ_MISSION_BEGIN)
-        d.addCallback(self.parser.mission_begin)
+        d.addCallback(self.parser.mission_status)
         return d
 
     def mission_end(self):
         d = self._send_request(REQ_MISSION_END)
         d.addCallback(lambda _: self.mission_status())
-        d.addCallback(self.parser.mission_end)
         return d
 
     def mission_destroy(self):
         d = self._send_request(REQ_MISSION_DESTROY)
         d.addCallback(lambda _: self.mission_status())
-        d.addCallback(self.parser.mission_destroy)
         return d
 
     def chat_all(self, message):
@@ -151,16 +150,19 @@ class ConsoleClientFactory(ClientFactory):
 
     protocol = ConsoleClient
 
-    def __init__(self, parser=None):
+    def __init__(self, parser=None, timeout_value=REQUEST_TIMEOUT):
         self._client = None
         self.parser = parser
+        self.timeout_value = timeout_value
         self.on_connecting = defer.Deferred()
         self.on_connection_lost = defer.Deferred()
 
     def buildProtocol(self, addr):
         self._client = ClientFactory.buildProtocol(self, addr)
         parser, self.parser = self.parser or ConsolePassthroughParser(), None
+        tv, self.timeout_value = self.timeout_value, None
         self._client.parser = parser
+        self._client.timeout_value = tv
         return self._client
 
     def clientConnectionMade(self, client):
@@ -249,8 +251,9 @@ class DeviceLinkClient(DeviceLinkProtocol):
 
     cmd_group_max_size = DEVICE_LINK_CMD_GROUP_MAX_SIZE
 
-    def __init__(self, address, parser=None):
+    def __init__(self, address, parser=None, timeout_value=REQUEST_TIMEOUT):
         self.parser = parser or DeviceLinkPassthroughParser()
+        self.timeout_value = timeout_value
         DeviceLinkProtocol.__init__(self, address)
         # [ (opcode, deferred, timeout), ]
         self._requests = []
@@ -278,7 +281,7 @@ class DeviceLinkClient(DeviceLinkProtocol):
 
         from twisted.internet import reactor
         timeout = reactor.callLater(
-            timeout_value or REQUEST_TIMEOUT, on_timeout, None)
+            timeout_value or self.timeout_value, on_timeout, None)
         request = (command[0], d, timeout, )
         return request
 
