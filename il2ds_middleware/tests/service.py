@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
-from il2ds_middleware.service import PilotBaseService, ObjectsBaseService
+from il2ds_middleware.service import (PilotBaseService, ObjectsBaseService,
+    MissionBaseService, )
 
 
 class PilotService(PilotBaseService):
 
     def __init__(self):
-        PilotBaseService.__init__(self)
         self.joined = []
         self.left = []
         self.occupied = []
@@ -15,6 +15,7 @@ class PilotService(PilotBaseService):
         self.shot_down = []
         self.army_select = []
         self.to_menu = []
+        self.chat = []
 
     def user_join(self, info):
         self.joined.append(info)
@@ -40,11 +41,13 @@ class PilotService(PilotBaseService):
     def went_to_menu(self, info):
         self.to_menu.append(info)
 
+    def user_chat(self, info):
+        self.chat.append(info)
+
 
 class ObjectsService(ObjectsBaseService):
 
     def __init__(self):
-        ObjectsBaseService.__init__(self)
         self.destroyed = []
 
     def was_destroyed(self, info):

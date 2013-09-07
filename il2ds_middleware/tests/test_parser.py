@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 
+from twisted.application.service import Service
 from twisted.trial.unittest import TestCase
 
 from il2ds_middleware.constants import MISSION_STATUS, PILOT_LEAVE_REASON
 from il2ds_middleware.parser import (ConsoleParser, EventLogParser,
-    DeviceLinkParser, )
+    EventLogPassthroughParser, DeviceLinkParser, )
+from il2ds_middleware.service import MissionBaseService
 from il2ds_middleware.tests.service import PilotService, ObjectsService
 
 
@@ -12,7 +14,8 @@ class ConsoleParserTestCase(TestCase):
 
     def setUp(self):
         self.pilot_srvc = PilotService()
-        self.parser = ConsoleParser(self.pilot_srvc)
+        self.mission_srvc = MissionBaseService(log_watcher=Service())
+        self.parser = ConsoleParser((self.pilot_srvc, self.mission_srvc))
         self.pilot_srvc.startService()
 
     def tearDown(self):
@@ -62,24 +65,26 @@ class ConsoleParserTestCase(TestCase):
             "##### House without collision "
                 "(3do/Buildings/Port/BaseSegment/live.sim)",
             "Mission: net/dogfight/test.mis is Loaded", ]
-        status, mission = self.parser.mission_load(datas)
+        status, mission = self.parser.mission_status(datas)
         self.assertEqual(status, MISSION_STATUS.LOADED)
         self.assertEqual(mission, "net/dogfight/test.mis")
 
     def test_mission_begin(self):
-        status, mission = self.parser.mission_begin([
+        status, mission = self.parser.mission_status([
             "Mission: net/dogfight/test.mis is Playing", ])
         self.assertEqual(status, MISSION_STATUS.PLAYING)
         self.assertEqual(mission, "net/dogfight/test.mis")
 
     def test_mission_end(self):
-        status, mission = self.parser.mission_end([
+        self.parser.mission_status([
+            "Mission: net/dogfight/test.mis is Playing", ])
+        status, mission = self.parser.mission_status([
             "Mission: net/dogfight/test.mis is Loaded", ])
         self.assertEqual(status, MISSION_STATUS.LOADED)
         self.assertEqual(mission, "net/dogfight/test.mis")
 
     def test_mission_destroy(self):
-        status, mission = self.parser.mission_destroy([
+        status, mission = self.parser.mission_status([
             "Mission NOT loaded", ])
         self.assertEqual(status, MISSION_STATUS.NOT_LOADED)
         self.assertEqual(mission, None)
@@ -125,6 +130,36 @@ class ConsoleParserTestCase(TestCase):
         self.assertEqual(info.get('ip'), "192.168.1.3")
         self.assertEqual(info.get('callsign'), "user1")
         self.assertEqual(info.get('reason'), PILOT_LEAVE_REASON.KICKED)
+
+    def test_user_chat(self):
+        self.parser.parse_line("Chat: user0: \\ttest_message")
+        self.assertEqual(len(self.pilot_srvc.chat), 1)
+        info = self.pilot_srvc.chat[0]
+
+        self.assertIsInstance(info, tuple)
+        callsign, msg = info
+        self.assertEqual(callsign, "user0")
+        self.assertEqual(msg, "test_message")
+
+
+class EventLogPassthroughParserTestCase(TestCase):
+
+    def setUp(self):
+        self.parser = EventLogPassthroughParser()
+
+    def test_passthrough(self):
+        methods = [
+            self.parser.parse_line,
+            self.parser.seat_occupied,
+            self.parser.weapons_loaded,
+            self.parser.was_killed,
+            self.parser.was_shot_down,
+            self.parser.selected_army,
+            self.parser.went_to_menu,
+            self.parser.was_destroyed, ]
+        data = "test"
+        for m in methods:
+            self.assertEqual(m(data), data)
 
 
 class EventLogParserTestCase(TestCase):

@@ -9,7 +9,7 @@ class ILineParser(Interface):
         """Parse line.
 
         :param line: line to parse.
-        :type line: str..
+        :type line: str.
         """
 
 
@@ -23,22 +23,6 @@ class IConsoleParser(ILineParser):
         """
         """
 
-    def mission_load(self, lines):
-        """
-        """
-
-    def mission_begin(self, lines):
-        """
-        """
-
-    def mission_end(self, lines):
-        """
-        """
-
-    def mission_destroy(self, lines):
-        """
-        """
-
     def user_joined(self, line):
         """
         """
@@ -47,8 +31,12 @@ class IConsoleParser(ILineParser):
         """
         """
 
+    def user_chat(self, line):
+        """
+        """
 
-class IEventLogParser(Interface):
+
+class IEventLogParser(ILineParser):
 
     def seat_occupied(self, data):
         """

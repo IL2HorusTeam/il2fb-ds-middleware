@@ -28,7 +28,7 @@ class ConsoleClientFactory(ClientFactory):
     protocol = ConsoleClient
     receiver = None
 
-    def __init__(self):
+    def __init__(self, parser=None):
         self.clients = []
         self.on_connecting = Deferred()
         self.on_connection_lost = Deferred()

@@ -13,18 +13,33 @@ from il2ds_middleware.regex import *
 
 
 @implementer(IConsoleParser)
+class ConsolePassthroughParser(object):
+
+    def passthrough(self, data):
+        return data
+
+    parse_line = server_info = mission_status = passthrough
+    mission_load = mission_destroy = mission_status
+    mission_begin = mission_end = mission_status
+
+
+@implementer(IConsoleParser)
 class ConsoleParser(object):
 
     _buffer = None
 
-    def __init__(self, pilot_service):
+    def __init__(self, (pilot_service, mission_service)):
         self.pilot_service = pilot_service
+        self.mission_service = mission_service
 
     def parse_line(self, line):
+        if self.user_chat(line):
+            return
         if self.user_joined(line):
             return
-        elif self.user_left(line):
+        if self.user_left(line):
             return
+        self._mission_status(line)
 
     def server_info(self, lines):
         result = {}
@@ -35,16 +50,22 @@ class ConsoleParser(object):
 
     def mission_status(self, lines):
         for line in lines:
-            if line == "Mission NOT loaded":
-                return (MISSION_STATUS.NOT_LOADED, None, )
-            elif line.endswith("is Loaded"):
-                return (MISSION_STATUS.LOADED, line.split()[1], )
-            elif line.endswith("is Playing"):
-                return (MISSION_STATUS.PLAYING, line.split()[1], )
+            info = self._mission_status(line)
+            if info:
+                return info
         return lines
 
-    mission_load = mission_destroy = mission_status
-    mission_begin = mission_end = mission_status
+    def _mission_status(self, line):
+        info = None
+        if line == "Mission NOT loaded":
+            info = (MISSION_STATUS.NOT_LOADED, None, )
+        elif line.endswith("is Loaded"):
+            info = (MISSION_STATUS.LOADED, line.split()[1], )
+        elif line.endswith("is Playing"):
+            info = (MISSION_STATUS.PLAYING, line.split()[1], )
+        if info:
+            self.mission_service.on_status_info(info)
+        return info
 
     def user_joined(self, line):
         m = re.match(RX_USER_JOIN, line)
@@ -78,6 +99,28 @@ class ConsoleParser(object):
             self.pilot_service.user_left(info)
             return True
         return False
+
+    def user_chat(self, line):
+        m = re.match(RX_USER_CHAT, line)
+        if not m:
+            return False
+        else:
+            callsign, msg = m.groups()
+            if callsign != "Server":
+                info = (callsign, msg.decode('unicode-escape'))
+                self.pilot_service.user_chat(info)
+            return True
+
+
+@implementer(IEventLogParser)
+class EventLogPassthroughParser(object):
+
+    def passthrough(self, data):
+        return data
+
+    parse_line = passthrough
+    seat_occupied = weapons_loaded = was_killed = was_shot_down = passthrough
+    selected_army = went_to_menu = was_destroyed = passthrough
 
 
 @implementer(IEventLogParser)
@@ -164,6 +207,16 @@ class EventLogParser(object):
             'x': float(x),
             'y': float(y),
         }
+
+
+@implementer(IDeviceLinkParser)
+class DeviceLinkPassthroughParser(object):
+
+    def passthrough(self, data):
+        return data
+
+    pilot_count = pilot_pos = all_pilots_pos = passthrough
+    static_count = static_pos = all_static_pos = passthrough
 
 
 @implementer(IDeviceLinkParser)

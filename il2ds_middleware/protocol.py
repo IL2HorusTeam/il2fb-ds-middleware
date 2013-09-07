@@ -9,16 +9,22 @@ from twisted.python import log
 from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as DL_OPCODE,
     DEVICE_LINK_PREFIXES, DEVICE_LINK_CMD_SEPARATOR as DL_CMD_SEP,
     DEVICE_LINK_ARGS_SEPARATOR as DL_ARGS_SEP, DEVICE_LINK_CMD_GROUP_MAX_SIZE,
-    REQUEST_TIMEOUT, REQUEST_MISSION_LOAD_TIMEOUT, )
+    REQUEST_TIMEOUT, REQUEST_MISSION_LOAD_TIMEOUT, CHAT_MAX_LENGTH, )
+from il2ds_middleware.parser import (ConsolePassthroughParser,
+    DeviceLinkPassthroughParser, )
 from il2ds_middleware.requests import (
     REQ_SERVER_INFO, REQ_MISSION_STATUS, REQ_MISSION_LOAD, REQ_MISSION_BEGIN,
-    REQ_MISSION_END, REQ_MISSION_DESTROY, )
+    REQ_MISSION_END, REQ_MISSION_DESTROY, REQ_CHAT, CHAT_ALL, CHAT_USER,
+    CHAT_ARMY, )
 
 
 class ConsoleClient(LineOnlyReceiver):
 
-    def __init__(self, parser=None):
-        self._parser = parser
+    """Parser and timeout_value are set up by factory"""
+    parser = None
+    timeout_value = None
+
+    def __init__(self):
         self._request_id = 0
         self._responce_id = None
         # { request_id: ([results], deferred, timeout, ), }
@@ -40,7 +46,7 @@ class ConsoleClient(LineOnlyReceiver):
 
         from twisted.internet import reactor
         timeout = reactor.callLater(
-            timeout_value or REQUEST_TIMEOUT, on_timeout, None)
+            timeout_value or self.timeout_value, on_timeout, None)
         return rid, ([], d, timeout, )
 
     def _send_request(self, line, timeout_value=None):
@@ -64,8 +70,8 @@ class ConsoleClient(LineOnlyReceiver):
             self._process_responce_id(line)
         elif self._responce_id:
             self._requests[self._responce_id][0].append(line)
-        elif self._parser:
-            self._parser.parse_line(line)
+        else:
+            self.parser.parse_line(line)
 
     def _process_responce_id(self, line):
         try:
@@ -91,55 +97,72 @@ class ConsoleClient(LineOnlyReceiver):
 
     def server_info(self):
         d = self._send_request(REQ_SERVER_INFO)
-        if self._parser:
-            d.addCallback(self._parser.server_info)
+        d.addCallback(self.parser.server_info)
         return d
 
-    def mission_status(self):
+    def mission_status(self, *args):
         d = self._send_request(REQ_MISSION_STATUS)
-        if self._parser:
-            d.addCallback(self._parser.mission_status)
+        d.addCallback(self.parser.mission_status)
         return d
 
     def mission_load(self, mission):
         d = self._send_request(
             REQ_MISSION_LOAD.format(mission), REQUEST_MISSION_LOAD_TIMEOUT)
-        if self._parser:
-            d.addCallback(self._parser.mission_load)
+        d.addCallback(self.parser.mission_status)
         return d
 
     def mission_begin(self):
         d = self._send_request(REQ_MISSION_BEGIN)
-        if self._parser:
-            d.addCallback(self._parser.mission_begin)
+        d.addCallback(self.parser.mission_status)
         return d
 
     def mission_end(self):
         d = self._send_request(REQ_MISSION_END)
         d.addCallback(lambda _: self.mission_status())
-        if self._parser:
-            d.addCallback(self._parser.mission_end)
         return d
 
     def mission_destroy(self):
         d = self._send_request(REQ_MISSION_DESTROY)
         d.addCallback(lambda _: self.mission_status())
-        if self._parser:
-            d.addCallback(self._parser.mission_destroy)
         return d
+
+    def chat_all(self, message):
+        self._chat(message, CHAT_ALL)
+
+    def chat_user(self, message, callsign):
+        self._chat(message, CHAT_USER.format(callsign))
+
+    def chat_army(self, message, army):
+        self._chat(message, CHAT_ARMY.format(army))
+
+    def _chat(self, message, suffix):
+        last = 0
+        total = len(message)
+        while last < total:
+            step = min(CHAT_MAX_LENGTH, total-last)
+            chunk = message[last:last+step]
+            self.sendLine(
+                REQ_CHAT.format(chunk.encode('unicode-escape'), suffix))
+            last += step
 
 
 class ConsoleClientFactory(ClientFactory):
 
     protocol = ConsoleClient
 
-    def __init__(self, parser=None):
+    def __init__(self, parser=None, timeout_value=REQUEST_TIMEOUT):
         self._client = None
+        self.parser = parser
+        self.timeout_value = timeout_value
         self.on_connecting = defer.Deferred()
         self.on_connection_lost = defer.Deferred()
 
     def buildProtocol(self, addr):
         self._client = ClientFactory.buildProtocol(self, addr)
+        parser, self.parser = self.parser or ConsolePassthroughParser(), None
+        tv, self.timeout_value = self.timeout_value, None
+        self._client.parser = parser
+        self._client.timeout_value = tv
         return self._client
 
     def clientConnectionMade(self, client):
@@ -165,7 +188,12 @@ class DeviceLinkProtocol(DatagramProtocol):
 
     def __init__(self, address=None, parser=None):
         self.address = address
-        self.parser = parser
+        self.on_start = defer.Deferred()
+
+    def startProtocol(self):
+        if self.on_start is not None:
+            d, self.on_start = self.on_start, None
+            d.callback(None)
 
     def datagramReceived(self, data, (host, port)):
         if data.startswith(DEVICE_LINK_PREFIXES['answer']):
@@ -223,8 +251,10 @@ class DeviceLinkClient(DeviceLinkProtocol):
 
     cmd_group_max_size = DEVICE_LINK_CMD_GROUP_MAX_SIZE
 
-    def __init__(self, address, parser=None):
-        DeviceLinkProtocol.__init__(self, address, parser)
+    def __init__(self, address, parser=None, timeout_value=REQUEST_TIMEOUT):
+        self.parser = parser or DeviceLinkPassthroughParser()
+        self.timeout_value = timeout_value
+        DeviceLinkProtocol.__init__(self, address)
         # [ (opcode, deferred, timeout), ]
         self._requests = []
 
@@ -251,7 +281,7 @@ class DeviceLinkClient(DeviceLinkProtocol):
 
         from twisted.internet import reactor
         timeout = reactor.callLater(
-            timeout_value or REQUEST_TIMEOUT, on_timeout, None)
+            timeout_value or self.timeout_value, on_timeout, None)
         request = (command[0], d, timeout, )
         return request
 
@@ -312,38 +342,32 @@ class DeviceLinkClient(DeviceLinkProtocol):
 
     def pilot_count(self):
         d = self._deferred_request(DL_OPCODE.PILOT_COUNT.make_command())
-        if self.parser is not None:
-            d.addCallback(self.parser.pilot_count)
+        d.addCallback(self.parser.pilot_count)
         return d
 
     def pilot_pos(self, index):
         d = self._deferred_request(DL_OPCODE.PILOT_POS.make_command(index))
-        if self.parser is not None:
-            d.addCallback(self.parser.pilot_pos)
+        d.addCallback(self.parser.pilot_pos)
         return d
 
     def all_pilots_pos(self):
         d = self._all_pos(self.pilot_count, DL_OPCODE.PILOT_POS)
-        if self.parser is not None:
-            d.addCallback(self.parser.all_pilots_pos)
+        d.addCallback(self.parser.all_pilots_pos)
         return d
 
     def static_count(self):
         d = self._deferred_request(DL_OPCODE.STATIC_COUNT.make_command())
-        if self.parser is not None:
-            d.addCallback(self.parser.static_count)
+        d.addCallback(self.parser.static_count)
         return d
 
     def static_pos(self, index):
         d = self._deferred_request(DL_OPCODE.STATIC_POS.make_command(index))
-        if self.parser is not None:
-            d.addCallback(self.parser.static_pos)
+        d.addCallback(self.parser.static_pos)
         return d
 
     def all_static_pos(self):
         d = self._all_pos(self.static_count, DL_OPCODE.STATIC_POS)
-        if self.parser is not None:
-            d.addCallback(self.parser.all_static_pos)
+        d.addCallback(self.parser.all_static_pos)
         return d
 
     def _all_pos(self, get_count, pos_opcode):

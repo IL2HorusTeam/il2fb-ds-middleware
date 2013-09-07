@@ -5,7 +5,9 @@ from twisted.internet.protocol import ServerFactory
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 
+from il2ds_middleware.constants import DEVICE_LINK_OPCODE as OPCODE
 from il2ds_middleware.protocol import DeviceLinkProtocol
+from il2ds_middleware.ds_emulator.constants import LONG_OPERATION_CMD
 
 
 class ConsoleServer(LineReceiver):
@@ -47,8 +49,32 @@ class ConsoleServerFactory(ServerFactory):
 
 class DeviceLinkServerProtocol(DeviceLinkProtocol):
 
-    receiver = None
+    service = None
 
     def requests_received(self, requests, address):
-        if self.receiver is not None:
-            self.receiver(requests, address, self)
+        answers = []
+        for request in requests:
+            cmd, arg = request
+            answer = None
+            try:
+                opcode = OPCODE.lookupByValue(cmd)
+            except ValueError as e:
+                if cmd == LONG_OPERATION_CMD:
+                    answers.append(self.service.long_operation())
+                else:
+                    log.err("Unknown command: {0}".format(cmd))
+            else:
+                if opcode == OPCODE.RADAR_REFRESH:
+                    self.service.refresh_radar()
+                elif opcode == OPCODE.PILOT_COUNT:
+                    answer = self.service.pilot_count()
+                elif opcode == OPCODE.PILOT_POS:
+                    answer = self.service.pilot_pos(arg)
+                elif opcode == OPCODE.STATIC_COUNT:
+                    answer = self.service.static_count()
+                elif opcode == OPCODE.STATIC_POS:
+                    answer = self.service.static_pos(arg)
+                if answer is not None:
+                    answers.append(answer)
+        if answers:
+            self.send_answers(answers, address)

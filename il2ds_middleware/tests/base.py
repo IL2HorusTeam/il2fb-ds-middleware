@@ -3,6 +3,8 @@
 from twisted.internet import defer
 from twisted.trial.unittest import TestCase
 
+from il2ds_middleware.parser import (ConsolePassthroughParser,
+    DeviceLinkPassthroughParser, )
 from il2ds_middleware.protocol import ConsoleClientFactory, DeviceLinkClient
 
 from il2ds_middleware.ds_emulator.service import RootService as DSService
@@ -12,9 +14,10 @@ from il2ds_middleware.ds_emulator.protocol import (ConsoleServerFactory,
 
 class BaseTestCase(TestCase):
 
-    console_client_class = None
+    console_client_factory_class = None
+    console_client_parser_class = ConsolePassthroughParser
     dl_client_class = None
-    dl_client_parser_class = None
+    dl_client_parser_class = DeviceLinkPassthroughParser
     log_watcher_class = None
 
     console_server_host = "127.0.0.1"
@@ -27,6 +30,8 @@ class BaseTestCase(TestCase):
     timeout_value = 0.05
 
     def setUp(self):
+        self.service = DSService(self.log_path)
+        self.service.startService()
         self._set_log_watcher()
         self._listen_server()
         return self._connect_client()
@@ -39,11 +44,6 @@ class BaseTestCase(TestCase):
     def _listen_server(self):
         self._listen_console_server()
         self._listen_device_link_server()
-
-        self.service = DSService(self.log_path)
-        self.service.startService()
-        self.dl_server.receiver = self.service.getServiceNamed(
-            'dl').got_requests
 
     def _listen_console_server(self):
 
@@ -71,6 +71,7 @@ class BaseTestCase(TestCase):
 
     def _listen_device_link_server(self):
         self.dl_server = DeviceLinkServerProtocol()
+        self.dl_server.service = self.service.getServiceNamed('dl')
 
         from twisted.internet import reactor
         self.dl_server_listener = reactor.listenUDP(
@@ -89,11 +90,12 @@ class BaseTestCase(TestCase):
         def on_disconnected(client):
             self.console_client = None
 
-        if self.console_client_class is None:
+        if self.console_client_factory_class is None:
             self.console_client_connector = None
             return defer.succeed(_)
 
-        self.console_client_factory = self.console_client_class()
+        parser = self.console_client_parser_class()
+        self.console_client_factory = self.console_client_factory_class(parser)
         self.console_client_factory.on_connecting.addCallback(on_connected)
         self.console_client_factory.on_connection_lost.addBoth(on_disconnected)
 
@@ -235,5 +237,5 @@ class BaseTestCase(TestCase):
 
 class BaseMiddlewareTestCase(BaseTestCase):
 
-    console_client_class = ConsoleClientFactory
+    console_client_factory_class = ConsoleClientFactory
     dl_client_class = DeviceLinkClient

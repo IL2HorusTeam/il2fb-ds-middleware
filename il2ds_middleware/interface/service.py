@@ -3,19 +3,6 @@
 from zope.interface import Interface
 
 
-class IEventLineGetter(Interface):
-
-    def got_event_line(self, line, timestamp):
-        """Process line from event log.
-
-        :param line: line which describes event.
-        :type line: str.
-
-        :param timestamp: timestamp provided by log watching service.
-        :type timestamp: datetime.
-        """
-
-
 class IPilotService(Interface):
 
     def user_join(self, info):
@@ -50,9 +37,29 @@ class IPilotService(Interface):
         """
         """
 
+    def user_chat(self, info):
+        """
+        """
+
 
 class IObjectsService(Interface):
 
     def was_destroyed(self, info):
+        """
+        """
+
+
+class IMissionService(Interface):
+
+
+    def on_status_info(self, info):
+        """
+        """
+
+    def began(self, info=None):
+        """
+        """
+
+    def ended(self, info=None):
         """
         """

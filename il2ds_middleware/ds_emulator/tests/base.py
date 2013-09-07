@@ -14,6 +14,6 @@ from il2ds_middleware.ds_emulator.tests.service import LogWatchingService
 
 class BaseEmulatorTestCase(BaseTestCase):
 
-    console_client_class = ConsoleClientFactory
+    console_client_factory_class = ConsoleClientFactory
     dl_client_class = DeviceLinkClient
     log_watcher_class = LogWatchingService

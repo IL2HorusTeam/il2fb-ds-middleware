@@ -68,3 +68,6 @@ class PILOT_LEAVE_REASON(Names):
     """
     DISCONNECTED = NamedConstant()
     KICKED = NamedConstant()
+
+
+CHAT_MAX_LENGTH = 80
