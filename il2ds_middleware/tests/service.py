@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from il2ds_middleware.service import PilotBaseService, ObjectsBaseService
+from il2ds_middleware.service import (PilotBaseService, ObjectsBaseService,
+    MissionBaseService, )
 
 
 class PilotService(PilotBaseService):

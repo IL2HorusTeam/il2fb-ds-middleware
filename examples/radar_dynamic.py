@@ -6,9 +6,11 @@ from twisted.application.internet import TimerService
 from twisted.application.service import MultiService
 from twisted.internet import defer, reactor
 
-from il2ds_middleware.parser import ConsoleParser, DeviceLinkParser
+from il2ds_middleware.parser import (ConsoleParser, DeviceLinkParser,
+    EventLogParser, )
 from il2ds_middleware.protocol import ConsoleClientFactory, DeviceLinkClient
-from il2ds_middleware.service import PilotBaseService
+from il2ds_middleware.service import (PilotBaseService, ObjectsBaseService,
+    MissionBaseService, LogWatchingService, )
 
 
 class PilotService(PilotBaseService):
@@ -19,25 +21,44 @@ class PilotService(PilotBaseService):
         pass
 
     def user_left(self, info):
-        dlink.refresh_radar()
+        self.dlink.refresh_radar()
 
     def seat_occupied(self, info):
-        dlink.refresh_radar()
+        self.dlink.refresh_radar()
 
     def weapons_loaded(self, info):
         pass
 
     def was_killed(self, info):
-        dlink.refresh_radar()
+        self.dlink.refresh_radar()
 
     def was_shot_down(self, info):
-        dlink.refresh_radar()
+        self.dlink.refresh_radar()
 
     def selected_army(self, info):
         pass
 
     def went_to_menu(self, info):
-        dlink.refresh_radar()
+        self.dlink.refresh_radar()
+
+
+class ObjectsService(ObjectsBaseService):
+
+    def was_destroyed(self, info):
+        pass
+
+
+class MissionService(MissionBaseService):
+
+    dlink = None
+
+    def began(self, info=None):
+        MissionBaseService.began(self, info)
+        self.dlink.refresh_radar()
+
+    def ended(self, info=None):
+        MissionBaseService.ended(self, info)
+        self.dlink.refresh_radar()
 
 
 class PilotRadarService(TimerService):
@@ -68,7 +89,8 @@ class PilotRadarService(TimerService):
 
 
 def parse_args():
-    usage = """usage: %prog [hostname]:port"""
+    usage = """usage: %prog [--host=HOST] [--csport=CSPORT] [--dlport=DLPORT]
+    [--frequency=FREQUENCY] --log=LOG"""
     parser = optparse.OptionParser(usage)
 
     help = "The host to connect to. Default is localhost."
@@ -83,7 +105,12 @@ def parse_args():
     help = "Radar refreshing frequency. Default is 5 seconds."
     parser.add_option('--frequency', type='int', default=5, help=help)
 
+    help = "Path to events log file."
+    parser.add_option('--log', help=help)
+
     options, args = parser.parse_args()
+    if not options.log:
+        parser.error("Path to events log is not set.")
     return options
 
 
@@ -99,17 +126,30 @@ def main():
     root = MultiService()
     pilots = PilotService()
     pilots.setServiceParent(root)
+
+    objects = ObjectsService()
+    objects.setServiceParent(root)
+
     radar = PilotRadarService(options.frequency)
     radar.setServiceParent(root)
+
+    parser = EventLogParser((pilots, objects))
+    log_watcher = LogWatchingService(options.log, parser=parser)
+    missions = MissionService(log_watcher)
+    missions.setServiceParent(root)
 
     def on_start(_):
         dl_client.refresh_radar()
         pilots.dlink = dl_client
         radar.dlink = dl_client
+        missions.dlink = dl_client
         root.startService()
+        root.client.mission_status()
 
     def on_connected(client):
+        root.client = client
         pilots.client = client
+        objects.client = client
         d = dl_client.on_start.addCallback(on_start)
         reactor.listenUDP(0, dl_client)
         return d
@@ -121,7 +161,8 @@ def main():
     def on_connection_lost(err):
         print "Connection was lost."
 
-    f = ConsoleClientFactory(ConsoleParser(pilots))
+    parser = ConsoleParser((pilots, missions))
+    f = ConsoleClientFactory(parser)
     dl_client = DeviceLinkClient(dl_address, DeviceLinkParser())
     f.on_connecting.addCallbacks(on_connected, on_fail)
     f.on_connection_lost.addErrback(on_connection_lost)

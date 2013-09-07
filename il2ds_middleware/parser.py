@@ -28,14 +28,17 @@ class ConsoleParser(object):
 
     _buffer = None
 
-    def __init__(self, pilot_service):
+    def __init__(self, (pilot_service, mission_service)):
         self.pilot_service = pilot_service
+        self.mission_service = mission_service
 
     def parse_line(self, line):
         if self.user_joined(line):
             return
         elif self.user_left(line):
             return
+        else:
+            self._mission_status(line)
 
     def server_info(self, lines):
         result = {}
@@ -46,16 +49,22 @@ class ConsoleParser(object):
 
     def mission_status(self, lines):
         for line in lines:
-            if line == "Mission NOT loaded":
-                return (MISSION_STATUS.NOT_LOADED, None, )
-            elif line.endswith("is Loaded"):
-                return (MISSION_STATUS.LOADED, line.split()[1], )
-            elif line.endswith("is Playing"):
-                return (MISSION_STATUS.PLAYING, line.split()[1], )
+            info = self._mission_status(line)
+            if info:
+                return info
         return lines
 
-    mission_load = mission_destroy = mission_status
-    mission_begin = mission_end = mission_status
+    def _mission_status(self, line):
+        info = None
+        if line == "Mission NOT loaded":
+            info = (MISSION_STATUS.NOT_LOADED, None, )
+        elif line.endswith("is Loaded"):
+            info = (MISSION_STATUS.LOADED, line.split()[1], )
+        elif line.endswith("is Playing"):
+            info = (MISSION_STATUS.PLAYING, line.split()[1], )
+        if info:
+            self.mission_service.on_status_info(info)
+        return info
 
     def user_joined(self, line):
         m = re.match(RX_USER_JOIN, line)
@@ -97,6 +106,7 @@ class EventLogPassthroughParser(object):
     def passthrough(self, data):
         return data
 
+    parse_line = passthrough
     seat_occupied = weapons_loaded = was_killed = was_shot_down = passthrough
     selected_army = went_to_menu = was_destroyed = passthrough
 

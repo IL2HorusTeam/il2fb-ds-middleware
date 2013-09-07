@@ -9,7 +9,7 @@ class ILineParser(Interface):
         """Parse line.
 
         :param line: line to parse.
-        :type line: str..
+        :type line: str.
         """
 
 
@@ -48,7 +48,7 @@ class IConsoleParser(ILineParser):
         """
 
 
-class IEventLogParser(Interface):
+class IEventLogParser(ILineParser):
 
     def seat_occupied(self, data):
         """

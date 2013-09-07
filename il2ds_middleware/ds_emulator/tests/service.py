@@ -13,6 +13,8 @@ from il2ds_middleware.service import LogWatchingBaseService
 @implementer(ILineParser)
 class LogWatchingService(LogWatchingBaseService):
 
+    receiver = None
+
     def got_line(self, line):
         try:
             time, data = self.parse_line(line)
