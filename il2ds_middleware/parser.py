@@ -167,13 +167,44 @@ class EventLogParser(object):
                 return True
         return False
 
-    def seat_occupied(self, groups):
+    def _seat_event(self, groups):
         return {
             'callsign': groups[0],
             'aircraft': groups[1],
             'seat': int(groups[2]),
             'pos': self._pos((groups[3], groups[4])),
         }
+
+    def _aircraft_event(self, groups):
+        return {
+            'callsign': groups[0],
+            'aircraft': groups[1],
+            'pos': self._pos((groups[2], groups[3])),
+        }
+
+    def _actor(self, data):
+        info = data.split(':')
+        is_user = len(info) == 2
+        actor = {
+            'is_user': is_user,
+        }
+        if is_user:
+            actor['callsign'] = info[0]
+            actor['aircraft'] = info[1]
+        else:
+            actor['name'] = info[0]
+        return actor
+
+    def _pos(self, (x, y)):
+        return {
+            'x': float(x),
+            'y': float(y),
+        }
+
+    seat_occupied = was_killed = bailed_out = was_captured = was_wounded = \
+    was_heavily_wounded = _seat_event
+
+    in_flight = damaged_on_ground = crashed = removed = _aircraft_event
 
     def weapons_loaded(self, groups):
         return {
@@ -181,14 +212,6 @@ class EventLogParser(object):
             'aircraft': groups[1],
             'weapons': groups[2],
             'fuel': int(groups[3]),
-        }
-
-    def was_killed(self, groups):
-        return {
-            'callsign': groups[0],
-            'aircraft': groups[1],
-            'seat': int(groups[2]),
-            'pos': self._pos((groups[3], groups[4])),
         }
 
     def was_shot_down(self, groups):
@@ -220,13 +243,6 @@ class EventLogParser(object):
             'pos': self._pos((groups[2], groups[3])),
         }
 
-    def in_flight(self, groups):
-        return {
-            'callsign': groups[0],
-            'aircraft': groups[1],
-            'pos': self._pos((groups[2], groups[3])),
-        }
-
     def landed(self, groups):
         info = self._actor(groups[0])
         info.update({
@@ -244,84 +260,12 @@ class EventLogParser(object):
             'pos': self._pos((groups[3], groups[4])),
         }
 
-    def damaged_on_ground(self, groups):
-        return {
-            'callsign': groups[0],
-            'aircraft': groups[1],
-            'pos': self._pos((groups[2], groups[3])),
-        }
-
     def turned_wingtip_smokes(self, groups):
         return {
             'callsign': groups[0],
             'aircraft': groups[1],
             'state': groups[2],
             'pos': self._pos((groups[3], groups[4])),
-        }
-
-    def crashed(self, groups):
-        return {
-            'callsign': groups[0],
-            'aircraft': groups[1],
-            'pos': self._pos((groups[2], groups[3])),
-        }
-
-    def bailed_out(self, groups):
-        return {
-            'callsign': groups[0],
-            'aircraft': groups[1],
-            'seat': int(groups[2]),
-            'pos': self._pos((groups[3], groups[4])),
-        }
-
-    def was_captured(self, groups):
-        return {
-            'callsign': groups[0],
-            'aircraft': groups[1],
-            'seat': int(groups[2]),
-            'pos': self._pos((groups[3], groups[4])),
-        }
-
-    def was_wounded(self, groups):
-        return {
-            'callsign': groups[0],
-            'aircraft': groups[1],
-            'seat': int(groups[2]),
-            'pos': self._pos((groups[3], groups[4])),
-        }
-
-    def was_heavily_wounded(self, groups):
-        return {
-            'callsign': groups[0],
-            'aircraft': groups[1],
-            'seat': int(groups[2]),
-            'pos': self._pos((groups[3], groups[4])),
-        }
-
-    def removed(self, groups):
-        return {
-            'callsign': groups[0],
-            'aircraft': groups[1],
-            'pos': self._pos((groups[2], groups[3])),
-        }
-
-    def _actor(self, data):
-        info = data.split(':')
-        is_user = len(info) == 2
-        actor = {
-            'is_user': is_user,
-        }
-        if is_user:
-            actor['callsign'] = info[0]
-            actor['aircraft'] = info[1]
-        else:
-            actor['name'] = info[0]
-        return actor
-
-    def _pos(self, (x, y)):
-        return {
-            'x': float(x),
-            'y': float(y),
         }
 
 

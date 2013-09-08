@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+from twisted.application.service import Service
+from twisted.internet import defer
+
 from il2ds_middleware import service
 
 
@@ -27,6 +30,7 @@ class ObjectsService(service.ObjectsBaseService):
     def was_destroyed(self, info):
         self.buffer.append(info)
 
+
 class MissionService(service.MissionBaseService):
 
     def __init__(self):
@@ -34,3 +38,10 @@ class MissionService(service.MissionBaseService):
 
     def on_status_info(self, info):
         self.buffer.append(info)
+
+
+class FakeLogWatchingService(Service):
+
+    def stopService(self):
+        Service.stopService(self)
+        return defer.succeed(None)
