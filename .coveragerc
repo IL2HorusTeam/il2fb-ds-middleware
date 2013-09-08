@@ -6,3 +6,4 @@ omit = */tests/*
 exclude_lines =
     pragma: no cover
     raise NotImplementedError
+    pass

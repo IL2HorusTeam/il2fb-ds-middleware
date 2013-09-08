@@ -23,42 +23,54 @@ class ClientBaseService(Service):
 class PilotBaseService(ClientBaseService):
 
     def user_join(self, info):
-        raise NotImplementedError
+        pass
 
     def user_left(self, info):
-        raise NotImplementedError
+        pass
 
     def seat_occupied(self, info):
-        raise NotImplementedError
+        pass
 
     def weapons_loaded(self, info):
-        raise NotImplementedError
+        pass
 
     def was_killed(self, info):
-        raise NotImplementedError
+        pass
 
     def was_shot_down(self, info):
-        raise NotImplementedError
+        pass
 
     def selected_army(self, info):
-        raise NotImplementedError
+        pass
 
     def went_to_menu(self, info):
-        raise NotImplementedError
+        pass
 
     def user_chat(self, info):
-        raise NotImplementedError
+        pass
 
 
 @implementer(IObjectsService)
 class ObjectsBaseService(ClientBaseService):
 
     def was_destroyed(self, info):
-        raise NotImplementedError
+        pass
 
 
 @implementer(IMissionService)
 class MissionBaseService(ClientBaseService):
+
+    def on_status_info(self, info):
+        pass
+
+    def began(self, info=None):
+        pass
+
+    def ended(self, info=None):
+        pass
+
+
+class MissionService(MissionBaseService):
 
     def __init__(self, log_watcher):
         self.status = None
@@ -100,7 +112,7 @@ class LogWatchingBaseService(TimerService):
             self.got_line(line)
 
     def got_line(self, line):
-        raise NotImplementedError
+        pass
 
     def startService(self):
         if self.log_file is not None:

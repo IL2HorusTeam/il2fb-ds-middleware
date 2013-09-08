@@ -216,10 +216,10 @@ class DeviceLinkProtocol(DatagramProtocol):
         return results
 
     def answers_received(self, answers, address):
-        raise NotImplementedError
+        pass
 
     def requests_received(self, requests, address):
-        raise NotImplementedError
+        pass
 
     def send_request(self, request, address=None):
         self.send_requests([request, ], address)

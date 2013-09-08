@@ -6,7 +6,7 @@ from twisted.trial.unittest import TestCase
 from il2ds_middleware.constants import MISSION_STATUS, PILOT_LEAVE_REASON
 from il2ds_middleware.parser import (ConsoleParser, EventLogParser,
     EventLogPassthroughParser, DeviceLinkParser, )
-from il2ds_middleware.service import MissionBaseService
+from il2ds_middleware.service import MissionService
 from il2ds_middleware.tests.service import PilotService, ObjectsService
 
 
@@ -14,7 +14,7 @@ class ConsoleParserTestCase(TestCase):
 
     def setUp(self):
         self.pilot_srvc = PilotService()
-        self.mission_srvc = MissionBaseService(log_watcher=Service())
+        self.mission_srvc = MissionService(log_watcher=Service())
         self.parser = ConsoleParser((self.pilot_srvc, self.mission_srvc))
         self.pilot_srvc.startService()
 
