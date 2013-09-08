@@ -23,55 +23,101 @@ class ClientBaseService(Service):
 class PilotBaseService(ClientBaseService):
 
     def user_join(self, info):
-        raise NotImplementedError
+        pass
 
     def user_left(self, info):
-        raise NotImplementedError
-
-    def seat_occupied(self, info):
-        raise NotImplementedError
-
-    def weapons_loaded(self, info):
-        raise NotImplementedError
-
-    def was_killed(self, info):
-        raise NotImplementedError
-
-    def was_shot_down(self, info):
-        raise NotImplementedError
-
-    def selected_army(self, info):
-        raise NotImplementedError
-
-    def went_to_menu(self, info):
-        raise NotImplementedError
+        pass
 
     def user_chat(self, info):
-        raise NotImplementedError
+        pass
+
+    def seat_occupied(self, info):
+        pass
+
+    def weapons_loaded(self, info):
+        pass
+
+    def was_killed(self, info):
+        pass
+
+    def was_shot_down(self, info):
+        pass
+
+    def selected_army(self, info):
+        pass
+
+    def went_to_menu(self, info):
+        pass
+
+    def in_flight(self, info):
+        pass
+
+    def landed(self, info):
+        pass
+
+    def damaged(self, info):
+        pass
+
+    def damaged_on_ground(self, info):
+        pass
+
+    def turned_wingtip_smokes(self, info):
+        pass
+
+    def crashed(self, info):
+        pass
+
+    def bailed_out(self, info):
+        pass
+
+    def was_captured(self, info):
+        pass
+
+    def was_wounded(self, info):
+        pass
+
+    def was_heavily_wounded(self, info):
+        pass
+
+    def removed(self, info):
+        pass
 
 
 @implementer(IObjectsService)
 class ObjectsBaseService(ClientBaseService):
 
     def was_destroyed(self, info):
-        raise NotImplementedError
+        pass
 
 
 @implementer(IMissionService)
 class MissionBaseService(ClientBaseService):
+
+    def on_status_info(self, info):
+        pass
+
+    def began(self, info=None):
+        pass
+
+    def ended(self, info=None):
+        pass
+
+
+class MissionService(MissionBaseService):
 
     def __init__(self, log_watcher):
         self.status = None
         self.mission = None
         self.log_watcher = log_watcher
 
-    def on_status_info(self, (status, mission)):
+    def on_status_info(self, info):
+        status, mission = info
         if status != self.status:
             if self.status == MISSION_STATUS.PLAYING:
-                self.ended()
+                self.ended(info)
             elif status == MISSION_STATUS.PLAYING:
-                self.began()
-        self.status, self.mission = status, mission
+                self.began(info)
+        self.status, self.mission = info
 
     def began(self, info=None):
         self.log_watcher.startService()
@@ -100,7 +146,7 @@ class LogWatchingBaseService(TimerService):
             self.got_line(line)
 
     def got_line(self, line):
-        raise NotImplementedError
+        pass
 
     def startService(self):
         if self.log_file is not None:

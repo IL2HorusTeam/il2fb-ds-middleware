@@ -11,7 +11,7 @@ from zope.interface import implementer
 from il2ds_middleware.interface.service import IMissionService
 from il2ds_middleware.parser import ConsoleParser
 from il2ds_middleware.protocol import ConsoleClientFactory
-from il2ds_middleware.service import PilotBaseService
+from il2ds_middleware.service import PilotBaseService, MissionBaseService
 
 
 class PilotService(PilotBaseService):
@@ -19,19 +19,12 @@ class PilotService(PilotBaseService):
     def __init__(self, missions):
         self.missions = missions
 
-    def mute(self, info):
-        pass
-
-    user_join = user_left = seat_occupied = weapons_loaded = was_killed = \
-    was_shot_down = selected_army = went_to_menu = mute
-
     def user_chat(self, (callsign, msg)):
         if msg == "<timeleft":
             self.client.chat_user(self.missions.time_left_str(), callsign)
 
 
-@implementer(IMissionService)
-class MissionService(Service):
+class MissionService(MissionBaseService):
 
     client = None
 
@@ -96,11 +89,6 @@ class MissionService(Service):
             value = new_value
         self.time_to_notification = value
         return True
-
-    def on_status_info(self, info):
-        pass
-
-    began = ended = on_status_info
 
 
 def parse_args():

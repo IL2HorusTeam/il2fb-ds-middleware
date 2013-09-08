@@ -108,7 +108,7 @@ class DeviceLinkTestCase(BaseEmulatorTestCase):
         2. check user0 pos => 0:BADINDEX
         3. user0 joins
         4. user0 spawns at (100, 200, 5)
-        5. check user0 pos => 0:user0;100;200;5
+        5. check user0 pos => 0:user0_0;100;200;5
         6. kill user0
         7. check user0 pos => 0:INVALID
         8. idle user0
@@ -119,7 +119,8 @@ class DeviceLinkTestCase(BaseEmulatorTestCase):
         13. user0 spawns at (400, 500, 90)
         14. user1 spawns at (700, 800, 50)
         15. refresh radar
-        16. check user0 and user1 pos => 0:user0;400;500;90, 1:user1;700;800;50
+        16. check user0 and user1 pos =>
+                0:user0_0;400;500;90, 1:user1_1;700;800;50
         """
         cmd_radar = OPCODE.RADAR_REFRESH.make_command()
         cmd_count = OPCODE.PILOT_COUNT.make_command()
@@ -139,7 +140,7 @@ class DeviceLinkTestCase(BaseEmulatorTestCase):
             return d
 
         def do_join_and_spawn0(_):
-            responses = ["A/1004\\0:user0;100;200;5", ]
+            responses = ["A/1004\\0:user0_0;100;200;5", ]
             d = Deferred()
             self._set_dl_expecting_receiver(responses, d)
             d.addCallback(do_kill0)
@@ -183,7 +184,7 @@ class DeviceLinkTestCase(BaseEmulatorTestCase):
 
         def do_join1_and_spawn_both(_):
             responses = [
-                "A/1004\\0:user0;400;500;90/1004\\1:user1;700;800;50", ]
+                "A/1004\\0:user0_0;400;500;90/1004\\1:user1_1;700;800;50", ]
             d = Deferred()
             self._set_dl_expecting_receiver(responses, d)
 

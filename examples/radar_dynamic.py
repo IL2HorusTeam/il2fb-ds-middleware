@@ -9,16 +9,12 @@ from twisted.internet import defer, reactor
 from il2ds_middleware.parser import (ConsoleParser, DeviceLinkParser,
     EventLogParser, )
 from il2ds_middleware.protocol import ConsoleClientFactory, DeviceLinkClient
-from il2ds_middleware.service import (PilotBaseService, ObjectsBaseService,
-    MissionBaseService, LogWatchingService, )
+from il2ds_middleware import service
 
 
-class PilotService(PilotBaseService):
+class PilotService(service.PilotBaseService):
 
     dlink = None
-
-    def user_join(self, info):
-        pass
 
     def user_left(self, info):
         self.dlink.refresh_radar()
@@ -26,17 +22,11 @@ class PilotService(PilotBaseService):
     def seat_occupied(self, info):
         self.dlink.refresh_radar()
 
-    def weapons_loaded(self, info):
-        pass
-
     def was_killed(self, info):
         self.dlink.refresh_radar()
 
     def was_shot_down(self, info):
         self.dlink.refresh_radar()
-
-    def selected_army(self, info):
-        pass
 
     def went_to_menu(self, info):
         self.dlink.refresh_radar()
@@ -45,22 +35,20 @@ class PilotService(PilotBaseService):
         print "%s says: %s" % info
 
 
-class ObjectsService(ObjectsBaseService):
-
-    def was_destroyed(self, info):
-        pass
+class ObjectsService(service.ObjectsBaseService):
+    pass
 
 
-class MissionService(MissionBaseService):
+class MissionService(service.MissionService):
 
     dlink = None
 
     def began(self, info=None):
-        MissionBaseService.began(self, info)
+        service.MissionService.began(self, info)
         self.dlink.refresh_radar()
 
     def ended(self, info=None):
-        MissionBaseService.ended(self, info)
+        service.MissionService.ended(self, info)
         self.dlink.refresh_radar()
 
 
@@ -137,7 +125,7 @@ def main():
     radar.setServiceParent(root)
 
     parser = EventLogParser((pilots, objects))
-    log_watcher = LogWatchingService(options.log, parser=parser)
+    log_watcher = service.LogWatchingService(options.log, parser=parser)
     missions = MissionService(log_watcher)
     missions.setServiceParent(root)
 

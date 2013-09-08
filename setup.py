@@ -4,12 +4,11 @@ setup(
     name='il2ds-middleware',
     version='0.7.0',
     description='High-level access to IL-2 FB Dedicated Server.',
-    long_description=open('README.md').read(),
     license='MIT',
     url='https://github.com/IL2HorusTeam/il2ds-middleware',
     author='Alexander Oblovatniy',
     author_email='oblovatniy@gmail.com',
-    packages=find_packages(),
+    packages=find_packages(exclude=["examples", ]),
     install_requires=[i.strip() for i in open("requirements.pip").readlines()],
     classifiers = [
         'Development Status :: 4 - Beta',
