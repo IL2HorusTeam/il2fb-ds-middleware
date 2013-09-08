@@ -7,7 +7,7 @@
 """
 'socket channel '0', ip 192.168.1.2:21000, user0, is complete created.'
 """
-RX_USER_JOIN = r"socket channel '(\d+)', ip (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):\d+, (.+), is complete created."
+RX_USER_JOIN = r"socket channel '(\d+)', ip (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):\d+, (.+), is complete created"
 """
 'socketConnection with 192.168.1.2:21000 on channel 0 lost.  Reason: '
 'socketConnection with 192.168.1.2:21000 on channel 0 lost.  Reason: You have been kicked from the server'

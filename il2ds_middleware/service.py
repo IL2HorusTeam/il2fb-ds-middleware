@@ -49,9 +49,6 @@ class PilotBaseService(ClientBaseService):
     def went_to_menu(self, info):
         pass
 
-    def was_destroyed(self, info):
-        pass
-
     def in_flight(self, info):
         pass
 
@@ -113,13 +110,14 @@ class MissionService(MissionBaseService):
         self.mission = None
         self.log_watcher = log_watcher
 
-    def on_status_info(self, (status, mission)):
+    def on_status_info(self, info):
+        status, mission = info
         if status != self.status:
             if self.status == MISSION_STATUS.PLAYING:
-                self.ended()
+                self.ended(info)
             elif status == MISSION_STATUS.PLAYING:
-                self.began()
-        self.status, self.mission = status, mission
+                self.began(info)
+        self.status, self.mission = info
 
     def began(self, info=None):
         self.log_watcher.startService()
