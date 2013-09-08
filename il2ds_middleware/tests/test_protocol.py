@@ -257,7 +257,7 @@ class DeviceLinkClientProtocolTestCase(DeviceLinkClientProtocolBaseTestCase):
     def test_pilot_pos(self):
 
         def on_pos(response):
-            self.assertEqual(response, '0:user0;100;200;300')
+            self.assertEqual(response, '0:user0_0;100;200;300')
 
         self.pilots.join("user0", "192.168.1.{0}")
         self.pilots.spawn("user0", pos={
@@ -273,7 +273,7 @@ class DeviceLinkClientProtocolTestCase(DeviceLinkClientProtocolBaseTestCase):
             self.assertEqual(len(responses), 253)
             checked = []
             for s in responses:
-                idx = int(s[s.index('user')+4:s.index(';')])
+                idx = int(s[s.index('user')+4:s.index(';')].split('_')[0])
                 self.assertNotIn(idx, checked)
                 checked.append(idx)
 

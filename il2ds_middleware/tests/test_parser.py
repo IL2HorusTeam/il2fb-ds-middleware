@@ -287,7 +287,7 @@ class DeviceLinkParserTestCase(TestCase):
         self.assertEqual(result, 0)
 
     def test_pilot_pos(self):
-        result = self.parser.pilot_pos('0:user0;100;200;300')
+        result = self.parser.pilot_pos('0:user0_0;100;200;300')
         self.assertIsInstance(result, dict)
         self.assertEqual(result.get('idx'), 0)
         self.assertEqual(result.get('callsign'), "user0")
@@ -297,7 +297,7 @@ class DeviceLinkParserTestCase(TestCase):
         self.assertEqual(result['pos'].get('z'), 300)
 
     def test_all_pilots_pos(self):
-        datas = ["{0}:user{0};{1};{2};{3}".format(
+        datas = ["{0}:user{0}_{0};{1};{2};{3}".format(
             i, i*100, i*200, i*300) for i in xrange(10)]
         results = self.parser.all_pilots_pos(datas)
         self.assertIsInstance(results, list)

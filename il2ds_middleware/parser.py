@@ -226,7 +226,7 @@ class DeviceLinkParser(object):
         return int(data)
 
     def pilot_pos(self, data):
-        return self._parse_pos(data, 'callsign')
+        return self._parse_pos(data, 'callsign', strip_idx=True)
 
     def all_pilots_pos(self, datas):
         return map(self.pilot_pos, datas)
@@ -239,9 +239,11 @@ class DeviceLinkParser(object):
     def all_static_pos(self, datas):
         return map(self.static_pos, datas)
 
-    def _parse_pos(self, data, name_attr='name'):
+    def _parse_pos(self, data, name_attr='name', strip_idx=False):
         idx, info = data.split(':')
         attr, x, y, z = info.split(';')
+        if strip_idx:
+            attr = attr[:attr.rindex("_")]
         return {
             'idx': int(idx),
             name_attr: attr,

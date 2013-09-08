@@ -388,7 +388,7 @@ class DeviceLinkService(Service):
             known_container=self.known_air,
             primary_container=self.pilot_srvc.pilots,
             invalid_states=[PILOT_STATE.IDLE, PILOT_STATE.DEAD, ],
-            idx=arg)
+            idx=arg, idx_append=True)
         return OPCODE.PILOT_POS.make_command(data) if data else None
 
     def static_count(self):
@@ -403,7 +403,8 @@ class DeviceLinkService(Service):
             idx=arg)
         return OPCODE.STATIC_POS.make_command(data) if data else None
 
-    def _pos(self, known_container, primary_container, invalid_states, idx):
+    def _pos(self, known_container, primary_container, invalid_states,
+            idx, idx_append=False):
         if idx is None:
             return None
         try:
@@ -415,6 +416,8 @@ class DeviceLinkService(Service):
             if handler['state'] in invalid_states:
                 data = 'INVALID'
             else:
+                if idx_append:
+                    key = "{:}_{:}".format(key, idx)
                 pos = handler['pos']
                 data = ';'.join([str(_)
                     for _ in [key, pos['x'], pos['y'], pos['z'], ]])
