@@ -1,54 +1,36 @@
 # -*- coding: utf-8 -*-
 
-from il2ds_middleware.service import (PilotBaseService, ObjectsBaseService,
-    MissionBaseService, )
+from il2ds_middleware import service
 
 
-class PilotService(PilotBaseService):
-
-    def __init__(self):
-        self.joined = []
-        self.left = []
-        self.occupied = []
-        self.weapons = []
-        self.killed = []
-        self.shot_down = []
-        self.army_select = []
-        self.to_menu = []
-        self.chat = []
-
-    def user_join(self, info):
-        self.joined.append(info)
-
-    def user_left(self, info):
-        self.left.append(info)
-
-    def seat_occupied(self, info):
-        self.occupied.append(info)
-
-    def weapons_loaded(self, info):
-        self.weapons.append(info)
-
-    def was_killed(self, info):
-        self.killed.append(info)
-
-    def was_shot_down(self, info):
-        self.shot_down.append(info)
-
-    def selected_army(self, info):
-        self.army_select.append(info)
-
-    def went_to_menu(self, info):
-        self.to_menu.append(info)
-
-    def user_chat(self, info):
-        self.chat.append(info)
-
-
-class ObjectsService(ObjectsBaseService):
+class PilotService(service.PilotBaseService):
 
     def __init__(self):
-        self.destroyed = []
+        self.buffer = []
+
+    def append_info(self, info):
+        self.buffer.append(info)
+
+    append_info = user_join = user_left = user_chat= \
+    seat_occupied = weapons_loaded = was_killed = \
+    was_shot_down = selected_army = went_to_menu = was_destroyed = \
+    in_flight = landed = damaged = damaged_on_ground = \
+    turned_wingtip_smokes = crashed = bailed_out = was_captured = \
+    was_captured = was_wounded = was_heavily_wounded = removed = append_info
+
+
+class ObjectsService(service.ObjectsBaseService):
+
+    def __init__(self):
+        self.buffer = []
 
     def was_destroyed(self, info):
-        self.destroyed.append(info)
+        self.buffer.append(info)
+
+class MissionService(service.MissionBaseService):
+
+    def __init__(self):
+        self.buffer = []
+
+    def on_status_info(self, info):
+        self.buffer.append(info)

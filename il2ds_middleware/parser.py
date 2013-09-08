@@ -33,13 +33,17 @@ class ConsoleParser(object):
         self.mission_service = mission_service
 
     def parse_line(self, line):
-        if self.user_chat(line):
-            return
-        if self.user_joined(line):
-            return
-        if self.user_left(line):
-            return
-        self._mission_status(line)
+        while True:
+            if self.user_chat(line):
+                break
+            if self.user_joined(line):
+                break
+            if self.user_left(line):
+                break
+            if self._mission_status(line):
+                break
+            return False
+        return True
 
     def server_info(self, lines):
         result = {}
@@ -118,9 +122,11 @@ class EventLogPassthroughParser(object):
     def passthrough(self, data):
         return data
 
-    parse_line = passthrough
-    seat_occupied = weapons_loaded = was_killed = was_shot_down = passthrough
-    selected_army = went_to_menu = was_destroyed = passthrough
+    parse_line = seat_occupied = weapons_loaded = was_killed = \
+    was_shot_down = selected_army = went_to_menu = was_destroyed = \
+    in_flight = landed = damaged = damaged_on_ground = \
+    turned_wingtip_smokes = crashed = bailed_out = was_captured = \
+    was_captured = was_wounded = was_heavily_wounded = removed = passthrough
 
 
 @implementer(IEventLogParser)
@@ -131,12 +137,26 @@ class EventLogParser(object):
         obs = objects_service
         self.parsers = (
             (RX_SEAT_OCCUPIED, self.seat_occupied, ps.seat_occupied),
+            (RX_SELECTED_ARMY, self.selected_army, ps.selected_army),
+            (RX_DESTROYED, self.was_destroyed, obs.was_destroyed),
             (RX_WEAPONS_LOADED, self.weapons_loaded, ps.weapons_loaded),
             (RX_KILLED, self.was_killed, ps.was_killed),
             (RX_SHOT_DOWN, self.was_shot_down, ps.was_shot_down),
-            (RX_SELECTED_ARMY, self.selected_army, ps.selected_army),
             (RX_WENT_TO_MENU, self.went_to_menu, ps.went_to_menu),
-            (RX_DESTROYED, self.was_destroyed, obs.was_destroyed),
+            (RX_IN_FLIGHT, self.in_flight, ps.in_flight),
+            (RX_LANDED, self.landed, ps.landed),
+            (RX_CRASHED, self.crashed, ps.crashed),
+            (RX_DAMAGED, self.damaged, ps.damaged),
+            (RX_DAMAGED_ON_GROUND, self.damaged_on_ground,
+                ps.damaged_on_ground),
+            (RX_TURNED_WINGTIP_SMOKES, self.turned_wingtip_smokes,
+                ps.turned_wingtip_smokes),
+            (RX_BAILED_OUT, self.bailed_out, ps.bailed_out),
+            (RX_WAS_CAPTURED, self.was_captured, ps.was_captured),
+            (RX_WAS_WOUNDED, self.was_wounded, ps.was_wounded),
+            (RX_WAS_HEAVILY_WOUNDED, self.was_heavily_wounded,
+                ps.was_heavily_wounded),
+            (RX_REMOVED, self.removed, ps.removed),
         )
 
     def parse_line(self, line):
@@ -144,14 +164,15 @@ class EventLogParser(object):
             m = re.match(rx, line)
             if m:
                 dst(parser(m.groups()))
-                return
+                return True
+        return False
 
     def seat_occupied(self, groups):
         return {
             'callsign': groups[0],
             'aircraft': groups[1],
             'seat': int(groups[2]),
-            'pos': self._get_pos((groups[3], groups[4])),
+            'pos': self._pos((groups[3], groups[4])),
         }
 
     def weapons_loaded(self, groups):
@@ -167,34 +188,24 @@ class EventLogParser(object):
             'callsign': groups[0],
             'aircraft': groups[1],
             'seat': int(groups[2]),
-            'pos': self._get_pos((groups[3], groups[4])),
+            'pos': self._pos((groups[3], groups[4])),
         }
 
     def was_shot_down(self, groups):
-        attacker_info = groups[2].split(':')
-        is_user = len(attacker_info) == 2
-        attacker = {
-            'is_user': is_user,
-        }
-        if is_user:
-            attacker['callsign'] = attacker_info[0]
-            attacker['aircraft'] = attacker_info[1]
-        else:
-            attacker['name'] = attacker_info[0]
         return {
             'victim': {
                 'callsign': groups[0],
                 'aircraft': groups[1],
             },
-            'attacker': attacker,
-            'pos': self._get_pos((groups[3], groups[4])),
+            'attacker': self._actor(groups[2]),
+            'pos': self._pos((groups[3], groups[4])),
         }
 
     def selected_army(self, groups):
         return {
             'callsign': groups[0],
             'army': groups[1],
-            'pos': self._get_pos((groups[2], groups[3])),
+            'pos': self._pos((groups[2], groups[3])),
         }
 
     def went_to_menu(self, groups):
@@ -206,10 +217,108 @@ class EventLogParser(object):
         return {
             'victim': groups[0],
             'attacker': groups[1],
-            'pos': self._get_pos((groups[2], groups[3])),
+            'pos': self._pos((groups[2], groups[3])),
         }
 
-    def _get_pos(self, (x, y)):
+    def in_flight(self, groups):
+        return {
+            'callsign': groups[0],
+            'aircraft': groups[1],
+            'pos': self._pos((groups[2], groups[3])),
+        }
+
+    def landed(self, groups):
+        info = self._actor(groups[0])
+        info.update({
+            'pos': self._pos((groups[1], groups[2])),
+        })
+        return info
+
+    def damaged(self, groups):
+        return {
+            'victim': {
+                'callsign': groups[0],
+                'aircraft': groups[1],
+            },
+            'attacker': self._actor(groups[2]),
+            'pos': self._pos((groups[3], groups[4])),
+        }
+
+    def damaged_on_ground(self, groups):
+        return {
+            'callsign': groups[0],
+            'aircraft': groups[1],
+            'pos': self._pos((groups[2], groups[3])),
+        }
+
+    def turned_wingtip_smokes(self, groups):
+        return {
+            'callsign': groups[0],
+            'aircraft': groups[1],
+            'state': groups[2],
+            'pos': self._pos((groups[3], groups[4])),
+        }
+
+    def crashed(self, groups):
+        return {
+            'callsign': groups[0],
+            'aircraft': groups[1],
+            'pos': self._pos((groups[2], groups[3])),
+        }
+
+    def bailed_out(self, groups):
+        return {
+            'callsign': groups[0],
+            'aircraft': groups[1],
+            'seat': int(groups[2]),
+            'pos': self._pos((groups[3], groups[4])),
+        }
+
+    def was_captured(self, groups):
+        return {
+            'callsign': groups[0],
+            'aircraft': groups[1],
+            'seat': int(groups[2]),
+            'pos': self._pos((groups[3], groups[4])),
+        }
+
+    def was_wounded(self, groups):
+        return {
+            'callsign': groups[0],
+            'aircraft': groups[1],
+            'seat': int(groups[2]),
+            'pos': self._pos((groups[3], groups[4])),
+        }
+
+    def was_heavily_wounded(self, groups):
+        return {
+            'callsign': groups[0],
+            'aircraft': groups[1],
+            'seat': int(groups[2]),
+            'pos': self._pos((groups[3], groups[4])),
+        }
+
+    def removed(self, groups):
+        return {
+            'callsign': groups[0],
+            'aircraft': groups[1],
+            'pos': self._pos((groups[2], groups[3])),
+        }
+
+    def _actor(self, data):
+        info = data.split(':')
+        is_user = len(info) == 2
+        actor = {
+            'is_user': is_user,
+        }
+        if is_user:
+            actor['callsign'] = info[0]
+            actor['aircraft'] = info[1]
+        else:
+            actor['name'] = info[0]
+        return actor
+
+    def _pos(self, (x, y)):
         return {
             'x': float(x),
             'y': float(y),

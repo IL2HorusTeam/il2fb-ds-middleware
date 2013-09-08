@@ -13,6 +13,10 @@ class IPilotService(Interface):
         """
         """
 
+    def user_chat(self, info):
+        """
+        """
+
     def seat_occupied(self, info):
         """
         """
@@ -37,7 +41,51 @@ class IPilotService(Interface):
         """
         """
 
-    def user_chat(self, info):
+    def was_destroyed(self, info):
+        """
+        """
+
+    def in_flight(self, info):
+        """
+        """
+
+    def landed(self, info):
+        """
+        """
+
+    def damaged(self, info):
+        """
+        """
+
+    def damaged_on_ground(self, info):
+        """
+        """
+
+    def turned_wingtip_smokes(self, info):
+        """
+        """
+
+    def crashed(self, info):
+        """
+        """
+
+    def bailed_out(self, info):
+        """
+        """
+
+    def was_captured(self, info):
+        """
+        """
+
+    def was_wounded(self, info):
+        """
+        """
+
+    def was_heavily_wounded(self, info):
+        """
+        """
+
+    def removed(self, info):
         """
         """
 

@@ -6,7 +6,8 @@ from zope.interface import Interface
 class ILineParser(Interface):
 
     def parse_line(self, line):
-        """Parse line.
+        """
+        Parse line.
 
         :param line: line to parse.
         :type line: str.
@@ -63,6 +64,50 @@ class IEventLogParser(ILineParser):
         """
 
     def was_destroyed(self, data):
+        """
+        """
+
+    def in_flight(self, data):
+        """
+        """
+
+    def landed(self, data):
+        """
+        """
+
+    def damaged(self, data):
+        """
+        """
+
+    def damaged_on_ground(self, data):
+        """
+        """
+
+    def turned_wingtip_smokes(self, data):
+        """
+        """
+
+    def crashed(self, data):
+        """
+        """
+
+    def bailed_out(self, data):
+        """
+        """
+
+    def was_captured(self, data):
+        """
+        """
+
+    def was_wounded(self, data):
+        """
+        """
+
+    def was_heavily_wounded(self, data):
+        """
+        """
+
+    def removed(self, data):
         """
         """
 

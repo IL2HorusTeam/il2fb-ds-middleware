@@ -28,6 +28,9 @@ class PilotBaseService(ClientBaseService):
     def user_left(self, info):
         pass
 
+    def user_chat(self, info):
+        pass
+
     def seat_occupied(self, info):
         pass
 
@@ -46,7 +49,40 @@ class PilotBaseService(ClientBaseService):
     def went_to_menu(self, info):
         pass
 
-    def user_chat(self, info):
+    def was_destroyed(self, info):
+        pass
+
+    def in_flight(self, info):
+        pass
+
+    def landed(self, info):
+        pass
+
+    def damaged(self, info):
+        pass
+
+    def damaged_on_ground(self, info):
+        pass
+
+    def turned_wingtip_smokes(self, info):
+        pass
+
+    def crashed(self, info):
+        pass
+
+    def bailed_out(self, info):
+        pass
+
+    def was_captured(self, info):
+        pass
+
+    def was_wounded(self, info):
+        pass
+
+    def was_heavily_wounded(self, info):
+        pass
+
+    def removed(self, info):
         pass
 
 
