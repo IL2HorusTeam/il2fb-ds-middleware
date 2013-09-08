@@ -171,16 +171,23 @@ class EventLogParser(object):
         }
 
     def was_shot_down(self, groups):
+        attacker_info = groups[2].split(':')
+        is_user = len(attacker_info) == 2
+        attacker = {
+            'is_user': is_user,
+        }
+        if is_user:
+            attacker['callsign'] = attacker_info[0]
+            attacker['aircraft'] = attacker_info[1]
+        else:
+            attacker['name'] = attacker_info[0]
         return {
             'victim': {
                 'callsign': groups[0],
                 'aircraft': groups[1],
             },
-            'attacker': {
-                'callsign': groups[2],
-                'aircraft': groups[3],
-            },
-            'pos': self._get_pos((groups[4], groups[5])),
+            'attacker': attacker,
+            'pos': self._get_pos((groups[3], groups[4])),
         }
 
     def selected_army(self, groups):

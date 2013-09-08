@@ -217,8 +217,9 @@ class EventLogParserTestCase(TestCase):
         self.assertEqual(result['pos'].get('x'), 100.99)
         self.assertEqual(result['pos'].get('y'), 200.99)
 
-    def test_was_shot_down(self):
-        data = "user0:A6M2-21 shot down by user1:B5N2 at 100.99 200.99"
+    def _test_was_shot_down(self, attacker):
+        data = "user0:A6M2-21 shot down by {:} at 100.99 200.99".format(
+            attacker)
         self.parser.parse_line(data)
 
         self.assertEqual(len(self.pilot_srvc.shot_down), 1)
@@ -228,12 +229,33 @@ class EventLogParserTestCase(TestCase):
         self.assertIsInstance(result.get('victim'), dict)
         self.assertEqual(result['victim'].get('callsign'), "user0")
         self.assertEqual(result['victim'].get('aircraft'), "A6M2-21")
-        self.assertIsInstance(result.get('attacker'), dict)
-        self.assertEqual(result['attacker'].get('callsign'), "user1")
-        self.assertEqual(result['attacker'].get('aircraft'), "B5N2")
         self.assertIsInstance(result.get('pos'), dict)
         self.assertEqual(result['pos'].get('x'), 100.99)
         self.assertEqual(result['pos'].get('y'), 200.99)
+
+        self.assertIsInstance(result.get('attacker'), dict)
+        return result['attacker']
+
+    def test_was_shot_down_by_user(self):
+        attacker = self._test_was_shot_down("user1:B5N2")
+        self.assertEqual(attacker.get('is_user'), True)
+        self.assertEqual(attacker.get('callsign'), "user1")
+        self.assertEqual(attacker.get('aircraft'), "B5N2")
+
+    def test_was_shot_down_by_ground(self):
+        attacker = self._test_was_shot_down("landscape")
+        self.assertEqual(attacker.get('is_user'), False)
+        self.assertEqual(attacker.get('name'), "landscape")
+
+    def test_was_shot_down_by_static(self):
+        attacker = self._test_was_shot_down("0_Static")
+        self.assertEqual(attacker.get('is_user'), False)
+        self.assertEqual(attacker.get('name'), "0_Static")
+
+    def test_was_shot_down_by_building(self):
+        attacker = self._test_was_shot_down("0_bld")
+        self.assertEqual(attacker.get('is_user'), False)
+        self.assertEqual(attacker.get('name'), "0_bld")
 
     def test_selected_army(self):
         data = "user0 selected army Red at 100.99 200.99"
