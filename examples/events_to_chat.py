@@ -17,6 +17,7 @@ def wrap_pos(line, info):
     return "{:} | x, y = {:}, {:}".format(
         line, info['pos']['x'], info['pos']['y'])
 
+
 class PilotService(service.PilotBaseService):
 
     def user_join(self, info):
