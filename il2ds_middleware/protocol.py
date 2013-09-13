@@ -292,19 +292,18 @@ class DeviceLinkClient(DeviceLinkProtocol):
         self.send_request(command)
         return d
 
-    def _deferred_requests_iterator(self, commands):
+    @defer.inlineCallbacks
+    def _deferred_requests(self, commands, timeout_value=None):
+
+        def on_results(results):
+            all_results.extend(results)
+
+        all_results = []
         step = self.cmd_group_max_size
         count = len(commands)
         for i in xrange((count/step)+1):
             start = i*step
-            yield commands[start:start+min((count-start), step)]
-
-    def _deferred_requests_group(self, iterator, timeout_value=None):
-        try:
-            group = iterator.next()
-        except StopIteration:
-            return defer.succeed(None)
-        else:
+            group = commands[start:start+min((count-start), step)]
             dlist = []
             for cmd in group:
                 d = defer.Deferred()
@@ -312,29 +311,8 @@ class DeviceLinkClient(DeviceLinkProtocol):
                     self._make_request(cmd, d, timeout_value))
                 dlist.append(d)
             self.send_requests(group)
-            return defer.gatherResults(dlist)
-
-    def _deferred_requests(self, commands, timeout_value=None):
-        """
-        Send requests in portions. Each next portion is send after result
-        of the previous one was received. All results are collected in one
-        place and are returned if there no requests has left.
-        """
-        all_results = []
-        iterator = self._deferred_requests_iterator(commands)
-
-        def on_results(results):
-            if results:
-                all_results.extend(results)
-                return do_next()
-            else:
-                return all_results
-
-        def do_next():
-            return self._deferred_requests_group(
-                iterator, timeout_value).addCallback(on_results)
-
-        return do_next()
+            yield defer.gatherResults(dlist).addCallback(on_results)
+        defer.returnValue(all_results)
 
     def refresh_radar(self):
         self.send_request(DL_OPCODE.RADAR_REFRESH.make_command())
