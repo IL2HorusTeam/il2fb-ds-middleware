@@ -2,7 +2,7 @@
 
 from twisted.internet import defer
 from twisted.internet.error import ConnectionDone
-from twisted.internet.protocol import (ClientFactory, DatagramProtocol, )
+from twisted.internet.protocol import ClientFactory, DatagramProtocol
 from twisted.protocols.basic import LineOnlyReceiver
 from twisted.python import log
 
@@ -188,6 +188,7 @@ class DeviceLinkProtocol(DatagramProtocol):
 
     def __init__(self, address=None, parser=None):
         self.address = address
+        self.parser = parser
         self.on_start = defer.Deferred()
 
     def startProtocol(self):
@@ -195,7 +196,10 @@ class DeviceLinkProtocol(DatagramProtocol):
             d, self.on_start = self.on_start, None
             d.callback(None)
 
-    def datagramReceived(self, data, (host, port)):
+    def datagramReceived(self, data, address):
+        if self.address is not None and address != self.address:
+            log.msg("Message from unknown peer: {0}:{1}.".format(*address))
+            return
         if data.startswith(DEVICE_LINK_PREFIXES['answer']):
             processor = self.answers_received
         elif data.startswith(DEVICE_LINK_PREFIXES['request']):
@@ -205,7 +209,7 @@ class DeviceLinkProtocol(DatagramProtocol):
             return
         prepared_data = data[1:].strip(DL_CMD_SEP)
         payloads = self._parse(prepared_data)
-        processor(payloads, (host, port))
+        processor(payloads, address)
 
     def _parse(self, data):
         results = []
@@ -252,9 +256,9 @@ class DeviceLinkClient(DeviceLinkProtocol):
     cmd_group_max_size = DEVICE_LINK_CMD_GROUP_MAX_SIZE
 
     def __init__(self, address, parser=None, timeout_value=REQUEST_TIMEOUT):
-        self.parser = parser or DeviceLinkPassthroughParser()
         self.timeout_value = timeout_value
-        DeviceLinkProtocol.__init__(self, address)
+        parser = parser or DeviceLinkPassthroughParser()
+        DeviceLinkProtocol.__init__(self, address, parser)
         # [ (opcode, deferred, timeout), ]
         self._requests = []
 
