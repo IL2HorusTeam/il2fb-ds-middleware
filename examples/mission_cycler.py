@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import optparse
@@ -11,10 +12,10 @@ from zope.interface import implementer
 from il2ds_middleware.interface.service import IMissionService
 from il2ds_middleware.parser import ConsoleParser
 from il2ds_middleware.protocol import ConsoleClientFactory
-from il2ds_middleware.service import PilotBaseService, MissionBaseService
+from il2ds_middleware import service
 
 
-class PilotService(PilotBaseService):
+class PilotService(service.PilotBaseService):
 
     def __init__(self, missions):
         self.missions = missions
@@ -24,9 +25,7 @@ class PilotService(PilotBaseService):
             self.client.chat_user(self.missions.time_left_str(), callsign)
 
 
-class MissionService(MissionBaseService):
-
-    client = None
+class MissionService(service.MissionBaseService):
 
     def __init__(self, mission, duration):
         self.mission = mission
@@ -40,19 +39,18 @@ class MissionService(MissionBaseService):
         return self.reload_mission()
 
     def reload_mission(self):
+        return self.client.mission_destroy().addCallback(self.on_destroyed)
 
-        def on_destroyed(_):
-            self.client.chat_all(
-                "Loading mission \"{:}\".".format(self.mission))
-            return self.client.mission_load(self.mission).addCallback(
-                on_loaded)
+    def on_destroyed(self, _):
+        self.client.chat_all(
+            "Loading mission \"{0}\".".format(self.mission))
+        d = self.client.mission_load(self.mission)
+        return d.addCallback(self.on_loaded)
 
-        def on_loaded(_):
-            return self.client.mission_begin().addCallback(self.on_playing)
+    def on_loaded(self, _):
+        return self.client.mission_begin().addCallback(self.on_playing)
 
-        return self.client.mission_destroy().addCallback(on_destroyed)
-
-    def on_playing(self, *args):
+    def on_playing(self, _):
         self.client.chat_all(
             "Mission \"{:}\" is playing.".format(self.mission))
         self.time_left = self.duration
@@ -116,12 +114,14 @@ def parse_args():
 
 def main():
     options = parse_args()
-    print "Working with server console on %s:%d." % (
-        options.host, options.port)
-    print "Rotating mission \"{:}\" with duration of {:} seconds.".format(
-        options.mission, options.duration)
 
     def on_connected(client):
+        peer = client.transport.getPeer()
+        print "Working with server console on {0}:{1}.".format(
+            peer.host, peer.port)
+        print "Rotating mission \"{0}\" with duration of {1} seconds.".format(
+            options.mission, options.duration)
+
         missions.client = client
         pilots.client = client
         missions.startService()

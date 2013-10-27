@@ -4,6 +4,21 @@ from twisted.python.constants import (ValueConstant, Values, NamedConstant,
     Names, )
 
 
+DEVICE_LINK_PREFIXES = {
+    'answer': 'A',
+    'request': 'R',
+}
+
+DEVICE_LINK_CMD_SEPARATOR = '/'
+DEVICE_LINK_ARGS_SEPARATOR = '\\'
+DEVICE_LINK_CMD_GROUP_MAX_SIZE = 40
+
+REQUEST_TIMEOUT = 0.1
+REQUEST_MISSION_LOAD_TIMEOUT = 30
+
+CHAT_MAX_LENGTH = 80
+
+
 class DeviceLinkValueConstant(ValueConstant):
 
     def make_command(self, arg=None):
@@ -19,16 +34,6 @@ class DEVICE_LINK_OPCODE(Values):
     PILOT_POS = DeviceLinkValueConstant("1004")
     STATIC_COUNT = DeviceLinkValueConstant("1014")
     STATIC_POS = DeviceLinkValueConstant("1016")
-
-
-DEVICE_LINK_PREFIXES = {
-    'answer': 'A',
-    'request': 'R',
-}
-
-DEVICE_LINK_CMD_SEPARATOR = '/'
-DEVICE_LINK_ARGS_SEPARATOR = '\\'
-DEVICE_LINK_CMD_GROUP_MAX_SIZE = 40
 
 
 class MISSION_STATUS(Names):
@@ -58,16 +63,9 @@ class OBJECT_STATE(Names):
     DESTROYED = NamedConstant()
 
 
-REQUEST_TIMEOUT = 0.1
-REQUEST_MISSION_LOAD_TIMEOUT = 30
-
-
 class PILOT_LEAVE_REASON(Names):
     """
     Constants representing the reason why a pilot has left.
     """
     DISCONNECTED = NamedConstant()
     KICKED = NamedConstant()
-
-
-CHAT_MAX_LENGTH = 80

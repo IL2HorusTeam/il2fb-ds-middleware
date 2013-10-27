@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import optparse
@@ -16,20 +17,12 @@ class PilotService(service.PilotBaseService):
 
     dlink = None
 
-    def user_left(self, info):
+    def active_objects_list_changed(self, info):
         self.dlink.refresh_radar()
 
-    def seat_occupied(self, info):
-        self.dlink.refresh_radar()
-
-    def was_killed(self, info):
-        self.dlink.refresh_radar()
-
-    def was_shot_down(self, info):
-        self.dlink.refresh_radar()
-
-    def went_to_menu(self, info):
-        self.dlink.refresh_radar()
+    user_left = seat_occupied = was_killed = was_killed_by_user = \
+    was_shot_down_by_user = was_shot_down_by_static = went_to_menu = \
+    active_objects_list_changed
 
     def user_chat(self, info):
         print "%s says: %s" % info
@@ -44,11 +37,11 @@ class MissionService(service.MissionService):
     dlink = None
 
     def began(self, info=None):
-        service.MissionService.began(self, info)
+        service.MissionService.began(self)
         self.dlink.refresh_radar()
 
     def ended(self, info=None):
-        service.MissionService.ended(self, info)
+        service.MissionService.ended(self)
         self.dlink.refresh_radar()
 
 
@@ -115,18 +108,19 @@ def main():
     print "Device Link on %s:%d." % dl_address
 
     root = MultiService()
+    radar = PilotRadarService(options.frequency)
+    radar.setServiceParent(root)
+
     pilots = PilotService()
     pilots.setServiceParent(root)
 
     objects = ObjectsService()
     objects.setServiceParent(root)
 
-    radar = PilotRadarService(options.frequency)
-    radar.setServiceParent(root)
-
-    parser = EventLogParser((pilots, objects))
-    log_watcher = service.LogWatchingService(options.log, parser=parser)
+    log_watcher = service.LogWatchingService(options.log)
     missions = MissionService(log_watcher)
+    parser = EventLogParser((pilots, objects, missions))
+    log_watcher.set_parser(parser)
     missions.setServiceParent(root)
 
     def on_start(_):

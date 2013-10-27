@@ -6,9 +6,10 @@ from twisted.python import log
 
 from zope.interface import implementer
 
+import il2ds_log_parser.parser as lp
+import il2ds_log_parser.regex as lpre
 from il2ds_middleware.constants import MISSION_STATUS, PILOT_LEAVE_REASON
-from il2ds_middleware.interface.parser import (IDeviceLinkParser,
-    IEventLogParser, IConsoleParser, )
+from il2ds_middleware.interface.parser import *
 from il2ds_middleware.regex import *
 
 
@@ -18,9 +19,8 @@ class ConsolePassthroughParser(object):
     def passthrough(self, data):
         return data
 
-    parse_line = server_info = mission_status = passthrough
-    mission_load = mission_destroy = mission_status
-    mission_begin = mission_end = mission_status
+    parse_line = server_info  = mission_load = mission_destroy = \
+    mission_begin = mission_end = mission_status = passthrough
 
 
 @implementer(IConsoleParser)
@@ -28,9 +28,8 @@ class ConsoleParser(object):
 
     _buffer = None
 
-    def __init__(self, (pilot_service, mission_service)):
-        self.pilot_service = pilot_service
-        self.mission_service = mission_service
+    def __init__(self, services):
+        self.pilot_service, self.mission_service = services
 
     def parse_line(self, line):
         while True:
@@ -82,7 +81,7 @@ class ConsoleParser(object):
                 'ip': groups[1],
                 'callsign': groups[2],
             }
-            self.pilot_service.user_join(info)
+            self.pilot_service.user_joined(info)
             return True
 
     def user_left(self, line):
@@ -116,157 +115,114 @@ class ConsoleParser(object):
             return True
 
 
-@implementer(IEventLogParser)
+@implementer(ILineParser)
 class EventLogPassthroughParser(object):
 
-    def passthrough(self, data):
+    def parse_line(self, data):
         return data
 
-    parse_line = seat_occupied = weapons_loaded = was_killed = \
-    was_shot_down = selected_army = went_to_menu = was_destroyed = \
-    in_flight = landed = damaged = damaged_on_ground = \
-    turned_wingtip_smokes = crashed = bailed_out = was_captured = \
-    was_captured = was_wounded = was_heavily_wounded = removed = passthrough
 
+@implementer(ILineParser)
+class EventLogParser(lp.MultipleParser):
 
-@implementer(IEventLogParser)
-class EventLogParser(object):
-
-    def __init__(self, (pilot_service, objects_service)):
-        ps = pilot_service
-        obs = objects_service
-        self.parsers = (
-            (RX_SEAT_OCCUPIED, self.seat_occupied, ps.seat_occupied),
-            (RX_SELECTED_ARMY, self.selected_army, ps.selected_army),
-            (RX_DESTROYED, self.was_destroyed, obs.was_destroyed),
-            (RX_WEAPONS_LOADED, self.weapons_loaded, ps.weapons_loaded),
-            (RX_KILLED, self.was_killed, ps.was_killed),
-            (RX_SHOT_DOWN, self.was_shot_down, ps.was_shot_down),
-            (RX_WENT_TO_MENU, self.went_to_menu, ps.went_to_menu),
-            (RX_IN_FLIGHT, self.in_flight, ps.in_flight),
-            (RX_LANDED, self.landed, ps.landed),
-            (RX_CRASHED, self.crashed, ps.crashed),
-            (RX_DAMAGED, self.damaged, ps.damaged),
-            (RX_DAMAGED_ON_GROUND, self.damaged_on_ground,
-                ps.damaged_on_ground),
-            (RX_TURNED_WINGTIP_SMOKES, self.turned_wingtip_smokes,
-                ps.turned_wingtip_smokes),
-            (RX_BAILED_OUT, self.bailed_out, ps.bailed_out),
-            (RX_WAS_CAPTURED, self.was_captured, ps.was_captured),
-            (RX_WAS_WOUNDED, self.was_wounded, ps.was_wounded),
-            (RX_WAS_HEAVILY_WOUNDED, self.was_heavily_wounded,
-                ps.was_heavily_wounded),
-            (RX_REMOVED, self.removed, ps.removed),
-        )
+    def __init__(self, services):
+        pilots, objects, missions = services
+        parsers = [
+            # User state events
+            (
+                lp.TimeStampedRegexParser(lpre.RX_WENT_TO_MENU),
+                pilots.went_to_menu
+            ),
+            (   lp.PositionedRegexParser(lpre.RX_SELECTED_ARMY),
+                pilots.selected_army
+            ),
+            # Crew member events
+            (lp.SeatRegexParser(lpre.RX_SEAT_OCCUPIED), pilots.seat_occupied),
+            (lp.SeatRegexParser(lpre.RX_KILLED), pilots.was_killed),
+            (
+                lp.SeatVictimOfUserRegexParser(lpre.RX_KILLED_BY_USER),
+                pilots.was_killed_by_user
+            ),
+            (lp.SeatRegexParser(lpre.RX_BAILED_OUT), pilots.bailed_out),
+            (
+                lp.SeatRegexParser(lpre.RX_PARACHUTE_OPENED),
+                pilots.parachute_opened
+            ),
+            (lp.SeatRegexParser(lpre.RX_CAPTURED), pilots.was_captured),
+            (lp.SeatRegexParser(lpre.RX_WOUNDED), pilots.was_wounded),
+            (
+                lp.SeatRegexParser(lpre.RX_HEAVILY_WOUNDED),
+                pilots.was_heavily_wounded
+            ),
+            # Destruction events
+            (
+                lp.PositionedRegexParser(lpre.RX_DESTROYED_BLD),
+                objects.building_destroyed_by_user
+            ),
+            (
+                lp.PositionedRegexParser(lpre.RX_DESTROYED_TREE),
+                objects.tree_destroyed_by_user
+            ),
+            (
+                lp.PositionedRegexParser(lpre.RX_DESTROYED_STATIC),
+                objects.static_destroyed_by_user
+            ),
+            (
+                lp.PositionedRegexParser(lpre.RX_DESTROYED_BRIDGE),
+                objects.bridge_destroyed_by_user
+            ),
+            # Events of lightning effects
+            (
+                lp.PositionedRegexParser(lpre.RX_TOGGLE_LANDING_LIGHTS),
+                pilots.toggle_landing_lights
+            ),
+            (
+                lp.PositionedRegexParser(lpre.RX_TOGGLE_WINGTIP_SMOKES),
+                pilots.toggle_wingtip_smokes
+            ),
+            # Aircraft events
+            (
+                lp.FuelRegexParser(lpre.RX_WEAPONS_LOADED),
+                pilots.weapons_loaded
+            ),
+            (lp.PositionedRegexParser(lpre.RX_TOOK_OFF), pilots.took_off),
+            (lp.PositionedRegexParser(lpre.RX_CRASHED), pilots.crashed),
+            (lp.PositionedRegexParser(lpre.RX_LANDED), pilots.landed),
+            (
+                lp.PositionedRegexParser(lpre.RX_DAMAGED_SELF),
+                pilots.damaged_self
+            ),
+            (
+                lp.VictimOfUserRegexParser(lpre.RX_DAMAGED_BY_USER),
+                pilots.was_damaged_by_user
+            ),
+            (
+                lp.PositionedRegexParser(lpre.RX_DAMAGED_ON_GROUND),
+                pilots.was_damaged_on_ground
+            ),
+            (
+                lp.PositionedRegexParser(lpre.RX_SHOT_DOWN_SELF),
+                pilots.shot_down_self
+            ),
+            (
+                lp.VictimOfUserRegexParser(lpre.RX_SHOT_DOWN_BY_USER),
+                pilots.was_shot_down_by_user
+            ),
+            (
+                lp.VictimOfStaticRegexParser(lpre.RX_SHOT_DOWN_BY_STATIC),
+                pilots.was_shot_down_by_static
+            ),
+            # Mission flow events
+            (
+                lp.DateTimeStampedRegexParser(lpre.RX_MISSION_WON),
+                missions.was_won
+            ),
+            (lp.NumeratedRegexParser(lpre.RX_TARGET_END), missions.target_end),
+        ]
+        super(EventLogParser, self).__init__(parsers=parsers)
 
     def parse_line(self, line):
-        for rx, parser, dst in self.parsers:
-            m = re.match(rx, line)
-            if m:
-                dst(parser(m.groups()))
-                return True
-        return False
-
-    def _seat_event(self, groups):
-        return {
-            'callsign': groups[0],
-            'aircraft': groups[1],
-            'seat': int(groups[2]),
-            'pos': self._pos((groups[3], groups[4])),
-        }
-
-    def _aircraft_event(self, groups):
-        return {
-            'callsign': groups[0],
-            'aircraft': groups[1],
-            'pos': self._pos((groups[2], groups[3])),
-        }
-
-    def _actor(self, data):
-        info = data.split(':')
-        is_user = len(info) == 2
-        actor = {
-            'is_user': is_user,
-        }
-        if is_user:
-            actor['callsign'] = info[0]
-            actor['aircraft'] = info[1]
-        else:
-            actor['name'] = info[0]
-        return actor
-
-    def _pos(self, (x, y)):
-        return {
-            'x': float(x),
-            'y': float(y),
-        }
-
-    seat_occupied = was_killed = bailed_out = was_captured = was_wounded = \
-    was_heavily_wounded = _seat_event
-
-    in_flight = damaged_on_ground = crashed = removed = _aircraft_event
-
-    def weapons_loaded(self, groups):
-        return {
-            'callsign': groups[0],
-            'aircraft': groups[1],
-            'weapons': groups[2],
-            'fuel': int(groups[3]),
-        }
-
-    def was_shot_down(self, groups):
-        return {
-            'victim': {
-                'callsign': groups[0],
-                'aircraft': groups[1],
-            },
-            'attacker': self._actor(groups[2]),
-            'pos': self._pos((groups[3], groups[4])),
-        }
-
-    def selected_army(self, groups):
-        return {
-            'callsign': groups[0],
-            'army': groups[1],
-            'pos': self._pos((groups[2], groups[3])),
-        }
-
-    def went_to_menu(self, groups):
-        return {
-            'callsign': groups[0],
-        }
-
-    def was_destroyed(self, groups):
-        return {
-            'victim': groups[0],
-            'attacker': groups[1],
-            'pos': self._pos((groups[2], groups[3])),
-        }
-
-    def landed(self, groups):
-        info = self._actor(groups[0])
-        info.update({
-            'pos': self._pos((groups[1], groups[2])),
-        })
-        return info
-
-    def damaged(self, groups):
-        return {
-            'victim': {
-                'callsign': groups[0],
-                'aircraft': groups[1],
-            },
-            'attacker': self._actor(groups[2]),
-            'pos': self._pos((groups[3], groups[4])),
-        }
-
-    def turned_wingtip_smokes(self, groups):
-        return {
-            'callsign': groups[0],
-            'aircraft': groups[1],
-            'state': groups[2],
-            'pos': self._pos((groups[3], groups[4])),
-        }
+        return self(line)
 
 
 @implementer(IDeviceLinkParser)

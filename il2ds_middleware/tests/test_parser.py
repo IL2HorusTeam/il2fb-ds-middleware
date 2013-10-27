@@ -153,24 +153,14 @@ class ConsoleParserTestCase(TestCase):
 
 class EventLogPassthroughParserTestCase(TestCase):
 
-    def setUp(self):
-        self.parser = EventLogPassthroughParser()
-
     def test_passthrough(self):
-        methods = [
-            self.parser.parse_line, self.parser.seat_occupied,
-            self.parser.weapons_loaded, self.parser.was_killed,
-            self.parser.was_shot_down, self.parser.selected_army,
-            self.parser.went_to_menu, self.parser.was_destroyed,
-            self.parser.in_flight, self.parser.landed,
-            self.parser.damaged, self.parser.damaged_on_ground,
-            self.parser.turned_wingtip_smokes, self.parser.crashed,
-            self.parser.bailed_out, self.parser.was_captured,
-            self.parser.was_captured, self.parser.was_wounded,
-            self.parser.was_heavily_wounded, self.parser.removed, ]
-        data = "test"
-        for m in methods:
-            self.assertEqual(m(data), data)
+        parser = EventLogPassthroughParser()
+        datas = [
+            "test",
+            "mission test.mis is Playing"
+        ]
+        for data in datas:
+            self.assertEqual(parser.parse_line(data), data)
 
 
 class EventLogParserTestCase(TestCase):
@@ -178,303 +168,289 @@ class EventLogParserTestCase(TestCase):
     def setUp(self):
         self.pilot_srvc = PilotService()
         self.obj_srvc = ObjectsService()
-        self.parser = EventLogParser((self.pilot_srvc, self.obj_srvc))
+        self.mission_srvc = MissionService()
+        self.parser = EventLogParser(
+            (self.pilot_srvc, self.obj_srvc, self.mission_srvc))
         self.pilot_srvc.startService()
 
     def tearDown(self):
         self.pilot_srvc.stopService()
         self.obj_srvc.stopService()
+        self.mission_srvc.stopService()
 
-    def _test_pos(self, pos):
+    def _last_event(self, data, evt_buffer, expected_size=1):
+        self.parser.parse_line(data)
+        self.assertEqual(len(evt_buffer), expected_size)
+        evt = evt_buffer[-1]
+        self.assertIsInstance(evt, dict)
+        return evt
+
+    def _last_pilots_event(self, data, expected_size=1):
+        return self._last_event(data, self.pilot_srvc.buffer, expected_size)
+
+    def _last_objects_event(self, data, expected_size=1):
+        return self._last_event(data, self.obj_srvc.buffer, expected_size)
+
+    def _last_mission_flow_event(self, data, expected_size=1):
+        return self._last_event(data, self.mission_srvc.buffer, expected_size)
+
+    def assertPos(self, data, x=100.99, y=200.99):
+        pos = data.get('pos')
+        self.assertIsNotNone(pos)
         self.assertIsInstance(pos, dict)
-        self.assertEqual(pos.get('x'), 100.99)
-        self.assertEqual(pos.get('y'), 200.99)
+        self.assertEqual(pos.get('x'), x)
+        self.assertEqual(pos.get('y'), y)
+
+    def assertCalsignAircraft(self, data,
+                              callsign="user0", aircraft="A6M2-21"):
+        self.assertEqual(data.get('callsign'), callsign)
+        self.assertEqual(data.get('aircraft'), aircraft)
+
+    def assertAttackingUser(self, data,
+                            callsign="user1", aircraft="B5N2"):
+        attacker = data.get('attacker')
+        self.assertIsNotNone(attacker)
+        self.assertIsInstance(attacker, dict)
+        self.assertCalsignAircraft(attacker, callsign, aircraft)
 
     def test_occupied_seat(self):
-        data = "user0:A6M2-21(0) seat occupied by user0 at 100.99 200.99"
-        self.parser.parse_line(data)
-
-        self.assertEqual(len(self.pilot_srvc.buffer), 1)
-        result = self.pilot_srvc.buffer[0]
-
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('callsign'), "user0")
-        self.assertEqual(result.get('seat'), 0)
-        self.assertEqual(result.get('aircraft'), "A6M2-21")
-        self._test_pos(result.get('pos'))
-
-    def test_weapons_loaded(self):
-        data = "user0:A6M2-21 loaded weapons '1xdt' fuel 100%"
-        self.parser.parse_line(data)
-
-        self.assertEqual(len(self.pilot_srvc.buffer), 1)
-        result = self.pilot_srvc.buffer[0]
-
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('callsign'), "user0")
-        self.assertEqual(result.get('aircraft'), "A6M2-21")
-        self.assertEqual(result.get('weapons'), "1xdt")
-        self.assertEqual(result.get('fuel'), 100)
-
-    def test_was_killed(self):
-        data = "user0:A6M2-21(0) was killed at 100.99 200.99"
-        self.parser.parse_line(data)
-
-        self.assertEqual(len(self.pilot_srvc.buffer), 1)
-        result = self.pilot_srvc.buffer[0]
-
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('callsign'), "user0")
-        self.assertEqual(result.get('seat'), 0)
-        self.assertEqual(result.get('aircraft'), "A6M2-21")
-        self._test_pos(result.get('pos'))
-
-    def _test_was_shot_down(self, attacker):
-        data = "user0:A6M2-21 shot down by {:} at 100.99 200.99".format(
-            attacker)
-        self.parser.parse_line(data)
-        self.assertEqual(len(self.pilot_srvc.buffer), 1)
-
-        result = self.pilot_srvc.buffer[0]
-        self.assertIsInstance(result, dict)
-        self.assertIsInstance(result.get('victim'), dict)
-        self.assertEqual(result['victim'].get('callsign'), "user0")
-        self.assertEqual(result['victim'].get('aircraft'), "A6M2-21")
-        self._test_pos(result.get('pos'))
-
-        self.assertIsInstance(result.get('attacker'), dict)
-        return result['attacker']
-
-    def test_was_shot_down_by_user(self):
-        attacker = self._test_was_shot_down("user1:B5N2")
-        self.assertEqual(attacker.get('is_user'), True)
-        self.assertEqual(attacker.get('callsign'), "user1")
-        self.assertEqual(attacker.get('aircraft'), "B5N2")
-
-    def test_was_shot_down_by_ground(self):
-        attacker = self._test_was_shot_down("landscape")
-        self.assertEqual(attacker.get('is_user'), False)
-        self.assertEqual(attacker.get('name'), "landscape")
-
-    def test_was_shot_down_by_static(self):
-        attacker = self._test_was_shot_down("0_Static")
-        self.assertEqual(attacker.get('is_user'), False)
-        self.assertEqual(attacker.get('name'), "0_Static")
-
-    def test_was_shot_down_by_building(self):
-        attacker = self._test_was_shot_down("0_bld")
-        self.assertEqual(attacker.get('is_user'), False)
-        self.assertEqual(attacker.get('name'), "0_bld")
+        data = "[10:10:30 PM] user0:A6M2-21(0) seat occupied by user0 at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertEqual(evt.get('seat'), 0)
+        self.assertPos(evt)
 
     def test_selected_army(self):
-        data = "user0 selected army Red at 100.99 200.99"
-        self.parser.parse_line(data)
+        data = "[10:10:30 PM] user0 selected army Red at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('callsign'), "user0")
+        self.assertEqual(evt.get('army'), "Red")
+        self.assertPos(evt)
 
-        self.assertEqual(len(self.pilot_srvc.buffer), 1)
-        result = self.pilot_srvc.buffer[0]
-
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('callsign'), "user0")
-        self.assertEqual(result.get('army'), 'Red')
-        self._test_pos(result.get('pos'))
+    def test_weapons_loaded(self):
+        data = "[10:10:30 PM] user0:A6M2-21 loaded weapons '1xdt' fuel 100%"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertEqual(evt.get('loadout'), "1xdt")
+        self.assertEqual(evt.get('fuel'), 100)
 
     def test_went_to_menu(self):
-        data = "user0 entered refly menu"
-        self.parser.parse_line(data)
+        data = "[10:10:30 PM] user0 entered refly menu"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('callsign'), "user0")
 
-        self.assertEqual(len(self.pilot_srvc.buffer), 1)
-        result = self.pilot_srvc.buffer[0]
+    def test_was_killed(self):
+        data = "[10:10:30 PM] user0:A6M2-21(0) was killed at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertEqual(evt.get('seat'), 0)
+        self.assertPos(evt)
 
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('callsign'), "user0")
+    def test_was_killed_by_user(self):
+        data = "[10:10:30 PM] user0:A6M2-21(0) was killed by user1:B5N2 at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertEqual(evt.get('seat'), 0)
+        self.assertAttackingUser(evt)
+        self.assertPos(evt)
 
-    def test_was_destroyed(self):
-        data = "0_Static destroyed by landscape at 100.99 200.99"
-        self.parser.parse_line(data)
-
-        self.assertEqual(len(self.obj_srvc.buffer), 1)
-        result = self.obj_srvc.buffer[0]
-
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('victim'), "0_Static")
-        self.assertEqual(result.get('attacker'), "landscape")
-        self._test_pos(result.get('pos'))
-
-    def test_in_flight(self):
-        data = "user0:A6M2-21 in flight at 100.99 200.99"
-        self.parser.parse_line(data)
-
-        self.assertEqual(len(self.pilot_srvc.buffer), 1)
-        result = self.pilot_srvc.buffer[0]
-
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('callsign'), "user0")
-        self.assertEqual(result.get('aircraft'), "A6M2-21")
-        self._test_pos(result.get('pos'))
+    def test_took_off(self):
+        data = "[10:10:30 PM] user0:A6M2-21 in flight at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertPos(evt)
 
     def test_landed(self):
-        data = "user0:A6M2-21 landed at 100.99 200.99"
-        self.parser.parse_line(data)
-        data = "A6M2-21 landed at 100.99 200.99"
-        self.parser.parse_line(data)
-        self.assertEqual(len(self.pilot_srvc.buffer), 2)
-
-        result = self.pilot_srvc.buffer[0]
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('is_user'), True)
-        self.assertEqual(result.get('callsign'), "user0")
-        self.assertEqual(result.get('aircraft'), "A6M2-21")
-        self._test_pos(result.get('pos'))
-
-        result = self.pilot_srvc.buffer[1]
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('is_user'), False)
-        self.assertEqual(result.get('name'), "A6M2-21")
-        self._test_pos(result.get('pos'))
-
-    def _test_was_damaged(self, attacker):
-        data = "user0:A6M2-21 damaged by {:} at 100.99 200.99".format(
-            attacker)
-        self.parser.parse_line(data)
-
-        self.assertEqual(len(self.pilot_srvc.buffer), 1)
-        result = self.pilot_srvc.buffer[0]
-
-        self.assertIsInstance(result, dict)
-        self.assertIsInstance(result.get('victim'), dict)
-        self.assertEqual(result['victim'].get('callsign'), "user0")
-        self.assertEqual(result['victim'].get('aircraft'), "A6M2-21")
-        self._test_pos(result.get('pos'))
-
-        self.assertIsInstance(result.get('attacker'), dict)
-        return result['attacker']
-
-    def test_damaged_by_user(self):
-        attacker = self._test_was_damaged("user1:B5N2")
-        self.assertEqual(attacker.get('is_user'), True)
-        self.assertEqual(attacker.get('callsign'), "user1")
-        self.assertEqual(attacker.get('aircraft'), "B5N2")
-
-    def test_damaged_by_landscape(self):
-        attacker = self._test_was_damaged("landscape")
-        self.assertEqual(attacker.get('is_user'), False)
-        self.assertEqual(attacker.get('name'), "landscape")
-
-    def test_damaged_by_static(self):
-        attacker = self._test_was_damaged("0_Static")
-        self.assertEqual(attacker.get('is_user'), False)
-        self.assertEqual(attacker.get('name'), "0_Static")
-
-    def test_damaged_by_building(self):
-        attacker = self._test_was_damaged("0_bld")
-        self.assertEqual(attacker.get('is_user'), False)
-        self.assertEqual(attacker.get('name'), "0_bld")
-
-    def test_damaged_on_ground(self):
-        data = "user0:A6M2-21 damaged on the ground at 100.99 200.99"
-        self.parser.parse_line(data)
-        self.assertEqual(len(self.pilot_srvc.buffer), 1)
-
-        result = self.pilot_srvc.buffer[0]
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('callsign'), "user0")
-        self.assertEqual(result.get('aircraft'), "A6M2-21")
-        self._test_pos(result.get('pos'))
-
-    def test_turned_wingtip_smokes(self):
-        data = "user0:A6M2-21 turned wingtip smokes on at 100.99 200.99"
-        self.parser.parse_line(data)
-        data = "user0:A6M2-21 turned wingtip smokes off at 100.99 200.99"
-        self.parser.parse_line(data)
-        self.assertEqual(len(self.pilot_srvc.buffer), 2)
-
-        result = self.pilot_srvc.buffer[0]
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('callsign'), "user0")
-        self.assertEqual(result.get('aircraft'), "A6M2-21")
-        self.assertEqual(result.get('state'), "on")
-        self._test_pos(result.get('pos'))
-
-        result = self.pilot_srvc.buffer[1]
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('callsign'), "user0")
-        self.assertEqual(result.get('aircraft'), "A6M2-21")
-        self.assertEqual(result.get('state'), "off")
-        self._test_pos(result.get('pos'))
+        data = "[10:10:30 PM] user0:A6M2-21 landed at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertPos(evt)
 
     def test_crashed(self):
-        data = "user0:A6M2-21 crashed at 100.99 200.99"
-        self.parser.parse_line(data)
-        self.assertEqual(len(self.pilot_srvc.buffer), 1)
+        data = "[10:10:30 PM] user0:A6M2-21 crashed at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertPos(evt)
 
-        result = self.pilot_srvc.buffer[0]
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('callsign'), "user0")
-        self.assertEqual(result.get('aircraft'), "A6M2-21")
-        self._test_pos(result.get('pos'))
+    def test_toggle_wingtip_smokes(self):
+        data = "[10:10:30 PM] user0:A6M2-21 turned wingtip smokes on at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertEqual(evt.get('value'), "on")
+        self.assertPos(evt)
+
+        data = "[10:10:30 PM] user0:A6M2-21 turned wingtip smokes off at 100.99 200.99"
+        evt = self._last_pilots_event(data, expected_size=2)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertEqual(evt.get('value'), "off")
+        self.assertPos(evt)
+
+    def test_toggle_landing_lights(self):
+        data = "[10:10:30 PM] user0:A6M2-21 turned landing lights on at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertEqual(evt.get('value'), "on")
+        self.assertPos(evt)
+
+        data = "[10:10:30 PM] user0:A6M2-21 turned landing lights off at 100.99 200.99"
+        evt = self._last_pilots_event(data, expected_size=2)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertEqual(evt.get('value'), "off")
+        self.assertPos(evt)
 
     def test_bailed_out(self):
-        data = "user0:A6M2-21(0) bailed out at 100.99 200.99"
-        self.parser.parse_line(data)
-        self.assertEqual(len(self.pilot_srvc.buffer), 1)
+        data = "[10:10:30 PM] user0:A6M2-21(0) bailed out at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertEqual(evt.get('seat'), 0)
+        self.assertPos(evt)
 
-        result = self.pilot_srvc.buffer[0]
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('callsign'), "user0")
-        self.assertEqual(result.get('seat'), 0)
-        self.assertEqual(result.get('aircraft'), "A6M2-21")
-        self._test_pos(result.get('pos'))
+    def test_parachute_opened(self):
+        data = "[10:10:30 PM] user0:A6M2-21(0) successfully bailed out at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertEqual(evt.get('seat'), 0)
+        self.assertPos(evt)
 
     def test_was_captured(self):
-        data = "user0:A6M2-21(0) was captured at 100.99 200.99"
-        self.parser.parse_line(data)
-        self.assertEqual(len(self.pilot_srvc.buffer), 1)
-
-        result = self.pilot_srvc.buffer[0]
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('callsign'), "user0")
-        self.assertEqual(result.get('seat'), 0)
-        self.assertEqual(result.get('aircraft'), "A6M2-21")
-        self._test_pos(result.get('pos'))
+        data = "[10:10:30 PM] user0:A6M2-21(0) was captured at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertEqual(evt.get('seat'), 0)
+        self.assertPos(evt)
 
     def test_was_wounded(self):
-        data = "user0:A6M2-21(0) was wounded at 100.99 200.99"
-        self.parser.parse_line(data)
-        self.assertEqual(len(self.pilot_srvc.buffer), 1)
-
-        result = self.pilot_srvc.buffer[0]
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('callsign'), "user0")
-        self.assertEqual(result.get('seat'), 0)
-        self.assertEqual(result.get('aircraft'), "A6M2-21")
-        self._test_pos(result.get('pos'))
+        data = "[10:10:30 PM] user0:A6M2-21(0) was wounded at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertEqual(evt.get('seat'), 0)
+        self.assertPos(evt)
 
     def test_was_heavily_wounded(self):
-        data = "user0:A6M2-21(0) was heavily wounded at 100.99 200.99"
-        self.parser.parse_line(data)
-        self.assertEqual(len(self.pilot_srvc.buffer), 1)
+        data = "[10:10:30 PM] user0:A6M2-21(0) was heavily wounded at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertEqual(evt.get('seat'), 0)
+        self.assertPos(evt)
 
-        result = self.pilot_srvc.buffer[0]
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('callsign'), "user0")
-        self.assertEqual(result.get('seat'), 0)
-        self.assertEqual(result.get('aircraft'), "A6M2-21")
-        self._test_pos(result.get('pos'))
+    def test_destroyed_building(self):
+        data = "[10:10:30 PM] 3do/Buildings/Industrial/FactoryHouse1_W/live.sim destroyed by user0:A6M2-21 at 100.99 200.99"
+        evt = self._last_objects_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('building'), "FactoryHouse1_W")
+        self.assertCalsignAircraft(evt)
+        self.assertPos(evt)
 
-    def test_removed(self):
-        data = "user0:A6M2-21 removed at 100.99 200.99"
-        self.parser.parse_line(data)
-        self.assertEqual(len(self.pilot_srvc.buffer), 1)
+    def test_destroyed_tree(self):
+        data = "[10:10:30 PM] 3do/Tree/Line_W/live.sim destroyed by user0:A6M2-21 at 100.99 200.99"
+        evt = self._last_objects_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('tree'), "Line_W")
+        self.assertCalsignAircraft(evt)
+        self.assertPos(evt)
 
-        result = self.pilot_srvc.buffer[0]
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('callsign'), "user0")
-        self.assertEqual(result.get('aircraft'), "A6M2-21")
-        self._test_pos(result.get('pos'))
+    def test_destroyed_static(self):
+        data = "[10:10:30 PM] 0_Static destroyed by user0:A6M2-21 at 100.99 200.99"
+        evt = self._last_objects_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('static'), "0_Static")
+        self.assertCalsignAircraft(evt)
+        self.assertPos(evt)
+
+    def test_destroyed_bridge(self):
+        data = "[10:10:30 PM]  Bridge0 destroyed by user0:A6M2-21 at 100.99 200.99"
+        evt = self._last_objects_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('bridge'), "Bridge0")
+        self.assertCalsignAircraft(evt)
+        self.assertPos(evt)
+
+    def test_was_shot_down_by_user(self):
+        data = "[10:10:30 PM] user0:A6M2-21 shot down by user1:B5N2 at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertAttackingUser(evt)
+        self.assertPos(evt)
+
+    def test_shot_down_self(self):
+        data = "[10:10:30 PM] user0:A6M2-21 shot down by landscape at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertPos(evt)
+
+    def test_was_shot_down_by_static(self):
+        data = "[10:10:30 PM] user0:A6M2-21 shot down by 0_Static at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertEqual(evt.get('attacker'), "0_Static")
+        self.assertPos(evt)
+
+    def test_damaged_self(self):
+        data = "[10:10:30 PM] user0:A6M2-21 damaged by landscape at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertPos(evt)
+
+    def test_was_damaged_by_user(self):
+        data = "[10:10:30 PM] user0:A6M2-21 damaged by user1:B5N2 at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertAttackingUser(evt)
+        self.assertPos(evt)
+
+    def test_was_damaged_on_the_ground(self):
+        data = "[10:10:30 PM] user0:A6M2-21 damaged on the ground at 100.99 200.99"
+        evt = self._last_pilots_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertCalsignAircraft(evt)
+        self.assertPos(evt)
+
+    def test_mission_was_won(self):
+        data = "[Dec 29, 2012 10:10:30 PM] Mission: RED WON"
+        evt = self._last_mission_flow_event(data)
+        self.assertEqual(evt.get('date'), "2012-12-29")
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('army'), "RED")
+
+    def test_target_complete(self):
+        data = "[10:10:30 PM] Target 3 Complete"
+        evt = self._last_mission_flow_event(data)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('number'), 3)
+        self.assertEqual(evt.get('result'), "Complete")
+
+        data = "[10:10:30 PM] Target 5 Failed"
+        evt = self._last_mission_flow_event(data, expected_size=2)
+        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('number'), 5)
+        self.assertEqual(evt.get('result'), "Failed")
 
     def test_fake_data(self):
-        result = self.parser.parse_line("some fake data")
-        self.assertFalse(result)
+        evt = self.parser.parse_line("some fake data")
+        self.assertIsNone(evt)
 
 
 class DeviceLinkParserTestCase(TestCase):

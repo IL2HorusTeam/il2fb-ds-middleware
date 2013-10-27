@@ -14,99 +14,650 @@ from il2ds_middleware.parser import EventLogPassthroughParser
 
 
 class ClientBaseService(Service):
-
-    """Console client is set up manually"""
+    """Base console client sevice. Client must be set up manually."""
     client = None
 
 
 @implementer(IPilotService)
 class PilotBaseService(ClientBaseService):
 
-    def user_join(self, info):
-        pass
+    """Base muted pilots service."""
+
+    def user_joined(self, info):
+        """
+        Process 'user joined server' event.
+
+        Input:
+        `info`  # A dictionary with information about user's callsign, server
+                # channel number, remote IP address and port. Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'channel': CHANNEL,       # channel integer number
+                #     'ip': "IP",               # user's remote IP address
+                # }
+        """
 
     def user_left(self, info):
-        pass
+        """
+        Process 'user left server' event.
+
+        Input:
+        `info`  # An object with information about user's callsign, server
+                # channel number, remote IP address and port, reason of
+                # disconnection. Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'channel': CHANNEL,       # channel integer number
+                #     'ip': "IP",               # user's remote IP address
+                #     'reason': "REASON",       # reason of disconnection
+                # }
+        """
 
     def user_chat(self, info):
-        pass
+        """
+        Process 'user sent message to chat' event.
+
+        Input:
+        `info`  # A tuple with information about user's callsign and body of
+                # the message. Structure:
+                # ("CALLSIGN", "MESSAGE")
+        """
 
     def seat_occupied(self, info):
-        pass
+        """
+        Process 'user occupied seat' event.
 
-    def weapons_loaded(self, info):
-        pass
-
-    def was_killed(self, info):
-        pass
-
-    def was_shot_down(self, info):
-        pass
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign and aircraft, seat number and position on map.
+                # Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'seat': SEAT,     # integer number of seat
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
 
     def selected_army(self, info):
-        pass
+        """
+        Process 'user selected army' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign, army name and position on map. Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'army': "ARMY",   # name of army
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
 
     def went_to_menu(self, info):
-        pass
+         """
+        Process 'user went to refly menu' event.
 
-    def in_flight(self, info):
-        pass
+        Input:
+        `info`  # A dictionary with information about event's time, and user's
+                # callsign. Structure:
+                # {
+                #     'time': "TIME",           # time in ISO format
+                #     'callsign': "CALLSIGN",   # user's callsign
+                # }
+        """
+
+    def weapons_loaded(self, info):
+        """
+        Process 'user loaded weapons' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign, selected aircraft, its loadout and fuel percentage.
+                # Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #     'loadout': "LOADOUT",     # loadout name
+                #
+                #     'fuel': FUEL,     # integer value of fuel percentage
+                #     'time': "TIME",   # time in ISO format
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
+
+    def was_killed(self, info):
+        """
+        Process 'crew member was killed' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign and aircraft, seat number and position on map.
+                # Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'seat': SEAT,     # integer number of seat
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
+
+    def was_killed_by_user(self, info):
+        """
+        Process 'crew member was killed by user' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign and aircraft, seat number, attacker's callsign,
+                # aircraft and position on map. Structure:
+                # {
+                #     'callsign': "CALLSIGN",       # user's callsign
+                #     'aircraft': "AIRCRAFT",       # user's aircraft
+                #     'attacker': {
+                #         'callsign': "CALLSIGN",   # attacker's callsign
+                #         'aircraft': "AIRCRAFT",   # attacker's aircraft
+                #     },
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'seat': SEAT,     # integer number of seat
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
+
+    def took_off(self, info):
+        """
+        Process 'user took off' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign, aircraft and position on map. Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
 
     def landed(self, info):
-        pass
+        """
+        Process 'user landed' event.
 
-    def damaged(self, info):
-        pass
-
-    def damaged_on_ground(self, info):
-        pass
-
-    def turned_wingtip_smokes(self, info):
-        pass
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign, aircraft and position on map. Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
 
     def crashed(self, info):
-        pass
+        """
+        Process 'user crashed' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign, aircraft and position on map. Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
+
+    def damaged_self(self, info):
+        """
+        Process 'user damaged himself' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign and aircraft, position on map. Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
+
+    def was_damaged_by_user(self, info):
+        """
+        Process 'user was damaged by user' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign and aircraft, attacker's callsign and aircraft,
+                # position on map. Structure:
+                # {
+                #     'callsign': "CALLSIGN",       # user's callsign
+                #     'aircraft': "AIRCRAFT",       # user's aircraft
+                #     'attacker': {
+                #         'callsign': "CALLSIGN",   # attacker's callsign
+                #         'aircraft': "AIRCRAFT",   # attacker's aircraft
+                #     },
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
+
+    def was_damaged_on_ground(self, info):
+        """
+        Process 'user was damaged on the ground' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign and aircraft, position on map. Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
+
+    def shot_down_self(self, info):
+        """
+        Process 'user shot down himself' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign and aircraft, position on map. Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
+
+    def was_shot_down_by_user(self, info):
+        """
+        Process 'user was shot down by user' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign and aircraft, attacker's callsign and aircraft,
+                # position on map. Structure:
+                # {
+                #     'callsign': "CALLSIGN",       # user's callsign
+                #     'aircraft': "AIRCRAFT",       # user's aircraft
+                #     'attacker': {
+                #         'callsign': "CALLSIGN",   # attacker's callsign
+                #         'aircraft': "AIRCRAFT",   # attacker's aircraft
+                #     },
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
+
+    def was_shot_down_by_static(self, info):
+        """
+        Process 'user was shot down by static object' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign and aircraft, attacking object's name, position on
+                # map. Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #     'attacker': "STATIC",     # attacking static's name
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
+
+
+    def toggle_wingtip_smokes(self, info):
+        """
+        Process 'user toggled wingtip smokes' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign, aircraft, wingtip smokes state value and position
+                # on map. Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'state': "STATE", # "on" or "off"
+                #     'time': "TIME",   # time in ISO format
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
+
+    def toggle_landing_lights(self, info):
+        """
+        Process 'user toggled landing lights' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign, aircraft, landing lights state value and position
+                # on map. Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'state': "STATE", # "on" or "off"
+                #     'time': "TIME",   # time in ISO format
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
 
     def bailed_out(self, info):
-        pass
+        """
+        Process 'crew member bailed out' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign and aircraft, seat number and position on map.
+                # Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'seat': SEAT,     # integer number of seat
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
+
+    def parachute_opened(self, info):
+        """
+        Process 'crew member's parachute opened' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign and aircraft, seat number and position on map.
+                # Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'seat': SEAT,     # integer number of seat
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
 
     def was_captured(self, info):
-        pass
+        """
+        Process 'crew member was captured' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign and aircraft, seat number and position on map.
+                # Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'seat': SEAT,     # integer number of seat
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
 
     def was_wounded(self, info):
-        pass
+        """
+        Process 'crew member was wounded' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign and aircraft, seat number and position on map.
+                # Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'seat': SEAT,     # integer number of seat
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
 
     def was_heavily_wounded(self, info):
-        pass
+        """
+        Process 'crew member was heavily wounded' event.
 
-    def removed(self, info):
-        pass
+        Input:
+        `info`  # A dictionary with information about event's time, user's
+                # callsign and aircraft, seat number and position on map.
+                # Structure:
+                # {
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'time': "TIME",   # time in ISO format
+                #     'seat': SEAT,     # integer number of seat
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
 
 
 @implementer(IObjectsService)
 class ObjectsBaseService(ClientBaseService):
 
-    def was_destroyed(self, info):
-        pass
+    """Base muted map objects service."""
+
+    def building_destroyed_by_user(self, info):
+        """
+        Process 'building was destroyed by user' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, building's
+                # name, user's callsign and aircraft, position on map.
+                # Structure:
+                # {
+                #     'time': "TIME",   # time in ISO format
+                #
+                #     'building': "BUILDING",   # building's name
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
+
+    def tree_destroyed_by_user(self, info):
+        """
+        Process 'tree was destroyed by user' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, tree's
+                # name, user's callsign and aircraft, position on map.
+                # Structure:
+                # {
+                #     'time': "TIME",   # time in ISO format
+                #     'tree': "TREE",   # tree's name
+                #
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
+
+    def static_destroyed_by_user(self, info):
+        """
+        Process 'static object was destroyed by user' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, object's
+                # name, user's callsign and aircraft, position on map.
+                # Structure:
+                # {
+                #     'time': "TIME",   # time in ISO format
+                #
+                #     'static': "STATIC",       # static's name
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
+
+    def bridge_destroyed_by_user(self, info):
+        """
+        Process 'bridge was destroyed by user' event.
+
+        Input:
+        `info`  # A dictionary with information about event's time, bridge's
+                # name, user's callsign and aircraft, position on map.
+                # Structure:
+                # {
+                #     'time': "TIME",   # time in ISO format
+                #
+                #     'bridge': "BRIDGE",       # bridge's name
+                #     'callsign': "CALLSIGN",   # user's callsign
+                #     'aircraft': "AIRCRAFT",   # user's aircraft
+                #
+                #     'pos': {          # dictionary with position on map
+                #         'x': X,       # float x value
+                #         'y': Y,       # float y value
+                #     },
+                # }
+        """
 
 
 @implementer(IMissionService)
 class MissionBaseService(ClientBaseService):
 
+    """Base muted mission service."""
+
     def on_status_info(self, info):
-        pass
+        """
+        Process incoming information about mission's status.
 
-    def began(self, info=None):
-        pass
+        Input:
+        `info`  # A tuple containing mission's status and name. Name is `None`
+                # if mission is not loaded. Structure:
+                # (MISSION_STATUS, "MISSION_NAME")
+        """
 
-    def ended(self, info=None):
-        pass
+    def was_won(self, info):
+        """
+        Process 'current mission was won by an army' event.
+
+        Input:
+        `info`  # A dictionary with information about event's date, time and
+                # army's name. Structure:
+                # {
+                #    'date': "DATE",    # date in ISO format
+                #    'time': "TIME",    # time in ISO format
+                #    'army': "ARMY",    # army name in capital letters
+                # }
+        """
+
+    def target_end(self, info):
+        """
+        Process event of target's success or failure.
+
+        Input:
+        `info`  # A dictionary with information about target's number and
+                # result. Structure:
+                # {
+                #    'time': "TIME",        # time in ISO format
+                #    'number': NUMBER,      # target's number integer value
+                #    'result': "RESULT",    # "Complete" or "Failed"
+                # }
+        """
 
 
 class MissionService(MissionBaseService):
 
-    def __init__(self, log_watcher):
-        self.status = None
+    def __init__(self, log_watcher=None):
+        self.status = MISSION_STATUS.NOT_LOADED
         self.mission = None
         self.log_watcher = log_watcher
 
@@ -117,18 +668,20 @@ class MissionService(MissionBaseService):
                 self.ended(info)
             elif status == MISSION_STATUS.PLAYING:
                 self.began(info)
-        self.status, self.mission = info
+        self.status, self.mission = status, mission
 
     def began(self, info=None):
-        self.log_watcher.startService()
+        if self.log_watcher:
+            self.log_watcher.startService()
 
     def ended(self, info=None):
-        self.log_watcher.stopService()
+        if self.log_watcher:
+            self.log_watcher.stopService()
 
     def stopService(self):
 
         def callback(_):
-            ClientBaseService.stopService(self)
+            MissionBaseService.stopService(self)
 
         return self.log_watcher.stopService().addBoth(callback)
 
@@ -173,9 +726,14 @@ class LogWatchingService(LogWatchingBaseService):
 
     def __init__(self, log_path, interval=1, parser=None):
         LogWatchingBaseService.__init__(self, log_path, interval)
-        self.parser = parser or EventLogPassthroughParser()
+        self.set_parser(parser)
+
+    def set_parser(self, parser):
+        self.parser = parser
+
+    def clear_parser(self):
+        self.set_parser(None)
 
     def got_line(self, line):
-        idx = line.find(']')
-        line = line[idx+1:].lstrip().replace('\n', '')
-        self.parser.parse_line(line)
+        if self.parser:
+            self.parser.parse_line(line.strip())
