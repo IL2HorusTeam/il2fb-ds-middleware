@@ -94,7 +94,7 @@ class ConsoleParserTestCase(TestCase):
         self.parser.parse_line("Chat: --- user0 joins the game.")
         self.parser.parse_line(
             "socket channel '0', ip 192.168.1.2:21000, user0, "
-            "is complete created.")
+            "is complete created")
         self.assertEqual(len(self.pilot_srvc.buffer), 1)
         info = self.pilot_srvc.buffer[0]
 
@@ -468,7 +468,7 @@ class DeviceLinkParserTestCase(TestCase):
     def test_pilot_pos(self):
         result = self.parser.pilot_pos('0:user0_0;100;200;300')
         self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('idx'), 0)
+        self.assertEqual(result.get('id'), 0)
         self.assertEqual(result.get('callsign'), "user0")
         self.assertIsInstance(result.get('pos'), dict)
         self.assertEqual(result['pos'].get('x'), 100)
@@ -484,7 +484,7 @@ class DeviceLinkParserTestCase(TestCase):
         for i in xrange(len(results)):
             result = results[i]
             self.assertIsInstance(result, dict)
-            self.assertEqual(result.get('idx'), i)
+            self.assertEqual(result.get('id'), i)
             self.assertEqual(result.get('callsign'), "user{0}".format(i))
             self.assertIsInstance(result.get('pos'), dict)
             self.assertEqual(result['pos'].get('x'), i*100)
@@ -498,7 +498,7 @@ class DeviceLinkParserTestCase(TestCase):
     def test_static_pos(self):
         result = self.parser.static_pos('0:0_Static;100;200;300')
         self.assertIsInstance(result, dict)
-        self.assertEqual(result.get('idx'), 0)
+        self.assertEqual(result.get('id'), 0)
         self.assertEqual(result.get('name'), "0_Static")
         self.assertIsInstance(result.get('pos'), dict)
         self.assertEqual(result['pos'].get('x'), 100)
@@ -514,7 +514,7 @@ class DeviceLinkParserTestCase(TestCase):
         for i in xrange(len(results)):
             result = results[i]
             self.assertIsInstance(result, dict)
-            self.assertEqual(result.get('idx'), i)
+            self.assertEqual(result.get('id'), i)
             self.assertEqual(result.get('name'), "{0}_Static".format(i))
             self.assertIsInstance(result.get('pos'), dict)
             self.assertEqual(result['pos'].get('x'), i*100)

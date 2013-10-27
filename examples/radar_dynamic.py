@@ -49,8 +49,8 @@ class PilotRadarService(TimerService):
 
     dlink = None
 
-    def __init__(self, interval=10):
-        TimerService.__init__(self, interval, self.do_watch)
+    def __init__(self, period=10):
+        TimerService.__init__(self, period, self.do_watch)
 
     def do_watch(self):
         self.dlink.all_pilots_pos().addCallbacks(

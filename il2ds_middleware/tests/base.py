@@ -26,7 +26,7 @@ class BaseTestCase(TestCase):
     device_link_server_port = 0
     log_path = None
 
-    log_watcher_interval = 0.1
+    log_watcher_period = 0.1
     timeout_value = 0.05
 
     def setUp(self):
@@ -38,7 +38,7 @@ class BaseTestCase(TestCase):
 
     def _set_log_watcher(self):
         self.log_watcher = self.log_watcher_class(
-            self.log_path, self.log_watcher_interval
+            self.log_path, self.log_watcher_period
         ) if self.log_watcher_class else None
 
     def _listen_server(self):

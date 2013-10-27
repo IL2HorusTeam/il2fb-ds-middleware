@@ -16,6 +16,8 @@ from il2ds_middleware.regex import *
 @implementer(IConsoleParser)
 class ConsolePassthroughParser(object):
 
+    """Fake server's console output parser which returns back given data."""
+
     def passthrough(self, data):
         return data
 
@@ -26,12 +28,32 @@ class ConsolePassthroughParser(object):
 @implementer(IConsoleParser)
 class ConsoleParser(object):
 
+    """
+    Default server's console output parser which tells gives services about
+    parsed events.
+    """
+
     _buffer = None
 
     def __init__(self, services):
+        """
+        Input:
+        `services`      # a tuple with pilots and mission services
+                        # which implemente IPilotService and IMissionService
+                        # correspondingly
+        """
         self.pilot_service, self.mission_service = services
 
     def parse_line(self, line):
+        """
+        Parse string line.
+
+        Input:
+        `line`      # string to parse
+
+        Output:
+        `True` if string was parsed, `False` otherwise.
+        """
         while True:
             if self.user_chat(line):
                 break
@@ -45,6 +67,17 @@ class ConsoleParser(object):
         return True
 
     def server_info(self, lines):
+        """
+        Parse a sequence of strings containing information about server.
+
+        Input:
+        `lines`     # a sequence of strings containing parameter names and
+                    # values separated with ':' (colon)
+
+        Output:
+        A dictionary containing parameters' values, which can be accessed by
+        lower-case parameter names.
+        """
         result = {}
         for line in lines:
             key, value = line.split(':')
@@ -52,6 +85,17 @@ class ConsoleParser(object):
         return result
 
     def mission_status(self, lines):
+        """
+        Parse a sequence of strings containing server's output for mission
+        status request.
+
+        Input:
+        `lines`     # sequence of string with information about mission status
+
+        Output:
+        A tuple (MISSION_STATUS, ["MISSION_NAME" | None]) if status was parsed
+        or original sequence of strings otherwise.
+        """
         for line in lines:
             info = self._mission_status(line)
             if info:
@@ -71,44 +115,48 @@ class ConsoleParser(object):
         return info
 
     def user_joined(self, line):
-        m = re.match(RX_USER_JOIN, line)
+        """Parse 'user joined left' event."""
+        m = re.match(RX_USER_JOIN, line, RX_FLAGS)
         if not m:
             return False
         else:
-            groups = m.groups()
+            d = m.groupdict()
             info = {
-                'channel': int(groups[0]),
-                'ip': groups[1],
-                'callsign': groups[2],
+                'channel': int(d['channel']),
+                'ip': d['ip'],
+                'callsign': d['callsign'],
             }
             self.pilot_service.user_joined(info)
             return True
 
     def user_left(self, line):
-        m = re.match(RX_USER_LEFT, line)
+        """Parse 'user has left' event."""
+        m = re.match(RX_USER_LEFT, line, RX_FLAGS)
         if m:
-            groups = m.groups()
-            reason = (PILOT_LEAVE_REASON.KICKED if 'kicked' in groups[2]
+            d = m.groupdict()
+            reason = (PILOT_LEAVE_REASON.KICKED if 'kicked' in d['reason']
                 else PILOT_LEAVE_REASON.DISCONNECTED)
             self._buffer = {
-                'ip': groups[0],
-                'channel': int(groups[1]),
+                'ip': d['ip'],
+                'channel': int(d['channel']),
                 'reason': reason,
             }
             return True
         if line.endswith("has left the game.") and self._buffer:
             info, self._buffer = self._buffer, None
-            info['callsign'] = line.split()[2]
+            info['callsign'] = line.split(' ', 3)[2]
             self.pilot_service.user_left(info)
             return True
         return False
 
     def user_chat(self, line):
-        m = re.match(RX_USER_CHAT, line)
+        """Parse 'user sent message to chat' event."""
+        m = re.match(RX_USER_CHAT, line, RX_FLAGS)
         if not m:
             return False
         else:
-            callsign, msg = m.groups()
+            d = m.groupdict()
+            callsign, msg = d['callsign'], d['msg']
             if callsign != "Server":
                 info = (callsign, msg.decode('unicode-escape'))
                 self.pilot_service.user_chat(info)
@@ -118,6 +166,8 @@ class ConsoleParser(object):
 @implementer(ILineParser)
 class EventLogPassthroughParser(object):
 
+    """Fake eventss log parser which returns back given data."""
+
     def parse_line(self, data):
         return data
 
@@ -125,7 +175,17 @@ class EventLogPassthroughParser(object):
 @implementer(ILineParser)
 class EventLogParser(lp.MultipleParser):
 
+    """
+    Default map events parser which tells given services about parsed events.
+    """
+
     def __init__(self, services):
+        """
+        Input:
+        `services`      # a tuple with pilots, objects and mission services
+                        # which implemente IPilotService, IObjectsService and
+                        # IMissionService correspondingly
+        """
         pilots, objects, missions = services
         parsers = [
             # User state events
@@ -222,11 +282,20 @@ class EventLogParser(lp.MultipleParser):
         super(EventLogParser, self).__init__(parsers=parsers)
 
     def parse_line(self, line):
+        """
+        Invoke __call__ method to parse string line and tell a corresponding
+        service about event.
+
+        Input:
+        `line`      # string line to parse
+        """
         return self(line)
 
 
 @implementer(IDeviceLinkParser)
 class DeviceLinkPassthroughParser(object):
+
+    """Fake DeviceLink output parser which returns back given data."""
 
     def passthrough(self, data):
         return data
@@ -238,21 +307,115 @@ class DeviceLinkPassthroughParser(object):
 @implementer(IDeviceLinkParser)
 class DeviceLinkParser(object):
 
+    """Default DeviceLink output parser."""
+
     def pilot_count(self, data):
+        """
+        Convert pilots count data type to integer.
+
+        Input:
+        `data`      # string number of active pilots
+
+        Output:
+        Integer number of active pilots
+        """
         return int(data)
 
     def pilot_pos(self, data):
+        """
+        Parse string presenting information about pilot's position.
+
+        Input:
+        `data`      # string in '{id};{callsign}{id}_{id};{x};{y};{z}' format
+                    # where id is pilot's id number in server's DeviceLink,
+                    # callsign is pilot's callsign and x, y, z - integer
+                    # coordinates
+
+        Output:
+        A dictionary with the following structure:
+        {
+            'id': ID,               # pilot's id integer number in DeviceLink
+            'callsign': "CALLSIGN", # pilot's callsign
+            'pos': {                # a dictionary with position coordinates
+                'x': X,             # integer x value
+                'y': Y,             # integer y value
+                'z': Z,             # integer z value
+            },
+        }
+        """
         return self._parse_pos(data, 'callsign', strip_idx=True)
 
     def all_pilots_pos(self, datas):
+        """
+        Parse a sequence of strings presenting pilots' positions.
+
+        Input:
+        `datas`     # a sequence of strings in
+                    # '{id};{callsign}{id}_{id};{x};{y};{z}' format where id is
+                    # pilot's id number in server's DeviceLink, callsign is
+                    # pilot's callsign and x, y, z - integer coordinates
+
+        Output:
+        A sequence of dictionaries with the following structure:
+        {
+            'id': ID,               # pilot's id integer number in DeviceLink
+            'callsign': "CALLSIGN", # pilot's callsign
+            'pos': {                # a dictionary with position coordinates
+                'x': X,             # integer x value
+                'y': Y,             # integer y value
+                'z': Z,             # integer z value
+            },
+        }
+        """
         return map(self.pilot_pos, datas)
 
     static_count = pilot_count
 
     def static_pos(self, data):
+        """
+        Parse string presenting information about static object's position.
+
+        Input:
+        `data`      # string in '{id};{id}_Static;{x};{y};{z}' format
+                    # where id is object's id number in server's DeviceLink
+                    # and x, y, z - integer coordinates
+
+        Output:
+        A dictionary with the following structure:
+        {
+            'id': ID,               # object's id integer number in DeviceLink
+            'name': "NAME",         # object's name
+            'pos': {                # a dictionary with position coordinates
+                'x': X,             # integer x value
+                'y': Y,             # integer y value
+                'z': Z,             # integer z value
+            },
+        }
+        """
         return self._parse_pos(data)
 
     def all_static_pos(self, datas):
+        """
+        Parse a sequence of strings presenting objects' positions.
+
+        Input:
+        `datas`     # a sequence of strings in
+                    # '{id};{id}_Static;{x};{y};{z}' format
+                    # where id is object's id number in server's DeviceLink
+                    # and x, y, z - integer coordinates
+
+        Output:
+        A sequence of dictionaries with the following structure:
+        {
+            'id': ID,               # object's id integer number in DeviceLink
+            'name': "NAME",         # object's name
+            'pos': {                # a dictionary with position coordinates
+                'x': X,             # integer x value
+                'y': Y,             # integer y value
+                'z': Z,             # integer z value
+            },
+        }
+        """
         return map(self.static_pos, datas)
 
     def _parse_pos(self, data, name_attr='name', strip_idx=False):
@@ -261,7 +424,7 @@ class DeviceLinkParser(object):
         if strip_idx:
             attr = attr[:attr.rindex("_")]
         return {
-            'idx': int(idx),
+            'id': int(idx),
             name_attr: attr,
             'pos': {
                 'x': int(x),

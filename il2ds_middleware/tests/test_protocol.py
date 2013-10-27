@@ -360,7 +360,7 @@ class PasredDeviceLinkClientProtocolTestCase(
 
         def on_pos(response):
             self.assertIsInstance(response, dict)
-            self.assertEqual(response.get('idx'), 0)
+            self.assertEqual(response.get('id'), 0)
             self.assertEqual(response.get('callsign'), "user0")
             self.assertIsInstance(response.get('pos'), dict)
             self.assertEqual(response['pos'].get('x'), 100)
@@ -382,7 +382,7 @@ class PasredDeviceLinkClientProtocolTestCase(
             checked = []
             for response in responses:
                 self.assertIsInstance(response, dict)
-                idx = response['idx']
+                idx = response['id']
                 self.assertNotIn(idx, checked)
                 checked.append(idx)
 
@@ -409,7 +409,7 @@ class PasredDeviceLinkClientProtocolTestCase(
 
         def on_pos(response):
             self.assertIsInstance(response, dict)
-            self.assertEqual(response.get('idx'), 0)
+            self.assertEqual(response.get('id'), 0)
             self.assertEqual(response.get('name'), "0_Static")
             self.assertIsInstance(response.get('pos'), dict)
             self.assertEqual(response['pos'].get('x'), 100)
@@ -430,7 +430,7 @@ class PasredDeviceLinkClientProtocolTestCase(
             checked = []
             for response in responses:
                 self.assertIsInstance(response, dict)
-                idx = response['idx']
+                idx = response['id']
                 self.assertNotIn(idx, checked)
                 checked.append(idx)
 

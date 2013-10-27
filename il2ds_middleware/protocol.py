@@ -20,14 +20,31 @@ from il2ds_middleware.requests import (
 
 class ConsoleClient(LineOnlyReceiver):
 
-    """Parser and timeout_value are set up by factory"""
+    """
+    Server console client protocol. To capture server's output, every request
+    to server gets own request ID (rid) which is send before and after request.
+    All undone requests are stored in '_requests' dictionary as tuple of
+    server's output strings list, deferred object to call and timeout object to
+    cancel. Structure:
+    {                       # undone requests dictionary
+        rid:                # integer ID key to access request's context
+        (                   # a tuple with request's context
+            ["results"],    # a list of strings returned by server
+            deferred,       # a deferred object to call
+            timeout,        # timeout object to cancel if request was executed
+                            # in time
+        ),                  #
+    }                       #
+
+    Parser and timeout_value are set up by factory.
+    """
+
     parser = None
     timeout_value = None
 
     def __init__(self):
         self._request_id = 0
         self._responce_id = None
-        # { request_id: ([results], deferred, timeout, ), }
         self._requests = {}
 
     def connectionMade(self):
@@ -66,6 +83,7 @@ class ConsoleClient(LineOnlyReceiver):
         self.got_line(line.replace("\\n", '').replace("\\u0020", ' '))
 
     def got_line(self, line):
+        """Process a line from server's output."""
         if line.startswith("Command not found: rid"):
             self._process_responce_id(line)
         elif self._responce_id:
@@ -96,43 +114,102 @@ class ConsoleClient(LineOnlyReceiver):
                 d.callback(results)
 
     def server_info(self):
+        """
+        Request server info.
+
+        Output:
+        Deferred object.
+        """
         d = self._send_request(REQ_SERVER_INFO)
         d.addCallback(self.parser.server_info)
         return d
 
     def mission_status(self, *args):
+        """
+        Request mission status
+
+        Output:
+        Deferred object.
+        """
         d = self._send_request(REQ_MISSION_STATUS)
         d.addCallback(self.parser.mission_status)
         return d
 
     def mission_load(self, mission):
+        """
+        Request to load mission.
+
+        Input:
+        `mission`       # mission name to load. E.g. "test/test.mis"
+
+        Output:
+        Deferred object.
+        """
         d = self._send_request(
             REQ_MISSION_LOAD.format(mission), REQUEST_MISSION_LOAD_TIMEOUT)
         d.addCallback(self.parser.mission_status)
         return d
 
     def mission_begin(self):
+        """
+        Request to begin mission.
+
+        Output:
+        Deferred object.
+        """
         d = self._send_request(REQ_MISSION_BEGIN)
         d.addCallback(self.parser.mission_status)
         return d
 
     def mission_end(self):
+        """
+        Request to end mission.
+
+        Output:
+        Deferred object.
+        """
         d = self._send_request(REQ_MISSION_END)
         d.addCallback(lambda _: self.mission_status())
         return d
 
     def mission_destroy(self):
+        """
+        Request to end mission.
+
+        Output:
+        Deferred object.
+        """
         d = self._send_request(REQ_MISSION_DESTROY)
         d.addCallback(lambda _: self.mission_status())
         return d
 
     def chat_all(self, message):
+        """
+        Send chat message to all users.
+
+        Input:
+        `message`       # a string to send
+        """
         self._chat(message, CHAT_ALL)
 
     def chat_user(self, message, callsign):
+        """
+        Send chat message to one user.
+
+        Input:
+        `message`       # a string to send
+        `callsign`      # addressee's callsign
+        """
         self._chat(message, CHAT_USER.format(callsign))
 
     def chat_army(self, message, army):
+        """
+        Send chat message to one army.
+
+        Input:
+        `message`       # a string to send
+        `army`          # target army's name
+        """
         self._chat(message, CHAT_ARMY.format(army))
 
     def _chat(self, message, suffix):
@@ -148,9 +225,16 @@ class ConsoleClient(LineOnlyReceiver):
 
 class ConsoleClientFactory(ClientFactory):
 
+    """Factory for building server console's client protocols."""
+
     protocol = ConsoleClient
 
     def __init__(self, parser=None, timeout_value=REQUEST_TIMEOUT):
+        """
+        Input:
+        `parser`        # an object implementing IConsoleParser interface
+        `timeout_value` # float value for server requests timeout in seconds
+        """
         self._client = None
         self.parser = parser
         self.timeout_value = timeout_value
@@ -186,6 +270,8 @@ class ConsoleClientFactory(ClientFactory):
 
 class DeviceLinkProtocol(DatagramProtocol):
 
+    """Base protocol for communicating with server's DeviceLink interface."""
+
     def __init__(self, address=None, parser=None):
         self.address = address
         self.parser = parser
@@ -220,10 +306,10 @@ class DeviceLinkProtocol(DatagramProtocol):
         return results
 
     def answers_received(self, answers, address):
-        pass
+        """Process received answers from server."""
 
     def requests_received(self, requests, address):
-        pass
+        """Process received requests from client."""
 
     def send_request(self, request, address=None):
         self.send_requests([request, ], address)
@@ -253,9 +339,17 @@ class DeviceLinkProtocol(DatagramProtocol):
 
 class DeviceLinkClient(DeviceLinkProtocol):
 
+    """Default DeviceLink client protocol."""
+
     cmd_group_max_size = DEVICE_LINK_CMD_GROUP_MAX_SIZE
 
     def __init__(self, address, parser=None, timeout_value=REQUEST_TIMEOUT):
+        """
+        Input:
+        `address`       # a ("address", port) tuple describing server's address
+        `parser`        # an object implementing IDeviceLinkParser interface
+        `timeout_value` # float value for server requests timeout in seconds
+        """
         self.timeout_value = timeout_value
         parser = parser or DeviceLinkPassthroughParser()
         DeviceLinkProtocol.__init__(self, address, parser)
@@ -319,35 +413,78 @@ class DeviceLinkClient(DeviceLinkProtocol):
         defer.returnValue(all_results)
 
     def refresh_radar(self):
+        """Request DeviceLink radar refreshing."""
         self.send_request(DL_OPCODE.RADAR_REFRESH.make_command())
         return defer.succeed(None)
 
     def pilot_count(self):
+        """
+        Request active pilots count.
+
+        Output:
+        Deferred object.
+        """
         d = self._deferred_request(DL_OPCODE.PILOT_COUNT.make_command())
         d.addCallback(self.parser.pilot_count)
         return d
 
     def pilot_pos(self, index):
+        """
+        Request active pilot position.
+
+        Input:
+        `index`         # pilot's integer DeviceLink ID value
+
+        Output:
+        Deferred object.
+        """
         d = self._deferred_request(DL_OPCODE.PILOT_POS.make_command(index))
         d.addCallback(self.parser.pilot_pos)
         return d
 
     def all_pilots_pos(self):
+        """
+        Request list of positions of all active pilots.
+
+        Output:
+        Deferred object.
+        """
         d = self._all_pos(self.pilot_count, DL_OPCODE.PILOT_POS)
         d.addCallback(self.parser.all_pilots_pos)
         return d
 
     def static_count(self):
+        """
+        Request active static objects count.
+
+        Output:
+        Deferred object.
+        """
         d = self._deferred_request(DL_OPCODE.STATIC_COUNT.make_command())
         d.addCallback(self.parser.static_count)
         return d
 
     def static_pos(self, index):
+        """
+        Request active static object position.
+
+        Input:
+        `index`         # static object's integer DeviceLink ID value
+
+        Output:
+        Deferred object.
+        """
         d = self._deferred_request(DL_OPCODE.STATIC_POS.make_command(index))
         d.addCallback(self.parser.static_pos)
         return d
 
     def all_static_pos(self):
+        """
+        Request list of positions of all active static objects.
+
+        Output:
+        Deferred object.
+        """
         d = self._all_pos(self.static_count, DL_OPCODE.STATIC_POS)
         d.addCallback(self.parser.all_static_pos)
         return d

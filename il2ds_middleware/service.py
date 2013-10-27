@@ -656,12 +656,23 @@ class MissionBaseService(ClientBaseService):
 
 class MissionService(MissionBaseService):
 
+    """Default mission service."""
+
     def __init__(self, log_watcher=None):
+        """
+        Input:
+        `log_watcher`   # 'Service' instance used for watching mission's event
+                        # log file while mission is running.
+        """
         self.status = MISSION_STATUS.NOT_LOADED
         self.mission = None
         self.log_watcher = log_watcher
 
     def on_status_info(self, info):
+        """
+        Process information about mission state. See base class for more
+        details.
+        """
         status, mission = info
         if status != self.status:
             if self.status == MISSION_STATUS.PLAYING:
@@ -671,10 +682,23 @@ class MissionService(MissionBaseService):
         self.status, self.mission = status, mission
 
     def began(self, info=None):
+        """
+        Process 'mission has began' event.
+
+        Input:
+        `info`  # A tuple containing mission's status and name.
+        """
         if self.log_watcher:
             self.log_watcher.startService()
 
     def ended(self, info=None):
+        """
+        Process 'mission has ended' event.
+
+        Input:
+        `info`  # A tuple containing mission's status and name if it is loaded
+                # or status and `None` otherwise.
+        """
         if self.log_watcher:
             self.log_watcher.stopService()
 
@@ -688,18 +712,30 @@ class MissionService(MissionBaseService):
 
 class LogWatchingBaseService(TimerService):
 
-    def __init__(self, log_path, interval=1):
+    """
+    Base server's events log watcher. Reads lines from specified file with
+    given time period.
+    """
+
+    def __init__(self, log_path, period=1):
+        """
+        Input:
+        `log_path`      # string path to server's events log file.
+
+        `period`        # float number of seconds to use for reading period
+        """
         self.log_file = None
         self.log_path = log_path
-        TimerService.__init__(self, interval, self.do_watch)
+        TimerService.__init__(self, period, self.do_watch)
 
     def do_watch(self):
+        """Log reading callback."""
         self.log_file.seek(self.log_file.tell())
         for line in self.log_file.readlines():
             self.got_line(line)
 
     def got_line(self, line):
-        pass
+        """Process new line from events log."""
 
     def startService(self):
         if self.log_file is not None:
@@ -707,7 +743,7 @@ class LogWatchingBaseService(TimerService):
         try:
             self.log_file = open(self.log_path, 'r')
         except IOError as e:
-            log.err("Failed to open events log: {:}.".format(e))
+            log.err("Failed to open events log: {0}.".format(e))
         else:
             self.log_file.seek(self.log_file.tell())
             self.log_file.readlines()
@@ -724,8 +760,13 @@ class LogWatchingBaseService(TimerService):
 
 class LogWatchingService(LogWatchingBaseService):
 
-    def __init__(self, log_path, interval=1, parser=None):
-        LogWatchingBaseService.__init__(self, log_path, interval)
+    """
+    Default service for reading events from specified log file. Reads file line
+    by line with given period and parses with parser.
+    """
+
+    def __init__(self, log_path, period=1, parser=None):
+        LogWatchingBaseService.__init__(self, log_path, period)
         self.set_parser(parser)
 
     def set_parser(self, parser):
@@ -735,5 +776,6 @@ class LogWatchingService(LogWatchingBaseService):
         self.set_parser(None)
 
     def got_line(self, line):
+        """Pass line from log file to parser if it is specified."""
         if self.parser:
             self.parser.parse_line(line.strip())
