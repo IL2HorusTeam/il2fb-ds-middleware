@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import datetime
+
 from twisted.trial.unittest import TestCase
 
 from il2ds_middleware.constants import MISSION_STATUS, PILOT_LEAVE_REASON
@@ -216,7 +218,7 @@ class EventLogParserTestCase(TestCase):
     def test_occupied_seat(self):
         data = "[10:10:30 PM] user0:A6M2-21(0) seat occupied by user0 at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertEqual(evt.get('seat'), 0)
         self.assertPos(evt)
@@ -224,7 +226,7 @@ class EventLogParserTestCase(TestCase):
     def test_selected_army(self):
         data = "[10:10:30 PM] user0 selected army Red at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertEqual(evt.get('callsign'), "user0")
         self.assertEqual(evt.get('army'), "Red")
         self.assertPos(evt)
@@ -232,7 +234,7 @@ class EventLogParserTestCase(TestCase):
     def test_weapons_loaded(self):
         data = "[10:10:30 PM] user0:A6M2-21 loaded weapons '1xdt' fuel 100%"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertEqual(evt.get('loadout'), "1xdt")
         self.assertEqual(evt.get('fuel'), 100)
@@ -240,13 +242,13 @@ class EventLogParserTestCase(TestCase):
     def test_went_to_menu(self):
         data = "[10:10:30 PM] user0 entered refly menu"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertEqual(evt.get('callsign'), "user0")
 
     def test_was_killed(self):
         data = "[10:10:30 PM] user0:A6M2-21(0) was killed at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertEqual(evt.get('seat'), 0)
         self.assertPos(evt)
@@ -254,7 +256,7 @@ class EventLogParserTestCase(TestCase):
     def test_was_killed_by_user(self):
         data = "[10:10:30 PM] user0:A6M2-21(0) was killed by user1:B5N2 at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertEqual(evt.get('seat'), 0)
         self.assertAttackingUser(evt)
@@ -263,58 +265,58 @@ class EventLogParserTestCase(TestCase):
     def test_took_off(self):
         data = "[10:10:30 PM] user0:A6M2-21 in flight at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertPos(evt)
 
     def test_landed(self):
         data = "[10:10:30 PM] user0:A6M2-21 landed at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertPos(evt)
 
     def test_crashed(self):
         data = "[10:10:30 PM] user0:A6M2-21 crashed at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertPos(evt)
 
     def test_toggle_wingtip_smokes(self):
         data = "[10:10:30 PM] user0:A6M2-21 turned wingtip smokes on at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
-        self.assertEqual(evt.get('value'), "on")
+        self.assertEqual(evt.get('value'), True)
         self.assertPos(evt)
 
         data = "[10:10:30 PM] user0:A6M2-21 turned wingtip smokes off at 100.99 200.99"
         evt = self._last_pilots_event(data, expected_size=2)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
-        self.assertEqual(evt.get('value'), "off")
+        self.assertEqual(evt.get('value'), False)
         self.assertPos(evt)
 
     def test_toggle_landing_lights(self):
         data = "[10:10:30 PM] user0:A6M2-21 turned landing lights on at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
-        self.assertEqual(evt.get('value'), "on")
+        self.assertEqual(evt.get('value'), True)
         self.assertPos(evt)
 
         data = "[10:10:30 PM] user0:A6M2-21 turned landing lights off at 100.99 200.99"
         evt = self._last_pilots_event(data, expected_size=2)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
-        self.assertEqual(evt.get('value'), "off")
+        self.assertEqual(evt.get('value'), False)
         self.assertPos(evt)
 
     def test_bailed_out(self):
         data = "[10:10:30 PM] user0:A6M2-21(0) bailed out at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertEqual(evt.get('seat'), 0)
         self.assertPos(evt)
@@ -322,7 +324,7 @@ class EventLogParserTestCase(TestCase):
     def test_parachute_opened(self):
         data = "[10:10:30 PM] user0:A6M2-21(0) successfully bailed out at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertEqual(evt.get('seat'), 0)
         self.assertPos(evt)
@@ -330,7 +332,7 @@ class EventLogParserTestCase(TestCase):
     def test_was_captured(self):
         data = "[10:10:30 PM] user0:A6M2-21(0) was captured at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertEqual(evt.get('seat'), 0)
         self.assertPos(evt)
@@ -338,7 +340,7 @@ class EventLogParserTestCase(TestCase):
     def test_was_wounded(self):
         data = "[10:10:30 PM] user0:A6M2-21(0) was wounded at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertEqual(evt.get('seat'), 0)
         self.assertPos(evt)
@@ -346,7 +348,7 @@ class EventLogParserTestCase(TestCase):
     def test_was_heavily_wounded(self):
         data = "[10:10:30 PM] user0:A6M2-21(0) was heavily wounded at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertEqual(evt.get('seat'), 0)
         self.assertPos(evt)
@@ -354,7 +356,7 @@ class EventLogParserTestCase(TestCase):
     def test_destroyed_building(self):
         data = "[10:10:30 PM] 3do/Buildings/Industrial/FactoryHouse1_W/live.sim destroyed by user0:A6M2-21 at 100.99 200.99"
         evt = self._last_objects_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertEqual(evt.get('building'), "FactoryHouse1_W")
         self.assertCalsignAircraft(evt)
         self.assertPos(evt)
@@ -362,7 +364,7 @@ class EventLogParserTestCase(TestCase):
     def test_destroyed_tree(self):
         data = "[10:10:30 PM] 3do/Tree/Line_W/live.sim destroyed by user0:A6M2-21 at 100.99 200.99"
         evt = self._last_objects_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertEqual(evt.get('tree'), "Line_W")
         self.assertCalsignAircraft(evt)
         self.assertPos(evt)
@@ -370,7 +372,7 @@ class EventLogParserTestCase(TestCase):
     def test_destroyed_static(self):
         data = "[10:10:30 PM] 0_Static destroyed by user0:A6M2-21 at 100.99 200.99"
         evt = self._last_objects_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertEqual(evt.get('static'), "0_Static")
         self.assertCalsignAircraft(evt)
         self.assertPos(evt)
@@ -378,7 +380,7 @@ class EventLogParserTestCase(TestCase):
     def test_destroyed_bridge(self):
         data = "[10:10:30 PM]  Bridge0 destroyed by user0:A6M2-21 at 100.99 200.99"
         evt = self._last_objects_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertEqual(evt.get('bridge'), "Bridge0")
         self.assertCalsignAircraft(evt)
         self.assertPos(evt)
@@ -386,7 +388,7 @@ class EventLogParserTestCase(TestCase):
     def test_was_shot_down_by_user(self):
         data = "[10:10:30 PM] user0:A6M2-21 shot down by user1:B5N2 at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertAttackingUser(evt)
         self.assertPos(evt)
@@ -394,29 +396,29 @@ class EventLogParserTestCase(TestCase):
     def test_shot_down_self(self):
         data = "[10:10:30 PM] user0:A6M2-21 shot down by landscape at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertPos(evt)
 
     def test_was_shot_down_by_static(self):
         data = "[10:10:30 PM] user0:A6M2-21 shot down by 0_Static at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
-        self.assertEqual(evt.get('attacker'), "0_Static")
+        self.assertEqual(evt.get('static'), "0_Static")
         self.assertPos(evt)
 
     def test_damaged_self(self):
         data = "[10:10:30 PM] user0:A6M2-21 damaged by landscape at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertPos(evt)
 
     def test_was_damaged_by_user(self):
         data = "[10:10:30 PM] user0:A6M2-21 damaged by user1:B5N2 at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertAttackingUser(evt)
         self.assertPos(evt)
@@ -424,29 +426,29 @@ class EventLogParserTestCase(TestCase):
     def test_was_damaged_on_the_ground(self):
         data = "[10:10:30 PM] user0:A6M2-21 damaged on the ground at 100.99 200.99"
         evt = self._last_pilots_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertCalsignAircraft(evt)
         self.assertPos(evt)
 
     def test_mission_was_won(self):
         data = "[Dec 29, 2012 10:10:30 PM] Mission: RED WON"
         evt = self._last_mission_flow_event(data)
-        self.assertEqual(evt.get('date'), "2012-12-29")
-        self.assertEqual(evt.get('time'), "22:10:30")
-        self.assertEqual(evt.get('army'), "RED")
+        self.assertEqual(evt.get('date'), datetime.date(2012, 12, 29))
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
+        self.assertEqual(evt.get('army'), "Red")
 
     def test_target_complete(self):
         data = "[10:10:30 PM] Target 3 Complete"
         evt = self._last_mission_flow_event(data)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertEqual(evt.get('number'), 3)
-        self.assertEqual(evt.get('result'), "Complete")
+        self.assertEqual(evt.get('result'), True)
 
         data = "[10:10:30 PM] Target 5 Failed"
         evt = self._last_mission_flow_event(data, expected_size=2)
-        self.assertEqual(evt.get('time'), "22:10:30")
+        self.assertEqual(evt.get('time'), datetime.time(22, 10, 30))
         self.assertEqual(evt.get('number'), 5)
-        self.assertEqual(evt.get('result'), "Failed")
+        self.assertEqual(evt.get('result'), False)
 
     def test_fake_data(self):
         evt = self.parser.parse_line("some fake data")

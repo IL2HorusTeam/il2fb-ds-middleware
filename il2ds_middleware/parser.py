@@ -6,6 +6,7 @@ from twisted.python import log
 
 from zope.interface import implementer
 
+import il2ds_log_parser.content_processor as lpcp
 import il2ds_log_parser.parser as lp
 import il2ds_log_parser.regex as lpre
 from il2ds_middleware.constants import MISSION_STATUS, PILOT_LEAVE_REASON
@@ -187,98 +188,133 @@ class EventLogParser(lp.MultipleParser):
                         # IMissionService correspondingly
         """
         pilots, objects, missions = services
-        parsers = [
+        time_position = [
+            lpcp.process_time, lpcp.process_position,
+        ]
+        time_togle_position = [
+            lpcp.process_time, lpcp.process_toggle_value,
+            lpcp.process_position,
+        ]
+        time_seat_position = [
+            lpcp.process_time, lpcp.process_seat, lpcp.process_position,
+        ]
+        params = (
+            # Mission flow events
+            (
+                lpre.RX_MISSION_WON,
+                [lpcp.process_time, lpcp.process_date, lpcp.process_army, ],
+                missions.was_won
+            ),
+            (
+                lpre.RX_TARGET_RESULT,
+                [   lpcp.process_time, lpcp.process_number,
+                    lpcp.process_target_result,
+                ],
+                missions.target_end
+            ),
             # User state events
+            (lpre.RX_WENT_TO_MENU, lpcp.process_time, pilots.went_to_menu),
+            (lpre.RX_SELECTED_ARMY, time_position, pilots.selected_army),
+            # # Destruction events
             (
-                lp.TimeStampedRegexParser(lpre.RX_WENT_TO_MENU),
-                pilots.went_to_menu
-            ),
-            (   lp.PositionedRegexParser(lpre.RX_SELECTED_ARMY),
-                pilots.selected_army
-            ),
-            # Crew member events
-            (lp.SeatRegexParser(lpre.RX_SEAT_OCCUPIED), pilots.seat_occupied),
-            (lp.SeatRegexParser(lpre.RX_KILLED), pilots.was_killed),
-            (
-                lp.SeatVictimOfUserRegexParser(lpre.RX_KILLED_BY_USER),
-                pilots.was_killed_by_user
-            ),
-            (lp.SeatRegexParser(lpre.RX_BAILED_OUT), pilots.bailed_out),
-            (
-                lp.SeatRegexParser(lpre.RX_PARACHUTE_OPENED),
-                pilots.parachute_opened
-            ),
-            (lp.SeatRegexParser(lpre.RX_CAPTURED), pilots.was_captured),
-            (lp.SeatRegexParser(lpre.RX_WOUNDED), pilots.was_wounded),
-            (
-                lp.SeatRegexParser(lpre.RX_HEAVILY_WOUNDED),
-                pilots.was_heavily_wounded
-            ),
-            # Destruction events
-            (
-                lp.PositionedRegexParser(lpre.RX_DESTROYED_BLD),
+                lpre.RX_DESTROYED_BLD,
+                time_position,
                 objects.building_destroyed_by_user
             ),
             (
-                lp.PositionedRegexParser(lpre.RX_DESTROYED_TREE),
+                lpre.RX_DESTROYED_TREE,
+                time_position,
                 objects.tree_destroyed_by_user
             ),
             (
-                lp.PositionedRegexParser(lpre.RX_DESTROYED_STATIC),
-                objects.static_destroyed_by_user
-            ),
-            (
-                lp.PositionedRegexParser(lpre.RX_DESTROYED_BRIDGE),
+                lpre.RX_DESTROYED_BRIDGE,
+                time_position,
                 objects.bridge_destroyed_by_user
             ),
-            # Events of lightning effects
             (
-                lp.PositionedRegexParser(lpre.RX_TOGGLE_LANDING_LIGHTS),
+                lpre.RX_DESTROYED_STATIC,
+                time_position,
+                objects.static_destroyed_by_user
+            ),
+            # Lightning effect events
+            (
+                lpre.RX_TOGGLE_LANDING_LIGHTS,
+                time_togle_position,
                 pilots.toggle_landing_lights
             ),
             (
-                lp.PositionedRegexParser(lpre.RX_TOGGLE_WINGTIP_SMOKES),
+                lpre.RX_TOGGLE_WINGTIP_SMOKES,
+                time_togle_position,
                 pilots.toggle_wingtip_smokes
             ),
             # Aircraft events
             (
-                lp.FuelRegexParser(lpre.RX_WEAPONS_LOADED),
+                lpre.RX_WEAPONS_LOADED,
+                [
+                    lpcp.process_time, lpcp.process_fuel,
+                    lpcp.process_position,
+                ],
                 pilots.weapons_loaded
             ),
-            (lp.PositionedRegexParser(lpre.RX_TOOK_OFF), pilots.took_off),
-            (lp.PositionedRegexParser(lpre.RX_CRASHED), pilots.crashed),
-            (lp.PositionedRegexParser(lpre.RX_LANDED), pilots.landed),
+            (lpre.RX_TOOK_OFF, time_position, pilots.took_off),
+            (lpre.RX_CRASHED, time_position, pilots.crashed),
+            (lpre.RX_LANDED, time_position, pilots.landed),
             (
-                lp.PositionedRegexParser(lpre.RX_DAMAGED_SELF),
-                pilots.damaged_self
-            ),
-            (
-                lp.VictimOfUserRegexParser(lpre.RX_DAMAGED_BY_USER),
-                pilots.was_damaged_by_user
-            ),
-            (
-                lp.PositionedRegexParser(lpre.RX_DAMAGED_ON_GROUND),
+                lpre.RX_DAMAGED_ON_GROUND,
+                time_position,
                 pilots.was_damaged_on_ground
             ),
+            (lpre.RX_DAMAGED_SELF, time_position, pilots.damaged_self),
             (
-                lp.PositionedRegexParser(lpre.RX_SHOT_DOWN_SELF),
-                pilots.shot_down_self
+                lpre.RX_DAMAGED_BY_USER,
+                [
+                    lpcp.process_time, lpcp.process_attacking_user,
+                    lpcp.process_position,
+                ],
+                pilots.was_damaged_by_user
             ),
+            (lpre.RX_SHOT_DOWN_SELF, time_position, pilots.shot_down_self),
             (
-                lp.VictimOfUserRegexParser(lpre.RX_SHOT_DOWN_BY_USER),
-                pilots.was_shot_down_by_user
-            ),
-            (
-                lp.VictimOfStaticRegexParser(lpre.RX_SHOT_DOWN_BY_STATIC),
+                lpre.RX_SHOT_DOWN_BY_STATIC,
+                time_position,
                 pilots.was_shot_down_by_static
             ),
-            # Mission flow events
             (
-                lp.DateTimeStampedRegexParser(lpre.RX_MISSION_WON),
-                missions.was_won
+                lpre.RX_SHOT_DOWN_BY_USER,
+                [
+                    lpcp.process_time, lpcp.process_attacking_user,
+                    lpcp.process_position,
+                ],
+                pilots.was_shot_down_by_user
             ),
-            (lp.NumeratedRegexParser(lpre.RX_TARGET_END), missions.target_end),
-        ]
+            # Crew member events
+            (lpre.RX_SEAT_OCCUPIED, time_seat_position, pilots.seat_occupied),
+            (lpre.RX_KILLED, time_seat_position, pilots.was_killed),
+            (
+                lpre.RX_KILLED_BY_USER,
+                [
+                    lpcp.process_time, lpcp.process_seat,
+                    lpcp.process_attacking_user, lpcp.process_position,
+                ],
+                pilots.was_killed_by_user
+            ),
+            (lpre.RX_BAILED_OUT, time_seat_position, pilots.bailed_out),
+            (
+                lpre.RX_SUCCESSFULLY_BAILED_OUT,
+                time_seat_position,
+                pilots.parachute_opened
+            ),
+            (lpre.RX_WOUNDED, time_seat_position, pilots.was_wounded),
+            (
+                lpre.RX_HEAVILY_WOUNDED,
+                time_seat_position,
+                pilots.was_heavily_wounded
+            ),
+            (lpre.RX_CAPTURED, time_seat_position, pilots.was_captured),
+        )
+        parsers = [
+            (lp.RegexParser(rx, processor), callback) for
+                (rx, processor, callback) in params]
         super(EventLogParser, self).__init__(parsers=parsers)
 
     def parse_line(self, line):
