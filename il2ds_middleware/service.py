@@ -75,7 +75,7 @@ class PilotBaseService(ClientBaseService):
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'seat': SEAT,     # integer number of seat
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
@@ -94,7 +94,7 @@ class PilotBaseService(ClientBaseService):
                 # {
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'army': "ARMY",   # name of army
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
@@ -111,7 +111,7 @@ class PilotBaseService(ClientBaseService):
         `info`  # A dictionary with information about event's time, and user's
                 # callsign. Structure:
                 # {
-                #     'time': "TIME",           # time in ISO format
+                #     'time': TIME,             # time object
                 #     'callsign': "CALLSIGN",   # user's callsign
                 # }
         """
@@ -130,7 +130,7 @@ class PilotBaseService(ClientBaseService):
                 #     'loadout': "LOADOUT",     # loadout name
                 #
                 #     'fuel': FUEL,     # integer value of fuel percentage
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -150,7 +150,7 @@ class PilotBaseService(ClientBaseService):
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'seat': SEAT,     # integer number of seat
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
@@ -175,7 +175,7 @@ class PilotBaseService(ClientBaseService):
                 #         'aircraft': "AIRCRAFT",   # attacker's aircraft
                 #     },
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'seat': SEAT,     # integer number of seat
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
@@ -195,7 +195,7 @@ class PilotBaseService(ClientBaseService):
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -214,7 +214,7 @@ class PilotBaseService(ClientBaseService):
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -233,7 +233,7 @@ class PilotBaseService(ClientBaseService):
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -252,7 +252,7 @@ class PilotBaseService(ClientBaseService):
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -276,7 +276,7 @@ class PilotBaseService(ClientBaseService):
                 #         'aircraft': "AIRCRAFT",   # attacker's aircraft
                 #     },
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -295,7 +295,7 @@ class PilotBaseService(ClientBaseService):
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -314,7 +314,7 @@ class PilotBaseService(ClientBaseService):
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -338,7 +338,7 @@ class PilotBaseService(ClientBaseService):
                 #         'aircraft': "AIRCRAFT",   # attacker's aircraft
                 #     },
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -359,7 +359,7 @@ class PilotBaseService(ClientBaseService):
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #     'attacker': "STATIC",     # attacking static's name
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -380,8 +380,8 @@ class PilotBaseService(ClientBaseService):
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
-                #     'state': "STATE", # "on" or "off"
-                #     'time': "TIME",   # time in ISO format
+                #     'value': VALUE,   # True or False
+                #     'time': TIME,     # time object
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -401,8 +401,8 @@ class PilotBaseService(ClientBaseService):
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
-                #     'state': "STATE", # "on" or "off"
-                #     'time': "TIME",   # time in ISO format
+                #     'value': VALUE,   # True or False
+                #     'time': TIME,     # time object
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -422,7 +422,7 @@ class PilotBaseService(ClientBaseService):
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'seat': SEAT,     # integer number of seat
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
@@ -443,7 +443,7 @@ class PilotBaseService(ClientBaseService):
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'seat': SEAT,     # integer number of seat
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
@@ -464,7 +464,7 @@ class PilotBaseService(ClientBaseService):
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'seat': SEAT,     # integer number of seat
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
@@ -485,7 +485,7 @@ class PilotBaseService(ClientBaseService):
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'seat': SEAT,     # integer number of seat
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
@@ -506,7 +506,7 @@ class PilotBaseService(ClientBaseService):
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
-                #     'time': "TIME",   # time in ISO format
+                #     'time': TIME,     # time object
                 #     'seat': SEAT,     # integer number of seat
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
@@ -530,12 +530,11 @@ class ObjectsBaseService(ClientBaseService):
                 # name, user's callsign and aircraft, position on map.
                 # Structure:
                 # {
-                #     'time': "TIME",   # time in ISO format
-                #
                 #     'building': "BUILDING",   # building's name
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
+                #     'time': TIME,     # time object
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -552,12 +551,11 @@ class ObjectsBaseService(ClientBaseService):
                 # name, user's callsign and aircraft, position on map.
                 # Structure:
                 # {
-                #     'time': "TIME",   # time in ISO format
-                #     'tree': "TREE",   # tree's name
-                #
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
+                #     'time': TIME,     # time object
+                #     'tree': "TREE",   # tree's name
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -574,12 +572,11 @@ class ObjectsBaseService(ClientBaseService):
                 # name, user's callsign and aircraft, position on map.
                 # Structure:
                 # {
-                #     'time': "TIME",   # time in ISO format
-                #
                 #     'static': "STATIC",       # static's name
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
+                #     'time': TIME,     # time object
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -596,12 +593,11 @@ class ObjectsBaseService(ClientBaseService):
                 # name, user's callsign and aircraft, position on map.
                 # Structure:
                 # {
-                #     'time': "TIME",   # time in ISO format
-                #
                 #     'bridge': "BRIDGE",       # bridge's name
                 #     'callsign': "CALLSIGN",   # user's callsign
                 #     'aircraft': "AIRCRAFT",   # user's aircraft
                 #
+                #     'time': TIME,     # time object
                 #     'pos': {          # dictionary with position on map
                 #         'x': X,       # float x value
                 #         'y': Y,       # float y value
@@ -633,8 +629,8 @@ class MissionBaseService(ClientBaseService):
         `info`  # A dictionary with information about event's date, time and
                 # army's name. Structure:
                 # {
-                #    'date': "DATE",    # date in ISO format
-                #    'time': "TIME",    # time in ISO format
+                #    'date': DATE,      # date object
+                #    'time': TIME,      # time object
                 #    'army': "ARMY",    # army name in capital letters
                 # }
         """
@@ -647,7 +643,7 @@ class MissionBaseService(ClientBaseService):
         `info`  # A dictionary with information about target's number and
                 # result. Structure:
                 # {
-                #    'time': "TIME",        # time in ISO format
+                #    'time': TIME,          # time object
                 #    'number': NUMBER,      # target's number integer value
                 #    'result': "RESULT",    # "Complete" or "Failed"
                 # }
