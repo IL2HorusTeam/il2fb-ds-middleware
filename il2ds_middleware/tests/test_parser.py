@@ -90,6 +90,16 @@ class ConsoleParserTestCase(TestCase):
         self.assertEqual(status, MISSION_STATUS.NOT_LOADED)
         self.assertEqual(mission, None)
 
+    def test_parse_line_mission_status(self):
+        self.parser.parse_line("mission test.mis is Playing")
+        self.assertEqual(len(self.mission_srvc.buffer), 1)
+
+        info = self.mission_srvc.buffer[0]
+        self.assertIsInstance(info, tuple)
+        status, mission = info
+        self.assertEqual(status, MISSION_STATUS.PLAYING)
+        self.assertEqual(mission, "test.mis")
+
     def test_user_joined(self):
         self.parser.parse_line(
             "socket channel '0' start creating: ip 192.168.1.2:21000")
@@ -142,15 +152,129 @@ class ConsoleParserTestCase(TestCase):
         self.assertEqual(callsign, "user0")
         self.assertEqual(msg, "test_message")
 
-    def test_parse_line_mission_status(self):
-        self.parser.parse_line("mission test.mis is Playing")
-        self.assertEqual(len(self.mission_srvc.buffer), 1)
+    def test_users_common_info(self):
+        datas = [
+            " N      Name           Ping    Score   Army        Aircraft",
+            " 1      user1          3       0      (0)None              ",
+            " 2      user2          11      111    (1)Red       * Red 90    Il-2M_Late",
+            " 3      user3          22      222    (2)Blue      + 99        HurricaneMkIIb", ]
+        all_info = self.parser.users_common_info(datas)
+        self.assertIsInstance(all_info, dict)
+        self.assertEqual(len(all_info), 3)
 
-        info = self.mission_srvc.buffer[0]
-        self.assertIsInstance(info, tuple)
-        status, mission = info
-        self.assertEqual(status, MISSION_STATUS.PLAYING)
-        self.assertEqual(mission, "test.mis")
+        info = all_info.get('user1')
+        self.assertIsNotNone(info)
+        self.assertEqual(info.get('ping'), 3)
+        self.assertEqual(info.get('score'), 0)
+        self.assertEqual(info.get('army_code'), 0)
+        self.assertIsNone(info.get('aircraft'))
+
+        info = all_info.get('user2')
+        self.assertIsNotNone(info)
+        self.assertEqual(info.get('ping'), 11)
+        self.assertEqual(info.get('score'), 111)
+        self.assertEqual(info.get('army_code'), 1)
+        aircraft = info.get('aircraft')
+        self.assertIsNotNone(aircraft)
+        self.assertEqual(aircraft.get('designation'), "* Red 90")
+        self.assertEqual(aircraft.get('code'), "Il-2M_Late")
+
+        info = all_info.get('user3')
+        self.assertIsNotNone(info)
+        self.assertEqual(info.get('ping'), 22)
+        self.assertEqual(info.get('score'), 222)
+        self.assertEqual(info.get('army_code'), 2)
+        aircraft = info.get('aircraft')
+        self.assertIsNotNone(aircraft)
+        self.assertEqual(aircraft.get('designation'), "+ 99")
+        self.assertEqual(aircraft.get('code'), "HurricaneMkIIb")
+
+    def test_users_statistics(self):
+        datas = [
+            "-------------------------------------------------------",
+            "Name: \\t\\tuser1",
+            "Score: \\t\\t999",
+            "State: \\t\\tIn Flight",
+            "Enemy Aircraft Kill: \\t\\t1",
+            "Enemy Static Aircraft Kill: \\t\\t2",
+            "Enemy Tank Kill: \\t\\t3",
+            "Enemy Car Kill: \\t\\t4",
+            "Enemy Artillery Kill: \\t\\t5",
+            "Enemy AAA Kill: \\t\\t6",
+            "Enemy Wagon Kill: \\t\\t7",
+            "Enemy Ship Kill: \\t\\t8",
+            "Enemy Radio Kill: \\t\\t9",
+            "Friend Aircraft Kill: \\t\\t10",
+            "Friend Static Aircraft Kill: \\t\\t11",
+            "Friend Tank Kill: \\t\\t12",
+            "Friend Car Kill: \\t\\t13",
+            "Friend Artillery Kill: \\t\\t14",
+            "Friend AAA Kill: \\t\\t15",
+            "Friend Wagon Kill: \\t\\t16",
+            "Friend Ship Kill: \\t\\t17",
+            "Friend Radio Kill: \\t\\t18",
+            "Fire Bullets: \\t\\t100",
+            "Hit Bullets: \\t\\t19",
+            "Hit Air Bullets: \\t\\t20",
+            "Fire Roskets: \\t\\t50",
+            "Hit Roskets: \\t\\t21",
+            "Fire Bombs: \\t\\t30",
+            "Hit Bombs: \\t\\t22",
+            "-------------------------------------------------------", ]
+        all_statistics = self.parser.users_statistics(datas)
+        self.assertIsInstance(all_statistics, dict)
+        self.assertEqual(len(all_statistics), 1)
+
+        info = all_statistics.get('user1')
+        self.assertIsNotNone(info)
+        self.assertEqual(info.get('score'), 999)
+        self.assertEqual(info.get('state'), "In Flight")
+
+        kills = info.get('kills')
+        self.assertIsNotNone(kills)
+
+        enemy = kills.get('enemy')
+        self.assertIsNotNone(enemy)
+        self.assertEqual(enemy.get('aircraft'), 1)
+        self.assertEqual(enemy.get('static_aircraft'), 2)
+        self.assertEqual(enemy.get('tank'), 3)
+        self.assertEqual(enemy.get('car'), 4)
+        self.assertEqual(enemy.get('artillery'), 5)
+        self.assertEqual(enemy.get('aaa'), 6)
+        self.assertEqual(enemy.get('wagon'), 7)
+        self.assertEqual(enemy.get('ship'), 8)
+        self.assertEqual(enemy.get('radio'), 9)
+
+        friend = kills.get('friend')
+        self.assertIsNotNone(friend)
+        self.assertEqual(friend.get('aircraft'), 10)
+        self.assertEqual(friend.get('static_aircraft'), 11)
+        self.assertEqual(friend.get('tank'), 12)
+        self.assertEqual(friend.get('car'), 13)
+        self.assertEqual(friend.get('artillery'), 14)
+        self.assertEqual(friend.get('aaa'), 15)
+        self.assertEqual(friend.get('wagon'), 16)
+        self.assertEqual(friend.get('ship'), 17)
+        self.assertEqual(friend.get('radio'), 18)
+
+        weapons = info.get('weapons')
+        self.assertIsNotNone(weapons)
+
+        bullets = weapons.get('bullets')
+        self.assertIsNotNone(bullets)
+        self.assertEqual(bullets.get('fire'), 100)
+        self.assertEqual(bullets.get('hit'), 19)
+        self.assertEqual(bullets.get('hit_air'), 20)
+
+        rockets = weapons.get('rockets')
+        self.assertIsNotNone(rockets)
+        self.assertEqual(rockets.get('fire'), 50)
+        self.assertEqual(rockets.get('hit'), 21)
+
+        bombs = weapons.get('bombs')
+        self.assertIsNotNone(bombs)
+        self.assertEqual(bombs.get('fire'), 30)
+        self.assertEqual(bombs.get('hit'), 22)
 
 
 class EventLogPassthroughParserTestCase(TestCase):

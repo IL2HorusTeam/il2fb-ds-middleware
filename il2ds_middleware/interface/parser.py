@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
-
 from zope.interface import Interface
+
 
 __all__ = [
     'ILineParser', 'IConsoleParser', 'IDeviceLinkParser',
 ]
 
-class ILineParser(Interface):
 
-    """Interface for creating general-purpose string parsers."""
+class ILineParser(Interface):
+    """
+    Interface for creating general-purpose string parsers.
+    """
 
     def parse_line(self, line):
         """
@@ -23,8 +25,9 @@ class ILineParser(Interface):
 
 
 class IConsoleParser(ILineParser):
-
-    """Parse server console's string messages."""
+    """
+    Parse server console's string messages.
+    """
 
     def server_info(self, lines):
         """
@@ -103,10 +106,76 @@ class IConsoleParser(ILineParser):
         input line was successfully parsed. Otherwise `None`.
         """
 
+    def users_common_info(self, lines):
+        """
+        Parse common information about users.
+
+        Input:
+        `lines`    # A sequence of strings which represents rows of a table
+                   # with information about users. The table can be obtained by
+                   # executing 'user' command in DS console. Example:
+                   # [
+                   #     " N      Name           Ping    Score   Army        Aircraft",
+                   #     " 1      user1          3       0      (0)None              ",
+                   #     " 2      user2          11      111    (1)Red       * Red 90    Il-2M_Late",
+                   #     " 3      user3          22      222    (2)Blue      + 99        HurricaneMkIIb",
+                   # ]
+
+        Output:
+        An object which provides common information about users.
+        """
+
+    def users_statistics(self, lines):
+        """
+        Parse detailed statistics about each user.
+
+        Input:
+        `lines`    # A sequence of strings which represents rows of multiple
+                   # tables with information about users' statistics. The table
+                   # can be obtained by executing 'user STAT' command in DS
+                   # console. Example:
+                   # [
+                   #     "-------------------------------------------------------",
+                   #     "Name: \t\t=user1",
+                   #     "Score: \t\t0",
+                   #     "State: \t\tIn Flight",
+                   #     "Enemy Aircraft Kill: \t\t0",
+                   #     "Enemy Static Aircraft Kill: \t\t0",
+                   #     "Enemy Tank Kill: \t\t0",
+                   #     "Enemy Car Kill: \t\t0",
+                   #     "Enemy Artillery Kill: \t\t0",
+                   #     "Enemy AAA Kill: \t\t0",
+                   #     "Enemy Wagon Kill: \t\t0",
+                   #     "Enemy Ship Kill: \t\t0",
+                   #     "Enemy Radio Kill: \t\t0",
+                   #     "Friend Aircraft Kill: \t\t0",
+                   #     "Friend Static Aircraft Kill: \t\t0",
+                   #     "Friend Tank Kill: \t\t0",
+                   #     "Friend Car Kill: \t\t0",
+                   #     "Friend Artillery Kill: \t\t0",
+                   #     "Friend AAA Kill: \t\t0",
+                   #     "Friend Wagon Kill: \t\t0",
+                   #     "Friend Ship Kill: \t\t0",
+                   #     "Friend Radio Kill: \t\t0",
+                   #     "Fire Bullets: \t\t0",
+                   #     "Hit Bullets: \t\t0",
+                   #     "Hit Air Bullets: \t\t0",
+                   #     "Fire Roskets: \t\t0",
+                   #     "Hit Roskets: \t\t0",
+                   #     "Fire Bombs: \t\t0",
+                   #     "Hit Bombs: \t\t0",
+                   #     "-------------------------------------------------------",
+                   # ]
+
+        Output:
+        An object which provides information about users' statistics.
+        """
+
 
 class IDeviceLinkParser(Interface):
-
-    """Parse string output from DeviceLink interface."""
+    """
+    Parse string output from DeviceLink interface.
+    """
 
     def pilot_count(self, data):
         """

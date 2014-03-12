@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-
 import re
-
-from twisted.python import log
 
 from zope.interface import implementer
 
@@ -10,27 +7,28 @@ import il2ds_log_parser.content_processor as lpcp
 import il2ds_log_parser.parser as lp
 import il2ds_log_parser.regex as lpre
 from il2ds_middleware.constants import MISSION_STATUS, PILOT_LEAVE_REASON
-from il2ds_middleware.interface.parser import *
+from il2ds_middleware.interface.parser import (ILineParser, IConsoleParser,
+    IDeviceLinkParser, )
 from il2ds_middleware.regex import *
 
 
 @implementer(IConsoleParser)
 class ConsolePassthroughParser(object):
-
-    """Fake server's console output parser which returns back given data."""
+    """
+    Fake parser of server's console output which returns back given data.
+    """
 
     def passthrough(self, data):
         return data
 
-    parse_line = server_info  = mission_load = mission_destroy = \
-    mission_begin = mission_end = mission_status = passthrough
+    parse_line = server_info = mission_status = user_joined = user_left = \
+    user_chat = users_common_info = users_statistics = passthrough
 
 
 @implementer(IConsoleParser)
 class ConsoleParser(object):
-
     """
-    Default server's console output parser which tells gives services about
+    Default parser of server's console output which tells given services about
     parsed events.
     """
 
@@ -50,7 +48,7 @@ class ConsoleParser(object):
         Parse string line.
 
         Input:
-        `line`      # string to parse
+        `line`      # a string to parse.
 
         Output:
         `True` if string was parsed, `False` otherwise.
@@ -116,7 +114,21 @@ class ConsoleParser(object):
         return info
 
     def user_joined(self, line):
-        """Parse 'user joined left' event."""
+        """
+        Parse an information about joined user.
+
+        Input:
+        `line`      # a string to parse. Example:
+                    # "socket channel '0', ip 192.168.1.2:21000, user0, is complete created."
+
+        Output:
+        A dictionary with the following structure:
+        {
+            'channel': CHANNEL,     # number of server's channel
+            'ip': "IP",             # pilot's IP address
+            'callsign': "CALLSIGN", # pilot's callsign
+        }
+        """
         m = re.match(RX_USER_JOIN, line, RX_FLAGS)
         if not m:
             return False
@@ -131,7 +143,28 @@ class ConsoleParser(object):
             return True
 
     def user_left(self, line):
-        """Parse 'user has left' event."""
+        """
+        Parse an information about user who has left. This information always
+        come from server in two consecutive strings. Since we can not control
+        this logic, so we need to remember in buffer a result of parsing the
+        1st string and wait for the 2nd.
+
+        Input:
+        `line`      # a string to parse. Example of expected values:
+                    # "socketConnection with 192.168.1.2:21000 on channel 0 lost.  Reason: "
+                    # "Chat: --- user0 has left the game."
+
+        Output:
+        A dictionary with the following structure:
+        {
+            'channel': CHANNEL,     # number of server's channel
+            'ip': "IP",             # pilot's IP address
+            'callsign': "CALLSIGN", # pilot's callsign
+
+            'reason': REASON,       # PILOT_LEAVE_REASON.DISCONNECTED or
+                                    # PILOT_LEAVE_REASON.KICKED
+        }
+        """
         m = re.match(RX_USER_LEFT, line, RX_FLAGS)
         if m:
             d = m.groupdict()
@@ -143,7 +176,7 @@ class ConsoleParser(object):
                 'reason': reason,
             }
             return True
-        if line.endswith("has left the game.") and self._buffer:
+        elif line.endswith("has left the game.") and self._buffer:
             info, self._buffer = self._buffer, None
             info['callsign'] = line.split(' ', 3)[2]
             self.pilot_service.user_left(info)
@@ -151,7 +184,20 @@ class ConsoleParser(object):
         return False
 
     def user_chat(self, line):
-        """Parse 'user sent message to chat' event."""
+        """
+        Parse a chat message. Skip if it was sent by server.
+
+        Input:
+        `line`      # a string to parse. Example:
+                    # "Chat: user0: \\tSome message."
+
+        Output:
+        A tuple with the following structure:
+        (
+            "CALLSIGN", # pilot's callsign
+            "MESSAGE"   # message body
+        )
+        """
         m = re.match(RX_USER_CHAT, line, RX_FLAGS)
         if not m:
             return False
@@ -163,11 +209,216 @@ class ConsoleParser(object):
                 self.pilot_service.user_chat(info)
             return True
 
+    def users_common_info(self, lines):
+        """
+        Parse common information about users.
+
+        Input:
+        `lines`    # A sequence of strings which represents rows of a table
+                   # with information about users. The table can be obtained by
+                   # executing 'user' command in DS console. Example:
+                   # [
+                   #     " N      Name           Ping    Score   Army        Aircraft",
+                   #     " 1      user1          3       0      (0)None              ",
+                   #     " 2      user2          11      111    (1)Red       * Red 90    Il-2M_Late",
+                   #     " 3      user3          22      222    (2)Blue      + 99        HurricaneMkIIb",
+                   # ]
+
+        Output:
+        A dictionary with the following example structure:
+        {
+            'CALLSIGN1': {
+                'ping': PING,
+                'score': SCORE,
+                'army_code': ARMY_CODE,
+            },
+            'CALLSIGN2': {
+                'ping': PING,
+                'score': SCORE,
+                'army_code': ARMY_CODE,
+                'aircraft': {
+                    'designation': "DESIGNATION",
+                    'code': "AIRCRAFT_CODE",
+                },
+            },
+        }
+        """
+        result = {}
+
+        for line in lines[1:]:
+            raw_info = re.split('\s{2,}', line.strip())[1:]
+
+            callsign = raw_info.pop(0)
+            info = {}
+            result[callsign] = info
+
+            info['ping'] = int(raw_info.pop(0))
+            info['score'] = int(raw_info.pop(0))
+            info['army_code'] = int(re.findall('\d+', raw_info.pop(0))[0])
+
+            if raw_info:
+                info['aircraft'] = {
+                    'designation': raw_info.pop(0),
+                    'code': raw_info.pop(0),
+                }
+
+        return result
+
+    def users_statistics(self, lines):
+        """
+        Parse detailed statistics about each user.
+
+        Input:
+        `lines`    # A sequence of strings which represents rows of multiple
+                   # tables with information about users' statistics. The table
+                   # can be obtained by executing 'user STAT' command in DS
+                   # console. Example:
+                   # [
+                   #     "-------------------------------------------------------",
+                   #     "Name: \\t\\tuser1",
+                   #     "Score: \\t\\t0",
+                   #     "State: \\t\\tIn Flight",
+                   #     "Enemy Aircraft Kill: \\t\\t0",
+                   #     "Enemy Static Aircraft Kill: \\t\\t0",
+                   #     "Enemy Tank Kill: \\t\\t0",
+                   #     "Enemy Car Kill: \\t\\t0",
+                   #     "Enemy Artillery Kill: \\t\\t0",
+                   #     "Enemy AAA Kill: \\t\\t0",
+                   #     "Enemy Wagon Kill: \\t\\t0",
+                   #     "Enemy Ship Kill: \\t\\t0",
+                   #     "Enemy Radio Kill: \\t\\t0",
+                   #     "Friend Aircraft Kill: \\t\\t0",
+                   #     "Friend Static Aircraft Kill: \\t\\t0",
+                   #     "Friend Tank Kill: \\t\\t0",
+                   #     "Friend Car Kill: \\t\\t0",
+                   #     "Friend Artillery Kill: \\t\\t0",
+                   #     "Friend AAA Kill: \\t\\t0",
+                   #     "Friend Wagon Kill: \\t\\t0",
+                   #     "Friend Ship Kill: \\t\\t0",
+                   #     "Friend Radio Kill: \\t\\t0",
+                   #     "Fire Bullets: \\t\\t0",
+                   #     "Hit Bullets: \\t\\t0",
+                   #     "Hit Air Bullets: \\t\\t0",
+                   #     "Fire Roskets: \\t\\t0",
+                   #     "Hit Roskets: \\t\\t0",
+                   #     "Fire Bombs: \\t\\t0",
+                   #     "Hit Bombs: \\t\\t0",
+                   #     "-------------------------------------------------------",
+                   # ]
+
+        Output:
+        A dictionary with the following structure:
+        {
+            "CALLSIGN": {
+                'score': SCORE,
+                'state': "STATE",
+                'kills': {
+                    'enemy': {
+                        'aircraft': VALUE,
+                        'static_aircraft': VALUE,
+                        'tank': VALUE,
+                        'car': VALUE,
+                        'artillery': VALUE,
+                        'aaa': VALUE,
+                        'wagon': VALUE,
+                        'ship': VALUE,
+                        'radio': VALUE,
+                    },
+                    'friend': {
+                        'aircraft': VALUE,
+                        'static_aircraft': VALUE,
+                        'tank': VALUE,
+                        'car': VALUE,
+                        'artillery': VALUE,
+                        'aaa': VALUE,
+                        'wagon': VALUE,
+                        'ship': VALUE,
+                        'radio': VALUE,
+                    },
+                },
+                'weapons': {
+                    'bullets': {
+                        'fire': VALUE,
+                        'hit': VALUE,
+                        'hit_air': VALUE,
+                    },
+                    'rockets': {
+                        'fire': VALUE,
+                        'hit': VALUE,
+                    },
+                    'bombs': {
+                        'fire': VALUE,
+                        'hit': VALUE,
+                    },
+                },
+            },
+        }
+        """
+        def get_blank_info():
+            """
+            Prepares blank statistics info.
+            """
+            info = {
+                'kills': {
+                    'enemy': {},
+                    'friend': {},
+                },
+                'weapons': {
+                    'bullets': {},
+                    'rockets': {},
+                    'bombs': {},
+                }
+            }
+            return info
+
+        def to_key(key):
+            """
+            Turns strings into dictionary keys.
+            """
+            return key.lower().replace(' ', '_')
+
+        result = {}
+
+        callsign = None
+        info = get_blank_info()
+
+        for line in lines[1:]:
+            if line.startswith('-'):
+                result[callsign] = info
+                info = get_blank_info()
+                continue
+
+            attr, value = line.replace('\\t', '').split(': ')
+
+            if attr == "Name":
+                callsign = value
+
+            elif attr == "Score":
+                info['score'] = int(value)
+
+            elif attr == "State":
+                info['state'] = value
+
+            elif attr.endswith("Kill"):
+                side, target = attr.rsplit(' ', 1)[0].split(' ', 1)
+                side = to_key(side)
+                target = to_key(target)
+                info['kills'][side][target] = int(value)
+
+            else:
+                attr, weapon = attr.rsplit(' ', 1)
+                attr = to_key(attr)
+                weapon = to_key(weapon).replace('sk', 'ck')
+                info['weapons'][weapon][attr] = int(value)
+
+        return result
+
 
 @implementer(ILineParser)
 class EventLogPassthroughParser(object):
-
-    """Fake eventss log parser which returns back given data."""
+    """
+    Fake parser of events log which returns back given data.
+    """
 
     def parse_line(self, data):
         return data
@@ -175,9 +426,9 @@ class EventLogPassthroughParser(object):
 
 @implementer(ILineParser)
 class EventLogParser(lp.MultipleParser):
-
     """
-    Default map events parser which tells given services about parsed events.
+    Default parser of map events which tells given services about parsed
+    events.
     """
 
     def __init__(self, services):
@@ -323,15 +574,16 @@ class EventLogParser(lp.MultipleParser):
         service about event.
 
         Input:
-        `line`      # string line to parse
+        `line`      # a string to parse.
         """
         return self(line)
 
 
 @implementer(IDeviceLinkParser)
 class DeviceLinkPassthroughParser(object):
-
-    """Fake DeviceLink output parser which returns back given data."""
+    """
+    Fake parser of DeviceLink output which returns back given data.
+    """
 
     def passthrough(self, data):
         return data
@@ -342,8 +594,9 @@ class DeviceLinkPassthroughParser(object):
 
 @implementer(IDeviceLinkParser)
 class DeviceLinkParser(object):
-
-    """Default DeviceLink output parser."""
+    """
+    Default parser of DeviceLink output.
+    """
 
     def pilot_count(self, data):
         """
