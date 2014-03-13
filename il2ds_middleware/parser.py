@@ -632,7 +632,7 @@ class DeviceLinkParser(object):
             },
         }
         """
-        return self._parse_pos(data, 'callsign', strip_idx=True)
+        return self._parse_pos(data, name_attr='callsign', strip_idx=True)
 
     def all_pilots_pos(self, datas):
         """
@@ -709,6 +709,10 @@ class DeviceLinkParser(object):
 
     def _parse_pos(self, data, name_attr='name', strip_idx=False):
         idx, info = data.split(':')
+
+        if info == 'BADINDEX' or info == 'INVALID':
+            return None
+
         attr, x, y, z = info.split(';')
         if strip_idx:
             attr = attr[:attr.rindex("_")]

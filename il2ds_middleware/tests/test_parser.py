@@ -646,3 +646,10 @@ class DeviceLinkParserTestCase(TestCase):
             self.assertEqual(result['pos'].get('x'), i*100)
             self.assertEqual(result['pos'].get('y'), i*200)
             self.assertEqual(result['pos'].get('z'), i*300)
+
+    def test_invalid_pos(self):
+        result = self.parser._parse_pos('0:INVALID')
+        self.assertIsNone(result)
+
+        result = self.parser._parse_pos('0:BADINDEX')
+        self.assertIsNone(result)
