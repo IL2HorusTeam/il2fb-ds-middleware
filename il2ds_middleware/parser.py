@@ -254,7 +254,7 @@ class ConsoleParser(object):
 
             info['ping'] = int(raw_info.pop(0))
             info['score'] = int(raw_info.pop(0))
-            info['army_code'] = int(re.findall('\d+', raw_info.pop(0))[0])
+            info['army_code'] = int(re.search('\d+', raw_info.pop(0)).group())
 
             if raw_info:
                 info['aircraft'] = {
