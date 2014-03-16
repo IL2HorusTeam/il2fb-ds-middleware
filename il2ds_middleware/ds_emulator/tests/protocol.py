@@ -4,6 +4,7 @@ from twisted.internet.defer import Deferred
 from twisted.internet.protocol import ClientFactory
 from twisted.protocols.basic import LineReceiver
 
+from il2ds_middleware.parser import DeviceLinkPassthroughParser
 from il2ds_middleware.protocol import DeviceLinkProtocol
 
 
@@ -49,6 +50,10 @@ class ConsoleClientFactory(ClientFactory):
 class DeviceLinkClient(DeviceLinkProtocol):
 
     receiver = None
+
+    def __init__(self, address, parser=None):
+        DeviceLinkProtocol.__init__(self, address)
+        self.parser = parser or DeviceLinkPassthroughParser()
 
     def answers_received(self, answers, address):
         if self.receiver is not None:

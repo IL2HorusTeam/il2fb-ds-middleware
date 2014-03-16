@@ -92,14 +92,14 @@ class BaseTestCase(TestCase):
 
         if self.console_client_factory_class is None:
             self.console_client_connector = None
-            return defer.succeed(_)
+            return defer.succeed(None)
 
         parser = self.console_client_parser_class()
         self.console_client_factory = self.console_client_factory_class(parser)
         self.console_client_factory.on_connecting.addCallback(on_connected)
         self.console_client_factory.on_connection_lost.addBoth(on_disconnected)
 
-        host, port = self.console_client_host_for_client
+        host, port = self.console_client_address_for_client
 
         from twisted.internet import reactor
         self.console_client_connector = reactor.connectTCP(
@@ -112,10 +112,10 @@ class BaseTestCase(TestCase):
             self.dl_client_connector = None
             return
 
-        parser = (self.dl_client_parser_class()
-            if self.dl_client_parser_class else None)
+        parser = self.dl_client_parser_class() \
+                 if self.dl_client_parser_class else None
         self.dl_client = self.dl_client_class(
-            self.device_link_host_for_client, parser)
+            self.device_link_address_for_client, parser)
 
         from twisted.internet import reactor
         self.dl_client_connector = reactor.listenUDP(0, self.dl_client)
@@ -221,14 +221,14 @@ class BaseTestCase(TestCase):
             self._get_expecting_line_receiver(expected_lines, d)
 
     @property
-    def console_client_host_for_client(self):
+    def console_client_address_for_client(self):
         if self.console_server_listener is None:
             return (None, None)
         endpoint = self.console_server_listener.getHost()
         return endpoint.host, endpoint.port
 
     @property
-    def device_link_host_for_client(self):
+    def device_link_address_for_client(self):
         if self.dl_server_listener is None:
             return (None, None)
         endpoint = self.dl_server_listener.getHost()

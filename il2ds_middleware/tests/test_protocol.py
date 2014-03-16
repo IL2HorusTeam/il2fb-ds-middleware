@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from twisted.internet import defer
-from twisted.internet import error
+from twisted.internet.error import ConnectionRefusedError
 
 from il2ds_middleware.parser import DeviceLinkParser
 from il2ds_middleware.tests.base import BaseMiddlewareTestCase
@@ -10,14 +10,14 @@ from il2ds_middleware.ds_emulator.constants import LONG_OPERATION_CMD
 
 class ConsoleClientFactoryConnectionFailTestCase(BaseMiddlewareTestCase):
 
-    console_server_port = 20001
-    device_link_server_port = 10001
+    console_server_port = 20099
+    device_link_server_port = 10099
 
     def setUp(self):
 
-        def on_connection_fail(err):
-            if isinstance(err.value, error.ConnectionRefusedError):
-                self.console_client_connector = None
+        def on_connection_fail(failure):
+            failure.trap(ConnectionRefusedError)
+            self.console_client_connector = None
 
         d = super(ConsoleClientFactoryConnectionFailTestCase, self).setUp()
         return d.addErrback(on_connection_fail)
@@ -26,12 +26,18 @@ class ConsoleClientFactoryConnectionFailTestCase(BaseMiddlewareTestCase):
         self.assertNot(self.console_client_connector)
 
     @property
-    def console_client_host_for_client(self):
-        return self.console_server_host, self.console_server_port+1
+    def console_client_address_for_client(self):
+        """
+        Redefine base property to return wrong server console address.
+        """
+        return self.console_server_host, self.console_server_port + 1
 
     @property
-    def device_link_host_for_client(self):
-        return self.device_link_server_host, self.device_link_server_port+1
+    def device_link_address_for_client(self):
+        """
+        Redefine base property to return wrong server Device Link address.
+        """
+        return self.device_link_server_host, self.device_link_server_port + 1
 
 
 class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import socket
 
 from twisted.internet import defer
 from twisted.internet.error import ConnectionDone
@@ -269,12 +270,15 @@ class ConsoleClientFactory(ClientFactory):
 
 
 class DeviceLinkProtocol(DatagramProtocol):
+    """
+    Base protocol for communicating with server's DeviceLink interface.
+    """
 
-    """Base protocol for communicating with server's DeviceLink interface."""
-
-    def __init__(self, address=None, parser=None):
+    def __init__(self, address=None):
+        if address:
+            host, port = address
+            address = (socket.gethostbyname(host), port)
         self.address = address
-        self.parser = parser
         self.on_start = defer.Deferred()
 
     def startProtocol(self):
@@ -346,13 +350,13 @@ class DeviceLinkClient(DeviceLinkProtocol):
     def __init__(self, address, parser=None, timeout_value=REQUEST_TIMEOUT):
         """
         Input:
-        `address`       # a ("address", port) tuple describing server's address
+        `address`       # server's address for filtering messages
         `parser`        # an object implementing IDeviceLinkParser interface
         `timeout_value` # float value for server requests timeout in seconds
         """
+        DeviceLinkProtocol.__init__(self, address)
         self.timeout_value = timeout_value
-        parser = parser or DeviceLinkPassthroughParser()
-        DeviceLinkProtocol.__init__(self, address, parser)
+        self.parser = parser or DeviceLinkPassthroughParser()
         # [ (opcode, deferred, timeout), ]
         self._requests = []
 
