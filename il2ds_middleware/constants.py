@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from collections import namedtuple
 
 from twisted.python.constants import (ValueConstant, Values, NamedConstant,
     Names, )
@@ -19,10 +20,13 @@ REQUEST_MISSION_LOAD_TIMEOUT = 30
 CHAT_MAX_LENGTH = 80
 
 
+DeviceLinkCommand = namedtuple('DeviceLinkCommand', 'opcode arg')
+
+
 class DeviceLinkValueConstant(ValueConstant):
 
     def make_command(self, arg=None):
-        return (self.value, arg, )
+        return DeviceLinkCommand(self.value, arg)
 
 
 class DEVICE_LINK_OPCODE(Values):

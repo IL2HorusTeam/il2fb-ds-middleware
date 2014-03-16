@@ -3,6 +3,7 @@
 from twisted.internet import defer
 from twisted.internet.error import ConnectionRefusedError
 
+from il2ds_middleware.constants import DeviceLinkCommand
 from il2ds_middleware.parser import DeviceLinkParser
 from il2ds_middleware.tests.base import BaseMiddlewareTestCase
 from il2ds_middleware.ds_emulator.constants import LONG_OPERATION_CMD
@@ -243,7 +244,8 @@ class DeviceLinkClientProtocolBaseTestCase(BaseMiddlewareTestCase):
 class DeviceLinkClientProtocolTestCase(DeviceLinkClientProtocolBaseTestCase):
 
     def test_long_operation(self):
-        d = self.dl_client._deferred_request((LONG_OPERATION_CMD, None))
+        command = DeviceLinkCommand(LONG_OPERATION_CMD, None)
+        d = self.dl_client._deferred_request(command)
         return self.assertFailure(d, defer.TimeoutError)
 
     def test_pilot_count(self):

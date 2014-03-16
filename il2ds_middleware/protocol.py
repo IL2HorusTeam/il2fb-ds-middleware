@@ -22,6 +22,7 @@ from il2ds_middleware.requests import (
 
 
 ConsoleRequest = namedtuple('ConsoleRequest', 'rid results deferred watchdog')
+DeviceLinkRequest = namedtuple('DeviceLinkRequest', 'opcode deferred watchdog')
 
 
 class ConsoleClient(LineOnlyReceiver):
@@ -51,7 +52,7 @@ class ConsoleClient(LineOnlyReceiver):
     def _make_request(self, timeout):
 
         def on_timeout():
-            log.err("Request #{0} is timed out".format(rid))
+            log.err("Console request #{0} is timed out".format(rid))
             self._requests.remove(request)
             defer.timeout(deferred)
 
@@ -104,8 +105,7 @@ class ConsoleClient(LineOnlyReceiver):
     def _process_request_id(self, rid):
         if self._request is None:
             if not self._requests:
-                log.err(
-                    "No requests were expected, but got RID {0}".format(rid))
+                log.err("No pending requests, but got RID {0}".format(rid))
                 return
             if rid == self._requests[0].rid:
                 self._request = self._requests.popleft()
@@ -228,8 +228,9 @@ class ConsoleClient(LineOnlyReceiver):
 
 
 class ConsoleClientFactory(ClientFactory):
-
-    """Factory for building server console's client protocols."""
+    """
+    Factory for building server console's client protocols.
+    """
 
     protocol = ConsoleClient
 
@@ -345,23 +346,25 @@ class DeviceLinkProtocol(DatagramProtocol):
 
 
 class DeviceLinkClient(DeviceLinkProtocol):
+    """
+    Default DeviceLink client protocol.
+    """
 
-    """Default DeviceLink client protocol."""
-
+    # Max number of consequent commands. We need to split large groups of
+    # commands into smaller ones due to the limit of server's buffer size.
     cmd_group_max_size = DEVICE_LINK_CMD_GROUP_MAX_SIZE
 
-    def __init__(self, address, parser=None, timeout_value=REQUEST_TIMEOUT):
+    def __init__(self, address, parser=None, timeout=REQUEST_TIMEOUT):
         """
         Input:
-        `address`       # server's address for filtering messages
-        `parser`        # an object implementing IDeviceLinkParser interface
-        `timeout_value` # float value for server requests timeout in seconds
+        `address`  # server's address for filtering messages
+        `parser`   # an object implementing IDeviceLinkParser interface
+        `timeout`  # float value for server requests timeout in seconds
         """
         DeviceLinkProtocol.__init__(self, address)
-        self.timeout_value = timeout_value
+        self.timeout = timeout
         self.parser = parser or DeviceLinkPassthroughParser()
-        # [ (opcode, deferred, timeout), ]
-        self._requests = []
+        self._requests = deque()
 
     def answers_received(self, answers, address):
         if address == self.address:
@@ -369,36 +372,45 @@ class DeviceLinkClient(DeviceLinkProtocol):
                 self._answer_received(answer)
 
     def _answer_received(self, answer):
-        cmd, arg = answer
-        for request in self._requests:
-            opcode, d, timeout = request
-            if opcode == cmd:
-                timeout.cancel()
-                self._requests.remove(request)
-                d.callback(arg)
-                break
+        if not self._requests:
+            log.err("No pending requests, but got answer {0}".format(answer))
+            return
+        opcode, arg = answer
 
-    def _make_request(self, command, d, timeout_value=None):
+        if self._requests[0].opcode == opcode:
+            request = self._requests.popleft()
+            if not request.deferred.called:
+                request.watchdog.cancel()
+                request.deferred.callback(arg)
+        else:
+            log.err("Unexpected opcode: {0}".format(opcode))
 
-        def on_timeout(_):
+    def _make_request(self, opcode, timeout):
+
+        def on_timeout():
+            log.err("Device Link request \"{0}\" is timed out".format(opcode))
             self._requests.remove(request)
-            defer.timeout(d)
+            defer.timeout(deferred)
+
+        deferred = defer.Deferred()
 
         from twisted.internet import reactor
-        timeout = reactor.callLater(
-            timeout_value or self.timeout_value, on_timeout, None)
-        request = (command[0], d, timeout, )
+        watchdog = reactor.callLater(timeout,
+                                     lambda: deferred.called or on_timeout())
+
+        request = DeviceLinkRequest(opcode, deferred, watchdog)
+        self._requests.append(request)
         return request
 
-    def _deferred_request(self, command, timeout_value=None):
-        d = defer.Deferred()
-        self._requests.append(
-            self._make_request(command, d, timeout_value))
+    def _deferred_request(self, command, timeout=None):
+        timeout = timeout or self.timeout
+        request = self._make_request(command.opcode, timeout)
         self.send_request(command)
-        return d
+        return request.deferred
 
     @defer.inlineCallbacks
-    def _deferred_requests(self, commands, timeout_value=None):
+    def _deferred_requests(self, commands, timeout=None):
+        timeout = timeout or self.timeout
 
         def on_results(results):
             all_results.extend(results)
@@ -406,21 +418,23 @@ class DeviceLinkClient(DeviceLinkProtocol):
         all_results = []
         step = self.cmd_group_max_size
         count = len(commands)
-        for i in xrange((count/step)+1):
-            start = i*step
-            group = commands[start:start+min((count-start), step)]
-            dlist = []
-            for cmd in group:
-                d = defer.Deferred()
-                self._requests.append(
-                    self._make_request(cmd, d, timeout_value))
-                dlist.append(d)
+
+        for i in xrange((count / step) + 1):
+            start = i * step
+            group = commands[start:start + min((count - start), step)]
+            dlist = [
+                self._make_request(command.opcode, timeout).deferred
+                for command in group
+            ]
             self.send_requests(group)
             yield defer.gatherResults(dlist).addCallback(on_results)
+
         defer.returnValue(all_results)
 
     def refresh_radar(self):
-        """Request DeviceLink radar refreshing."""
+        """
+        Request DeviceLink radar refreshing.
+        """
         self.send_request(DL_OPCODE.RADAR_REFRESH.make_command())
         return defer.succeed(None)
 
