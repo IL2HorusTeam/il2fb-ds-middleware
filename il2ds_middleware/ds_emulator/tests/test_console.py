@@ -52,7 +52,7 @@ class CommonsTestCase(BaseEmulatorTestCase):
 
     def test_disconnect(self):
         self.console_server_factory.on_connection_lost.addBoth(
-            lambda _: self.assertEqual(self.service.client, None))
+            lambda unused: self.assertEqual(self.service.client, None))
         self.console_client_connector.disconnect()
 
     def test_receive_line(self):
@@ -85,7 +85,7 @@ class CommonsTestCase(BaseEmulatorTestCase):
             self.console_client.sendLine("server")
             return d
 
-        def change_info(_):
+        def change_info(unused):
             self.service.set_server_info(
                 "Test server", "This is a server emulator")
             responses =[
@@ -113,7 +113,7 @@ class PilotsTestCase(BaseEmulatorTestCase):
         return super(PilotsTestCase, self).tearDown()
 
     def _get_pilots_count_checker(self, expected_count):
-        def check(_):
+        def check(unused):
             self.assertEqual(len(self.srvc.pilots), expected_count)
         return check
 

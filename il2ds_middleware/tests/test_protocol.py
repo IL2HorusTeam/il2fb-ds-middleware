@@ -46,11 +46,11 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
         self.assertTrue(self.console_client_connector)
 
     def test_wrong_rid(self):
-        self.console_client._process_responce_id("rid|0")
+        self.console_client._process_request_wrapper("rid|0")
 
     def test_malformed_rid(self):
-        self.console_client._process_responce_id("rid/smth")
-        self.console_client._process_responce_id("rid|smth")
+        self.console_client._process_request_wrapper("rid/smth")
+        self.console_client._process_request_wrapper("rid|smth")
 
     def test_mission_status(self):
 
@@ -62,14 +62,14 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
             d.addCallback(do_load)
             return d
 
-        def do_load(_):
+        def do_load(unused):
             srvc.load("net/dogfight/test.mis")
             d = self.console_client.mission_status()
             d.addCallback(check_loaded)
             d.addCallback(do_begin)
             return d
 
-        def do_begin(_):
+        def do_begin(unused):
             srvc.begin()
             d = self.console_client.mission_status()
             d.addCallback(check_playing)
@@ -121,7 +121,7 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
             self.service.manual_input("mission")
             return d.addCallback(wait_a_bit)
 
-        def wait_a_bit(_):
+        def wait_a_bit(unused):
             """Wait to receive <consoleN><0>"""
             d = defer.Deferred()
             from twisted.internet import reactor
@@ -152,7 +152,7 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
             d = self.console_client.mission_load("net/dogfight/test.mis")
             return d.addCallback(do_begin)
 
-        def do_begin(_):
+        def do_begin(unused):
             d = self.console_client.mission_begin()
             return d.addCallback(callback)
 
@@ -170,11 +170,11 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
             d = self.console_client.mission_load("net/dogfight/test.mis")
             return d.addCallback(do_begin)
 
-        def do_begin(_):
+        def do_begin(unused):
             d = self.console_client.mission_begin()
             return d.addCallback(do_end)
 
-        def do_end(_):
+        def do_end(unused):
             d = self.console_client.mission_end()
             return d.addCallback(callback)
 
@@ -192,11 +192,11 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
             d = self.console_client.mission_load("net/dogfight/test.mis")
             return d.addCallback(do_begin)
 
-        def do_begin(_):
+        def do_begin(unused):
             d = self.console_client.mission_begin()
             return d.addCallback(do_destroy)
 
-        def do_destroy(_):
+        def do_destroy(unused):
             d = self.console_client.mission_destroy()
             return d.addCallback(callback)
 

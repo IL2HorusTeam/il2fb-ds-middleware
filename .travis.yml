@@ -6,7 +6,7 @@ install:
 before_script:
     - pip install coverage coveralls --use-mirrors
 script:
-    - coverage run `which trial` il2ds_middleware
+    - coverage run `which trial` -e il2ds_middleware
     - coverage report -m
 after_success:
     - coveralls

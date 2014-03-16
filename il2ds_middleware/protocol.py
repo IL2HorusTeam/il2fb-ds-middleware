@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import socket
 
+from collections import namedtuple, deque
+
 from twisted.internet import defer
 from twisted.internet.error import ConnectionDone
 from twisted.internet.protocol import ClientFactory, DatagramProtocol
@@ -19,64 +21,59 @@ from il2ds_middleware.requests import (
     CHAT_ARMY, )
 
 
-class ConsoleClient(LineOnlyReceiver):
+ConsoleRequest = namedtuple('ConsoleRequest', 'rid results deferred watchdog')
 
+
+class ConsoleClient(LineOnlyReceiver):
     """
     Server console client protocol. To capture server's output, every request
     to server gets own request ID (rid) which is send before and after request.
-    All undone requests are stored in '_requests' dictionary as tuple of
-    server's output strings list, deferred object to call and timeout object to
-    cancel. Structure:
-    {                       # undone requests dictionary
-        rid:                # integer ID key to access request's context
-        (                   # a tuple with request's context
-            ["results"],    # a list of strings returned by server
-            deferred,       # a deferred object to call
-            timeout,        # timeout object to cancel if request was executed
-                            # in time
-        ),                  #
-    }                       #
 
-    Parser and timeout_value are set up by factory.
+    Parser and timeout are set up by factory.
     """
 
     parser = None
-    timeout_value = None
+    timeout = None
 
     def __init__(self):
         self._request_id = 0
-        self._responce_id = None
-        self._requests = {}
+        self._request = None
+        self._requests = deque()
 
     def connectionMade(self):
         self.factory.clientConnectionMade(self)
 
     def _generate_request_id(self):
-        self._request_id += 1
-        return self._request_id
+        request_id = self._request_id
+        self._request_id = (self._request_id + 1) % 1000
+        return request_id
 
-    def _make_request(self, d, timeout_value):
+    def _make_request(self, timeout):
+
+        def on_timeout():
+            log.err("Request #{0} is timed out".format(rid))
+            self._requests.remove(request)
+            defer.timeout(deferred)
+
         rid = self._generate_request_id()
-
-        def on_timeout(_):
-            del self._requests[rid]
-            defer.timeout(d)
+        results = []
+        deferred = defer.Deferred()
 
         from twisted.internet import reactor
-        timeout = reactor.callLater(
-            timeout_value or self.timeout_value, on_timeout, None)
-        return rid, ([], d, timeout, )
+        watchdog = reactor.callLater(timeout,
+                                     lambda: deferred.called or on_timeout())
 
-    def _send_request(self, line, timeout_value=None):
-        d = defer.Deferred()
-        rid, request = self._make_request(d, timeout_value)
-        self._requests[rid] = request
+        request = ConsoleRequest(rid, results, deferred, watchdog)
+        self._requests.append(request)
+        return request
 
-        wrapper = "rid|{0}".format(rid)
+    def _send_request(self, line, timeout=None):
+        request = self._make_request(timeout or self.timeout)
+        wrapper = "rid|{0}".format(request.rid)
         self.sendLine(wrapper)
         self.sendLine(line)
         self.sendLine(wrapper)
-        return d
+        return request.deferred
 
     def lineReceived(self, line):
         if line.startswith("<consoleN><"):
@@ -84,15 +81,17 @@ class ConsoleClient(LineOnlyReceiver):
         self.got_line(line.replace("\\n", '').replace("\\u0020", ' '))
 
     def got_line(self, line):
-        """Process a line from server's output."""
+        """
+        Process a line from server's output.
+        """
         if line.startswith("Command not found: rid"):
-            self._process_responce_id(line)
-        elif self._responce_id:
-            self._requests[self._responce_id][0].append(line)
+            self._process_request_wrapper(line)
+        elif self._request:
+            self._request.results.append(line)
         else:
             self.parser.parse_line(line)
 
-    def _process_responce_id(self, line):
+    def _process_request_wrapper(self, line):
         try:
             rid = int(line.split('|')[1])
         except IndexError:
@@ -100,19 +99,23 @@ class ConsoleClient(LineOnlyReceiver):
         except ValueError:
             log.err("Could not get RID value from \"{0}\"".format(line))
         else:
-            if rid not in self._requests:
-                log.err("Unexpected RID: {0}".format(rid))
+            self._process_request_id(rid)
+
+    def _process_request_id(self, rid):
+        if self._request is None:
+            if not self._requests:
+                log.err(
+                    "No requests were expected, but got RID {0}".format(rid))
                 return
-            if self._responce_id is None:
-                # start request processing
-                self._responce_id = rid
-            elif self._responce_id == rid:
-                # end request processing, send results to callback
-                self._responce_id = None
-                results, d, timeout = self._requests[rid]
-                timeout.cancel()
-                del self._requests[rid]
-                d.callback(results)
+            if rid == self._requests[0].rid:
+                self._request = self._requests.popleft()
+            else:
+                log.err("Unexpected RID: {0}".format(rid))
+        elif self._request.rid == rid:
+            request, self._request = self._request, None
+            if not request.deferred.called:
+                request.watchdog.cancel()
+                request.deferred.callback(request.results)
 
     def server_info(self):
         """
@@ -146,8 +149,8 @@ class ConsoleClient(LineOnlyReceiver):
         Output:
         Deferred object.
         """
-        d = self._send_request(
-            REQ_MISSION_LOAD.format(mission), REQUEST_MISSION_LOAD_TIMEOUT)
+        d = self._send_request(REQ_MISSION_LOAD.format(mission),
+                               REQUEST_MISSION_LOAD_TIMEOUT)
         d.addCallback(self.parser.mission_status)
         return d
 
@@ -230,24 +233,24 @@ class ConsoleClientFactory(ClientFactory):
 
     protocol = ConsoleClient
 
-    def __init__(self, parser=None, timeout_value=REQUEST_TIMEOUT):
+    def __init__(self, parser=None, timeout=REQUEST_TIMEOUT):
         """
         Input:
-        `parser`        # an object implementing IConsoleParser interface
-        `timeout_value` # float value for server requests timeout in seconds
+        `parser`   # an object implementing IConsoleParser interface
+        `timeout`  # float value for server requests timeout in seconds
         """
         self._client = None
         self.parser = parser
-        self.timeout_value = timeout_value
+        self.timeout = timeout
         self.on_connecting = defer.Deferred()
         self.on_connection_lost = defer.Deferred()
 
     def buildProtocol(self, addr):
         self._client = ClientFactory.buildProtocol(self, addr)
         parser, self.parser = self.parser or ConsolePassthroughParser(), None
-        tv, self.timeout_value = self.timeout_value, None
+        timeout, self.timeout = self.timeout, None
         self._client.parser = parser
-        self._client.timeout_value = tv
+        self._client.timeout = timeout
         return self._client
 
     def clientConnectionMade(self, client):
