@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from twisted.internet.defer import Deferred
 from twisted.internet.protocol import ClientFactory
 from twisted.protocols.basic import LineReceiver

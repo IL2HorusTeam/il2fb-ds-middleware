@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from twisted.application.service import Service
 from twisted.internet import defer
 

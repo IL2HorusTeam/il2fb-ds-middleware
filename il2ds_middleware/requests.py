@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 REQ_SERVER_INFO = "server"
 
 REQ_MISSION_STATUS = "mission"

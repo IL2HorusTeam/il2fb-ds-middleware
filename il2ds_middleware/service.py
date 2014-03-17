@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from twisted.application.internet import TimerService
 from twisted.application.service import Service
 from twisted.internet import defer
@@ -10,7 +9,6 @@ from zope.interface import implementer
 from il2ds_middleware.constants import MISSION_STATUS
 from il2ds_middleware.interface.service import (IPilotService, IObjectsService,
     IMissionService, )
-from il2ds_middleware.parser import EventLogPassthroughParser
 
 
 class ClientBaseService(Service):

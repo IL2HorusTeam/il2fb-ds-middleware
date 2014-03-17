@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from twisted.internet import defer
 from twisted.internet.error import ConnectionRefusedError
 
@@ -53,59 +52,36 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
         self.console_client._process_request_wrapper("rid/smth")
         self.console_client._process_request_wrapper("rid|smth")
 
+    @defer.inlineCallbacks
     def test_mission_status(self):
-
         srvc = self.service.getServiceNamed('missions')
 
-        def do_test():
-            d = self.console_client.mission_status()
-            d.addCallback(check_not_loaded)
-            d.addCallback(do_load)
-            return d
+        response = yield self.console_client.mission_status()
+        self.assertIsInstance(response, list)
+        self.assertEqual(response, ["Mission NOT loaded", ])
 
-        def do_load(unused):
-            srvc.load("net/dogfight/test.mis")
-            d = self.console_client.mission_status()
-            d.addCallback(check_loaded)
-            d.addCallback(do_begin)
-            return d
+        srvc.load("net/dogfight/test.mis")
+        response = yield self.console_client.mission_status()
+        self.assertIsInstance(response, list)
+        self.assertEqual(
+            response, ["Mission: net/dogfight/test.mis is Loaded", ])
 
-        def do_begin(unused):
-            srvc.begin()
-            d = self.console_client.mission_status()
-            d.addCallback(check_playing)
-            return d
+        srvc.begin()
+        response = yield self.console_client.mission_status()
 
-        def check_not_loaded(response):
-            self.assertIsInstance(response, list)
-            self.assertEqual(len(response), 1)
-            self.assertEqual(response[0], "Mission NOT loaded")
+        self.assertIsInstance(response, list)
+        self.assertEqual(
+            response, ["Mission: net/dogfight/test.mis is Playing", ])
 
-        def check_loaded(response):
-            self.assertIsInstance(response, list)
-            self.assertEqual(len(response), 1)
-            self.assertEqual(
-                response[0], "Mission: net/dogfight/test.mis is Loaded")
-
-        def check_playing(response):
-            self.assertIsInstance(response, list)
-            self.assertEqual(len(response), 1)
-            self.assertEqual(
-                response[0], "Mission: net/dogfight/test.mis is Playing")
-
-        return do_test()
-
+    @defer.inlineCallbacks
     def test_server_info(self):
-
-        def callback(response):
-            self.assertIsInstance(response, list)
-            self.assertEqual(len(response), 3)
-            self.assertEqual(response[0], "Type: Local server")
-            self.assertEqual(response[1], "Name: Server")
-            self.assertEqual(response[2], "Description: ")
-
-        d = self.console_client.server_info()
-        return d.addCallback(callback)
+        response = yield self.console_client.server_info()
+        self.assertIsInstance(response, list)
+        self.assertEqual(response, [
+            "Type: Local server",
+            "Name: Server",
+            "Description: ",
+        ])
 
     def test_long_operation(self):
         d = self.console_client._send_request(LONG_OPERATION_CMD)
@@ -114,16 +90,17 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
     def test_manual_input(self):
 
         def do_test():
-            results = [
+            d = self.expect_console_lines([
                 "mission",
-                "Mission NOT loaded", ]
-            d = defer.Deferred()
-            self._set_console_expecting_receiver(results, d)
+                "Mission NOT loaded",
+            ])
             self.service.manual_input("mission")
             return d.addCallback(wait_a_bit)
 
         def wait_a_bit(unused):
-            """Wait to receive <consoleN><0>"""
+            """
+            Wait to receive <consoleN><1>
+            """
             d = defer.Deferred()
             from twisted.internet import reactor
             reactor.callLater(0.05, d.callback, None)
@@ -131,88 +108,57 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
 
         return do_test()
 
+    @defer.inlineCallbacks
     def test_mission_load(self):
+        response = yield self.console_client.mission_load(
+            "net/dogfight/test.mis")
 
-        def callback(response):
-            self.assertIsInstance(response, list)
-            obligatory_responses = [
-                "Loading mission net/dogfight/test.mis...",
-                "Load bridges",
-                "Load static objects",
-                "Mission: net/dogfight/test.mis is Loaded", ]
-            for obligatory_response in obligatory_responses:
-                self.assertIn(obligatory_response, response)
-                self.assertEqual(response.count(obligatory_response), 1)
+        self.assertIsInstance(response, list)
+        obligatory_responses = [
+            "Loading mission net/dogfight/test.mis...",
+            "Load bridges",
+            "Load static objects",
+            "Mission: net/dogfight/test.mis is Loaded",
+        ]
 
-        d = self.console_client.mission_load("net/dogfight/test.mis")
-        return d.addCallback(callback)
+        for obligatory_response in obligatory_responses:
+            self.assertEqual(response.count(obligatory_response), 1)
 
+    @defer.inlineCallbacks
     def test_mission_begin(self):
+        yield self.console_client.mission_load("net/dogfight/test.mis")
+        response = yield self.console_client.mission_begin()
 
-        def do_test():
-            d = self.console_client.mission_load("net/dogfight/test.mis")
-            return d.addCallback(do_begin)
+        self.assertIsInstance(response, list)
+        self.assertEqual(response, [
+            "Mission: net/dogfight/test.mis is Playing",
+        ])
 
-        def do_begin(unused):
-            d = self.console_client.mission_begin()
-            return d.addCallback(callback)
-
-        def callback(response):
-            self.assertIsInstance(response, list)
-            self.assertEqual(len(response), 1)
-            self.assertEqual(
-                response[0], "Mission: net/dogfight/test.mis is Playing")
-
-        return do_test()
-
+    @defer.inlineCallbacks
     def test_mission_end(self):
+        yield self.console_client.mission_load("net/dogfight/test.mis")
+        yield self.console_client.mission_begin()
+        response = yield self.console_client.mission_end()
 
-        def do_test():
-            d = self.console_client.mission_load("net/dogfight/test.mis")
-            return d.addCallback(do_begin)
+        self.assertIsInstance(response, list)
+        self.assertEqual(response, [
+            "Mission: net/dogfight/test.mis is Loaded",
+        ])
 
-        def do_begin(unused):
-            d = self.console_client.mission_begin()
-            return d.addCallback(do_end)
-
-        def do_end(unused):
-            d = self.console_client.mission_end()
-            return d.addCallback(callback)
-
-        def callback(response):
-            self.assertIsInstance(response, list)
-            self.assertEqual(len(response), 1)
-            self.assertEqual(
-                response[0], "Mission: net/dogfight/test.mis is Loaded")
-
-        return do_test()
-
+    @defer.inlineCallbacks
     def test_mission_destroy(self):
+        yield self.console_client.mission_load("net/dogfight/test.mis")
+        yield self.console_client.mission_begin()
+        response = yield self.console_client.mission_destroy()
 
-        def do_test():
-            d = self.console_client.mission_load("net/dogfight/test.mis")
-            return d.addCallback(do_begin)
-
-        def do_begin(unused):
-            d = self.console_client.mission_begin()
-            return d.addCallback(do_destroy)
-
-        def do_destroy(unused):
-            d = self.console_client.mission_destroy()
-            return d.addCallback(callback)
-
-        def callback(response):
-            self.assertIsInstance(response, list)
-            self.assertEqual(len(response), 1)
-            self.assertEqual(response[0], "Mission NOT loaded")
-
-        return do_test()
+        self.assertIsInstance(response, list)
+        self.assertEqual(response, ["Mission NOT loaded", ])
 
     def test_chat(self):
-        results = ["Chat: Server: \ttest message"]*3
-        results.append("Command not found: chat test message")
-        d = defer.Deferred()
-        self._set_console_expecting_receiver(results, d)
+        responses = ["Chat: Server: \ttest message"]*3
+        responses.append("Command not found: chat test message")
+
+        d = self.expect_console_lines(responses)
         self.console_client.chat_all("test message")
         self.console_client.chat_user("test message", "user0")
         self.console_client.chat_army("test message", "0")
@@ -248,89 +194,78 @@ class DeviceLinkClientProtocolTestCase(DeviceLinkClientProtocolBaseTestCase):
         d = self.dl_client._deferred_request(command)
         return self.assertFailure(d, defer.TimeoutError)
 
+    @defer.inlineCallbacks
     def test_pilot_count(self):
-
-        def on_count(response):
-            self.assertEqual(response, '0')
-            self._spawn_pilots()
-            return self.dl_client.refresh_radar().addCallback(
-                lambda _: self.dl_client.pilot_count().addCallback(
-                    on_recount))
-
-        def on_recount(response):
-            self.assertEqual(response, '253')
-
-        return self.dl_client.pilot_count().addCallback(on_count)
-
-    def test_pilot_pos(self):
-
-        def on_pos(response):
-            self.assertEqual(response, '0:user0_0;100;200;300')
-
-        self.pilots.join("user0", "192.168.1.{0}")
-        self.pilots.spawn("user0", pos={
-            'x': 100, 'y': 200, 'z': 300, })
-        return self.dl_client.refresh_radar().addCallback(
-            lambda _: self.dl_client.pilot_pos(0).addCallback(
-                on_pos))
-
-    def test_all_pilots_pos(self):
-
-        def on_pos_list(responses):
-            self.assertIsInstance(responses, list)
-            self.assertEqual(len(responses), 253)
-            checked = []
-            for s in responses:
-                idx = int(s[s.index('user')+4:s.index(';')].split('_')[0])
-                self.assertNotIn(idx, checked)
-                checked.append(idx)
+        response = yield self.dl_client.pilot_count()
+        self.assertEqual(response, '0')
 
         self._spawn_pilots()
-        return self.dl_client.refresh_radar().addCallback(
-            lambda _: self.dl_client.all_pilots_pos().addCallback(
-                on_pos_list))
+        yield self.dl_client.refresh_radar()
 
+        response = yield self.dl_client.pilot_count()
+        self.assertEqual(response, '253')
+
+    @defer.inlineCallbacks
+    def test_pilot_pos(self):
+        self.pilots.join("user0", "192.168.1.{0}")
+        self.pilots.spawn("user0", pos={'x': 100, 'y': 200, 'z': 300, })
+
+        yield self.dl_client.refresh_radar()
+        response = yield self.dl_client.pilot_pos(0)
+        self.assertEqual(response, '0:user0_0;100;200;300')
+
+    @defer.inlineCallbacks
+    def test_all_pilots_pos(self):
+        self._spawn_pilots()
+        yield self.dl_client.refresh_radar()
+        responses = yield self.dl_client.all_pilots_pos()
+
+        self.assertIsInstance(responses, list)
+        self.assertEqual(len(responses), 253)
+        checked = []
+        for s in responses:
+            start = s.index('user') + 4
+            stop = s.index(';')
+
+            idx = int(s[start:stop].split('_')[0])
+            self.assertNotIn(idx, checked)
+            checked.append(idx)
+
+    @defer.inlineCallbacks
     def test_static_count(self):
-
-        def on_count(response):
-            self.assertEqual(response, '0')
-            self._spawn_static()
-            return self.dl_client.refresh_radar().addCallback(
-                lambda _: self.dl_client.static_count().addCallback(
-                    on_recount))
-
-        def on_recount(response):
-            self.assertEqual(response, '1000')
-
-        return self.dl_client.static_count().addCallback(on_count)
-
-    def test_static_pos(self):
-
-        def on_pos(response):
-            self.assertEqual(response, '0:0_Static;100;200;300')
-
-        self.static.spawn("0_Static", pos={
-            'x': 100, 'y': 200, 'z': 300, })
-        return self.dl_client.refresh_radar().addCallback(
-            lambda _: self.dl_client.static_pos(0).addCallback(
-                on_pos))
-
-    def test_all_static_pos(self):
-
-        def on_pos_list(responses):
-            self.assertIsInstance(responses, list)
-            self.assertEqual(len(responses), 1000)
-            checked = []
-            for s in responses:
-                idx = int(s[s.index(':')+1:s.index('_')])
-                self.assertNotIn(idx, checked)
-                checked.append(idx)
+        response = yield self.dl_client.static_count()
+        self.assertEqual(response, '0')
 
         self._spawn_static()
-        return self.dl_client.refresh_radar().addCallback(
-            lambda _: self.dl_client.all_static_pos().addCallback(
-                on_pos_list))
+        yield self.dl_client.refresh_radar()
+        response = yield self.dl_client.static_count()
+        self.assertEqual(response, '1000')
 
+    @defer.inlineCallbacks
+    def test_static_pos(self):
+        self.static.spawn("0_Static", pos={'x': 100, 'y': 200, 'z': 300, })
+        yield self.dl_client.refresh_radar()
+        response = yield self.dl_client.static_pos(0)
+        self.assertEqual(response, '0:0_Static;100;200;300')
+
+    @defer.inlineCallbacks
+    def test_all_static_pos(self):
+        self._spawn_static()
+
+        yield self.dl_client.refresh_radar()
+        responses = yield self.dl_client.all_static_pos()
+
+        self.assertIsInstance(responses, list)
+        self.assertEqual(len(responses), 1000)
+        checked = []
+        for s in responses:
+            start = s.index(':') + 1
+            stop = s.index('_')
+            idx = int(s[start:stop])
+            self.assertNotIn(idx, checked)
+            checked.append(idx)
+
+    @defer.inlineCallbacks
     def test_all_pos_with_no_count(self):
 
         def get_count():
@@ -338,11 +273,9 @@ class DeviceLinkClientProtocolTestCase(DeviceLinkClientProtocolBaseTestCase):
             d.callback(0)
             return d
 
-        def callback(result):
-            self.assertIsInstance(result, list)
-            self.assertEqual(result, [])
-
-        return self.dl_client._all_pos(get_count, 'foo').addCallback(callback)
+        response = yield self.dl_client._all_pos(get_count, 'foo')
+        self.assertIsInstance(response, list)
+        self.assertEqual(response, [])
 
 
 class PasredDeviceLinkClientProtocolTestCase(
@@ -350,99 +283,89 @@ class PasredDeviceLinkClientProtocolTestCase(
 
     dl_client_parser_class = DeviceLinkParser
 
+    @defer.inlineCallbacks
     def test_pilot_count(self):
-
-        def on_count(response):
-            self.assertEqual(response, 0)
-            self._spawn_pilots()
-            return self.dl_client.refresh_radar().addCallback(
-                lambda _: self.dl_client.pilot_count().addCallback(
-                    on_recount))
-
-        def on_recount(response):
-            self.assertEqual(response, 253)
-
-        return self.dl_client.pilot_count().addCallback(on_count)
-
-    def test_pilot_pos(self):
-
-        def on_pos(response):
-            self.assertIsInstance(response, dict)
-            self.assertEqual(response.get('id'), 0)
-            self.assertEqual(response.get('callsign'), "user0")
-            self.assertIsInstance(response.get('pos'), dict)
-            self.assertEqual(response['pos'].get('x'), 100)
-            self.assertEqual(response['pos'].get('y'), 200)
-            self.assertEqual(response['pos'].get('z'), 300)
-
-        self.pilots.join("user0", "192.168.1.{0}")
-        self.pilots.spawn("user0", pos={
-            'x': 100, 'y': 200, 'z': 300, })
-        return self.dl_client.refresh_radar().addCallback(
-            lambda _: self.dl_client.pilot_pos(0).addCallback(
-                on_pos))
-
-    def test_all_pilots_pos(self):
-
-        def on_pos_list(responses):
-            self.assertIsInstance(responses, list)
-            self.assertEqual(len(responses), 253)
-            checked = []
-            for response in responses:
-                self.assertIsInstance(response, dict)
-                idx = response['id']
-                self.assertNotIn(idx, checked)
-                checked.append(idx)
+        response = yield self.dl_client.pilot_count()
+        self.assertEqual(response, 0)
 
         self._spawn_pilots()
-        return self.dl_client.refresh_radar().addCallback(
-            lambda _: self.dl_client.all_pilots_pos().addCallback(
-                on_pos_list))
+        yield self.dl_client.refresh_radar()
+        response = yield self.dl_client.pilot_count()
+        self.assertEqual(response, 253)
 
-    def test_static_count(self):
+    @defer.inlineCallbacks
+    def test_pilot_pos(self):
+        self.pilots.join("user0", "192.168.1.{0}")
+        self.pilots.spawn("user0", pos={'x': 100, 'y': 200, 'z': 300, })
 
-        def on_count(response):
-            self.assertEqual(response, 0)
-            self._spawn_static()
-            return self.dl_client.refresh_radar().addCallback(
-                lambda _: self.dl_client.static_count().addCallback(
-                    on_recount))
+        yield self.dl_client.refresh_radar()
+        response = yield self.dl_client.pilot_pos(0)
 
-        def on_recount(response):
-            self.assertEqual(response, 1000)
+        self.assertIsInstance(response, dict)
+        self.assertEqual(response, {
+            'id': 0,
+            'callsign': "user0",
+            'pos': {
+                'x': 100,
+                'y': 200,
+                'z': 300,
+            },
+        })
 
-        return self.dl_client.static_count().addCallback(on_count)
+    @defer.inlineCallbacks
+    def test_all_pilots_pos(self):
+        self._spawn_pilots()
+        yield self.dl_client.refresh_radar()
+        responses = yield self.dl_client.all_pilots_pos()
 
-    def test_static_pos(self):
-
-        def on_pos(response):
+        self.assertIsInstance(responses, list)
+        self.assertEqual(len(responses), 253)
+        checked = []
+        for response in responses:
             self.assertIsInstance(response, dict)
-            self.assertEqual(response.get('id'), 0)
-            self.assertEqual(response.get('name'), "0_Static")
-            self.assertIsInstance(response.get('pos'), dict)
-            self.assertEqual(response['pos'].get('x'), 100)
-            self.assertEqual(response['pos'].get('y'), 200)
-            self.assertEqual(response['pos'].get('z'), 300)
+            idx = response['id']
+            self.assertNotIn(idx, checked)
+            checked.append(idx)
 
-        self.static.spawn("0_Static", pos={
-            'x': 100, 'y': 200, 'z': 300, })
-        return self.dl_client.refresh_radar().addCallback(
-            lambda _: self.dl_client.static_pos(0).addCallback(
-                on_pos))
-
-    def test_all_static_pos(self):
-
-        def on_pos_list(responses):
-            self.assertIsInstance(responses, list)
-            self.assertEqual(len(responses), 1000)
-            checked = []
-            for response in responses:
-                self.assertIsInstance(response, dict)
-                idx = response['id']
-                self.assertNotIn(idx, checked)
-                checked.append(idx)
+    @defer.inlineCallbacks
+    def test_static_count(self):
+        response = yield self.dl_client.static_count()
+        self.assertEqual(response, 0)
 
         self._spawn_static()
-        return self.dl_client.refresh_radar().addCallback(
-            lambda _: self.dl_client.all_static_pos().addCallback(
-                on_pos_list))
+        yield self.dl_client.refresh_radar()
+
+        response = yield self.dl_client.static_count()
+        self.assertEqual(response, 1000)
+
+    @defer.inlineCallbacks
+    def test_static_pos(self):
+        self.static.spawn("0_Static", pos={'x': 100, 'y': 200, 'z': 300, })
+        yield self.dl_client.refresh_radar()
+        response = yield self.dl_client.static_pos(0)
+
+        self.assertIsInstance(response, dict)
+        self.assertEqual(response, {
+            'id': 0,
+            'name': "0_Static",
+            'pos': {
+                'x': 100,
+                'y': 200,
+                'z': 300,
+            },
+        })
+
+    @defer.inlineCallbacks
+    def test_all_static_pos(self):
+        self._spawn_static()
+        yield self.dl_client.refresh_radar()
+        responses = yield self.dl_client.all_static_pos()
+
+        self.assertIsInstance(responses, list)
+        self.assertEqual(len(responses), 1000)
+        checked = []
+        for response in responses:
+            self.assertIsInstance(response, dict)
+            idx = response['id']
+            self.assertNotIn(idx, checked)
+            checked.append(idx)

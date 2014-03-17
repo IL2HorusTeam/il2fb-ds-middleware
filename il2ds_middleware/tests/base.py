@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from twisted.internet import defer
 from twisted.trial.unittest import TestCase
 
@@ -27,7 +26,7 @@ class BaseTestCase(TestCase):
     log_path = None
 
     log_watcher_period = 0.1
-    timeout_value = 0.05
+    timeout = 0.1
 
     def setUp(self):
         self.service = DSService(self.log_path)
@@ -172,53 +171,63 @@ class BaseTestCase(TestCase):
         else:
             return None
 
-    def _make_timeout(self, callback):
+    def _make_watchdog(self, callback):
         from twisted.internet import reactor
-        return reactor.callLater(self.timeout_value, callback, None)
+        return reactor.callLater(self.timeout, callback, None)
 
-    def _get_unexpecting_line_receiver(self, d):
+    def _get_unexpecting_line_receiver(self):
 
         def got_line(line):
-            timeout.cancel()
+            watchdog.cancel()
             from twisted.trial.unittest import FailTest
             d.errback(FailTest("Unexpected data:\n\t{0}.".format(line)))
 
-        timeout = self._make_timeout(d.callback)
-        return got_line
+        d = defer.Deferred()
+        watchdog = self._make_watchdog(d.callback)
+        return got_line, d
 
-    def _get_expecting_line_receiver(self, expected_lines, d):
+    def _get_expecting_line_receiver(self, expected_lines):
 
         def got_line(line):
             try:
                 self.assertEqual(line, expected_lines.pop(0))
             except Exception as e:
-                timeout.cancel()
+                watchdog.cancel()
                 d.errback(e)
             else:
                 if expected_lines:
                     return
-                timeout.cancel()
+                watchdog.cancel()
                 d.callback(None)
 
-        def on_timeout(_):
+        def on_timeout(unused):
             from twisted.trial.unittest import FailTest
-            d.errback(FailTest(
-                'Timed out, remaining lines:\n\t'+'\n\t'.join(expected_lines)))
+            d.errback(
+                FailTest("Timed out, remaining lines:\n\t{1}".format(
+                         "\n\t".join(expected_lines))))
 
-        timeout = self._make_timeout(on_timeout)
-        return got_line
+        d = defer.Deferred()
+        watchdog = self._make_watchdog(on_timeout)
+        return got_line, d
 
-    def _set_console_expecting_receiver(self, expected_lines, d):
-        self.console_client.got_line = \
-            self._get_expecting_line_receiver(expected_lines, d)
+    def expect_console_lines(self, expected_lines):
+        self.console_client.got_line, d = \
+            self._get_expecting_line_receiver(expected_lines)
+        return d
 
-    def _set_dl_expecting_receiver(self, expected_lines, d):
-        self.dl_client.receiver = \
-            self._get_expecting_line_receiver(expected_lines, d)
+    def expect_dl_lines(self, expected_lines):
+        self.dl_client.receiver, d = \
+            self._get_expecting_line_receiver(expected_lines)
+        return d
 
-    def _set_event_log_expecting_receiver(self, expected_lines, d):
-        self.log_watcher.receiver = \
-            self._get_expecting_line_receiver(expected_lines, d)
+    def expect_event_log_lines(self, expected_lines):
+        self.log_watcher.receiver, d = \
+            self._get_expecting_line_receiver(expected_lines)
+        return d
+
+    def unexpect_dl(self):
+        self.dl_client.receiver, d = self._get_unexpecting_line_receiver()
+        return d
 
     @property
     def console_client_address_for_client(self):

@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-from twisted.application.service import Service
 from twisted.trial.unittest import TestCase
 
 from il2ds_middleware.constants import MISSION_STATUS

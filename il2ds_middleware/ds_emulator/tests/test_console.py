@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-
-from twisted.internet import defer
-
 from il2ds_middleware.ds_emulator.tests.base import BaseEmulatorTestCase
 
 
@@ -12,7 +9,8 @@ def expected_join_responses(channel, callsign, ip, port):
         "Chat: --- {0} joins the game.\\n".format(callsign),
         "socket channel '{0}', ip {1}:{2}, {3}, "
         "is complete created.\\n".format(
-            channel, ip, port, callsign), ]
+            channel, ip, port, callsign),
+    ]
 
 
 def expected_leave_responses(channel, callsign, ip, port):
@@ -56,45 +54,38 @@ class CommonsTestCase(BaseEmulatorTestCase):
         self.console_client_connector.disconnect()
 
     def test_receive_line(self):
-        d = defer.Deferred()
-        responses = ["test\\n", ]
-        self.console_client_factory.receiver = \
-            self._get_expecting_line_receiver(responses, d)
+        d = self.expect_console_lines([
+            "test\\n",
+        ])
         self.console_server.message("test")
         return d
 
     def test_unknown_command(self):
-        d = defer.Deferred()
-        responses = ["Command not found: abracadabracadabr\\n", ]
-        self.console_client_factory.receiver = \
-            self._get_expecting_line_receiver(responses, d)
+        d = self.expect_console_lines([
+            "Command not found: abracadabracadabr\\n",
+        ])
         self.console_client.sendLine("abracadabracadabr")
         return d
 
     def test_server_info(self):
 
         def do_test():
-            responses =[
+            d = self.expect_console_lines([
                 "Type: Local server\\n",
                 "Name: Server\\n",
-                "Description: \\n", ]
-            d = defer.Deferred()
-            self.console_client_factory.receiver = \
-                self._get_expecting_line_receiver(responses, d)
-            d.addCallback(change_info)
+                "Description: \\n",
+            ]).addCallback(change_info)
             self.console_client.sendLine("server")
             return d
 
         def change_info(unused):
-            self.service.set_server_info(
-                "Test server", "This is a server emulator")
-            responses =[
+            d = self.expect_console_lines([
                 "Type: Local server\\n",
                 "Name: Test server\\n",
-                "Description: This is a server emulator\\n", ]
-            d = defer.Deferred()
-            self.console_client_factory.receiver = \
-                self._get_expecting_line_receiver(responses, d)
+                "Description: This is a server emulator\\n",
+            ])
+            self.service.set_server_info("Test server",
+                                         "This is a server emulator")
             self.console_client.sendLine("server")
             return d
 
@@ -123,9 +114,7 @@ class PilotsTestCase(BaseEmulatorTestCase):
         responses.extend(expected_join_responses(
             3, "user1", "192.168.1.3", self.srvc.port))
 
-        d = defer.Deferred()
-        self.console_client_factory.receiver = \
-            self._get_expecting_line_receiver(responses, d)
+        d = self.expect_console_lines(responses)
         d.addCallback(self._get_pilots_count_checker(2))
 
         self.srvc.join("user0", "192.168.1.2")
@@ -140,9 +129,7 @@ class PilotsTestCase(BaseEmulatorTestCase):
         responses.extend(expected_leave_responses(
             1, "user0", "192.168.1.2", self.srvc.port))
 
-        d = defer.Deferred()
-        self.console_client_factory.receiver = \
-            self._get_expecting_line_receiver(responses, d)
+        d = self.expect_console_lines(responses)
         d.addCallback(self._get_pilots_count_checker(1))
         self.srvc.join("user0", "192.168.1.2")
         self.srvc.join("user1", "192.168.1.3")
@@ -158,9 +145,7 @@ class PilotsTestCase(BaseEmulatorTestCase):
         responses.extend(expected_kick_responses(
             1, "user0", "192.168.1.2", self.srvc.port))
 
-        d = defer.Deferred()
-        self.console_client_factory.receiver = \
-            self._get_expecting_line_receiver(responses, d)
+        d = self.expect_console_lines(responses)
         d.addCallback(self._get_pilots_count_checker(1))
         self.srvc.join("user0", "192.168.1.2")
         self.srvc.join("user1", "192.168.1.3")
@@ -170,14 +155,9 @@ class PilotsTestCase(BaseEmulatorTestCase):
     def test_show_common_info(self):
 
         def do_test():
-            responses = [
+            d = self.expect_console_lines([
                 " N       Name           Ping    Score   Army        Aircraft\\n",
-            ]
-
-            d = defer.Deferred()
-            self.console_client_factory.receiver = \
-                self._get_expecting_line_receiver(responses, d)
-            d.addCallback(join_user)
+            ]).addCallback(join_user)
             self.console_client.sendLine("user")
             return d
 
@@ -189,25 +169,17 @@ class PilotsTestCase(BaseEmulatorTestCase):
                 " 1      user0            0       0      (0)None             \\n",
             ])
 
-            d = defer.Deferred()
-            self.console_client_factory.receiver = \
-                self._get_expecting_line_receiver(responses, d)
-            d.addCallback(spawn_user)
+            d = self.expect_console_lines(responses).addCallback(spawn_user)
 
             self.srvc.join("user0", "192.168.1.2")
             self.console_client.sendLine("user")
             return d
 
         def spawn_user(unused):
-            responses = [
+            d = self.expect_console_lines([
                 " N       Name           Ping    Score   Army        Aircraft\\n",
                 " 1      user0            0       0      (0)None     * Red 1     A6M2-21\\n",
-            ]
-
-            d = defer.Deferred()
-            self.console_client_factory.receiver = \
-                self._get_expecting_line_receiver(responses, d)
-
+            ])
             self.srvc.spawn("user0")
             self.console_client.sendLine("user")
             return d
@@ -217,14 +189,9 @@ class PilotsTestCase(BaseEmulatorTestCase):
     def test_show_statistics(self):
 
         def do_test():
-            responses = [
+            d = self.expect_console_lines([
                 "-------------------------------------------------------\\n",
-            ]
-
-            d = defer.Deferred()
-            self.console_client_factory.receiver = \
-                self._get_expecting_line_receiver(responses, d)
-            d.addCallback(join_user)
+            ]).addCallback(join_user)
             self.console_client.sendLine("user STAT")
             return d
 
@@ -264,9 +231,7 @@ class PilotsTestCase(BaseEmulatorTestCase):
                 "-------------------------------------------------------\\n",
             ])
 
-            d = defer.Deferred()
-            self.console_client_factory.receiver = \
-                self._get_expecting_line_receiver(responses, d)
+            d = self.expect_console_lines(responses)
 
             self.srvc.join("user0", "192.168.1.2")
             self.console_client.sendLine("user STAT")
@@ -287,10 +252,9 @@ class MissionsTestCase(BaseEmulatorTestCase):
         return super(MissionsTestCase, self).tearDown()
 
     def test_no_mission(self):
-        d = defer.Deferred()
-        responses = ["Mission NOT loaded\\n", ]
-        self.console_client_factory.receiver = \
-            self._get_expecting_line_receiver(responses, d)
+        d = self.expect_console_lines([
+            "Mission NOT loaded\\n",
+        ])
         self.console_client.sendLine("mission")
         return d
 
@@ -298,8 +262,7 @@ class MissionsTestCase(BaseEmulatorTestCase):
         responses = expected_load_responses("net/dogfight/test.mis")
         responses.append(responses[-1])
 
-        d = defer.Deferred()
-        self._set_console_expecting_receiver(responses, d)
+        d = self.expect_console_lines(responses)
         self.console_client.sendLine("mission LOAD net/dogfight/test.mis")
         self.console_client.sendLine("mission")
         return d
@@ -310,8 +273,7 @@ class MissionsTestCase(BaseEmulatorTestCase):
         responses.append("Mission: net/dogfight/test.mis is Playing\\n")
         responses.append(responses[-1])
 
-        d = defer.Deferred()
-        self._set_console_expecting_receiver(responses, d)
+        d = self.expect_console_lines(responses)
         self.console_client.sendLine("mission BEGIN")
         self.console_client.sendLine("mission LOAD net/dogfight/test.mis")
         self.console_client.sendLine("mission BEGIN")
@@ -324,9 +286,7 @@ class MissionsTestCase(BaseEmulatorTestCase):
         responses.append("Mission: net/dogfight/test.mis is Playing\\n")
         responses.append("Mission: net/dogfight/test.mis is Loaded\\n")
 
-        d = defer.Deferred()
-        self.console_client_factory.receiver = \
-            self._get_expecting_line_receiver(responses, d)
+        d = self.expect_console_lines(responses)
         self.console_client.sendLine("mission END")
         self.console_client.sendLine("mission LOAD net/dogfight/test.mis")
         self.console_client.sendLine("mission BEGIN")
@@ -342,9 +302,7 @@ class MissionsTestCase(BaseEmulatorTestCase):
         responses.append("Mission: net/dogfight/test.mis is Playing\\n")
         responses.append("Mission NOT loaded\\n")
 
-        d = defer.Deferred()
-        self.console_client_factory.receiver = \
-            self._get_expecting_line_receiver(responses, d)
+        d = self.expect_console_lines(responses)
         self.console_client.sendLine("mission DESTROY")
         self.console_client.sendLine("mission LOAD net/dogfight/test.mis")
         self.console_client.sendLine("mission DESTROY")

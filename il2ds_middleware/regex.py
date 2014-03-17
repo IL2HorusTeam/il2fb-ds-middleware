@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import re
 
 from il2ds_log_parser.regex import RX_CALLSIGN
