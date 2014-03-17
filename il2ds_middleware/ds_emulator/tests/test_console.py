@@ -167,6 +167,62 @@ class PilotsTestCase(BaseEmulatorTestCase):
         self.console_client.sendLine("kick user0")
         return d
 
+    def test_show_common_info(self):
+
+        def do_test():
+            responses = [
+                " N       Name           Ping    Score   Army        Aircraft\\n",
+            ]
+
+            d = defer.Deferred()
+            self.console_client_factory.receiver = \
+                self._get_expecting_line_receiver(responses, d)
+            d.addCallback(join_user)
+            self.console_client.sendLine("user")
+            return d
+
+        def join_user(unused):
+            responses = expected_join_responses(
+                1, "user0", "192.168.1.2", self.srvc.port)
+
+            d = defer.Deferred()
+            self.console_client_factory.receiver = \
+                self._get_expecting_line_receiver(responses, d)
+            d.addCallback(self._get_pilots_count_checker(1))
+            d.addCallback(do_test_again)
+
+            self.srvc.join("user0", "192.168.1.2")
+            return d
+
+        def do_test_again(unused):
+            responses = [
+                " N       Name           Ping    Score   Army        Aircraft\\n",
+                " 1      user0            99      100    (0)None             \\n",
+            ]
+
+            d = defer.Deferred()
+            self.console_client_factory.receiver = \
+                self._get_expecting_line_receiver(responses, d)
+            d.addCallback(spawn_user)
+            self.console_client.sendLine("user")
+            return d
+
+        def spawn_user(unused):
+            responses = [
+                " N       Name           Ping    Score   Army        Aircraft\\n",
+                " 1      user0            99      100    (0)None     * Red 1     A6M2-21\\n",
+            ]
+
+            d = defer.Deferred()
+            self.console_client_factory.receiver = \
+                self._get_expecting_line_receiver(responses, d)
+
+            self.srvc.spawn("user0")
+            self.console_client.sendLine("user")
+            return d
+
+        return do_test()
+
 
 class MissionsTestCase(BaseEmulatorTestCase):
 

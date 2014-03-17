@@ -147,6 +147,9 @@ class PilotService(Service, _CommonServiceMixin):
 
     def parse_line(self, line):
         while True:
+            if line == "user":
+                self.show_common_info()
+                break
             if line.startswith("kick"):
                 self._kick(callsign=line[4:].strip())
                 break
@@ -160,7 +163,9 @@ class PilotService(Service, _CommonServiceMixin):
                 'ip': ip,
                 'channel': self.channel,
                 'state': PILOT_STATE.IDLE,
-                'army': "None",
+                'army': "(0)None",
+                'ping': 99,
+                'score': 100,
             }
             self.channel += self.channel_inc
             return pilot
@@ -213,17 +218,18 @@ class PilotService(Service, _CommonServiceMixin):
             pilot['pos'] = pos or {
                 'x': 0, 'y': 0, 'z': 0, }
             pilot['craft'] = craft or {
-                'name': "A6M2-21",
+                'code': "A6M2-21",
+                'designation': "* Red 1",
                 'weapons': "1xdt",
                 'fuel': "100",
             }
             self.evt_log.enlog(
                 "{0}:{1}(0) seat occupied by {0} at {2} {3}".format(
-                    callsign, pilot['craft']['name'],
+                    callsign, pilot['craft']['code'],
                     pilot['pos']['x'], pilot['pos']['y']))
             self.evt_log.enlog(
                 "{0}:{1} loaded weapons '{2}' fuel {3}%".format(
-                    callsign, pilot['craft']['name'],
+                    callsign, pilot['craft']['code'],
                     pilot['craft']['weapons'], pilot['craft']['fuel']))
 
     def kill(self, callsign):
@@ -232,12 +238,27 @@ class PilotService(Service, _CommonServiceMixin):
             pilot['state'] = PILOT_STATE.DEAD
             self.evt_log.enlog(
                 "{0}:{1}(0) was killed at {2} {3}".format(
-                    callsign, pilot['craft']['name'],
+                    callsign, pilot['craft']['code'],
                     pilot['pos']['x'], pilot['pos']['y']))
 
     def get_active(self):
-        return [x for x in self.pilots.keys()
-            if self.pilots[x]['state'] != PILOT_STATE.IDLE]
+        return [
+            callsign for callsign in self.pilots.keys()
+            if self.pilots[callsign]['state'] != PILOT_STATE.IDLE
+        ]
+
+    def show_common_info(self):
+        line = " {0: <8}{1: <15}{2: <8}{3: <8}{4: <12}{5: <8}".format(
+               "N", "Name", "Ping", "Score", "Army", "Aircraft")
+        self.send(line)
+        for i, (callsign, pilot) in enumerate(self.pilots.items()):
+            craft = pilot.get('craft')
+            craft_info = "{0: <12}{1}".format(
+                          craft['designation'], craft['code']) if craft else ""
+            line = " {0: <7}{1: <17}{2: <8}{3: <7}{4: <12}{5: <8}".format(
+                   i+1, callsign, pilot['ping'], pilot['score'], pilot['army'],
+                   craft_info)
+            self.send(line)
 
     def stopService(self):
         self.pilots = None
@@ -419,8 +440,8 @@ class DeviceLinkService(Service):
                 if idx_append:
                     key = "{:}_{:}".format(key, idx)
                 pos = handler['pos']
-                data = ';'.join([str(_)
-                    for _ in [key, pos['x'], pos['y'], pos['z'], ]])
+                chunks = (key, pos['x'], pos['y'], pos['z'], )
+                data = ';'.join([str(chunk) for chunk in chunks])
         finally:
             return ':'.join([idx, data, ])
 
@@ -454,13 +475,13 @@ class EventLoggingService(Service):
 
     def _get_formated_time(self, timestamp):
         """
-        We do not need leading zero before hours, so we will replace it
-        if it is present. To find it we use symbol '-'.
+        We do not need leading zero before hours, so we will replace it if it
+        is present.
         """
-        format = "-%I:%M:%S %p"
+        result = timestamp.strftime("%I:%M:%S %p").lstrip('0')
         if self._day_differs(timestamp):
-            format = "%b %d, %Y " + format
-        return timestamp.strftime(format).replace('-0', '').replace('-', '')
+            result = timestamp.strftime("%b %d, %Y ") + result
+        return result
 
     def _day_differs(self, timestamp):
         return timestamp.day != self.last_evt_time.day \

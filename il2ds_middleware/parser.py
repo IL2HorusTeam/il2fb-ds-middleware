@@ -219,9 +219,9 @@ class ConsoleParser(object):
                    # executing 'user' command in DS console. Example:
                    # [
                    #     " N      Name           Ping    Score   Army        Aircraft",
-                   #     " 1      user1          3       0      (0)None              ",
-                   #     " 2      user2          11      111    (1)Red       * Red 90    Il-2M_Late",
-                   #     " 3      user3          22      222    (2)Blue      + 99        HurricaneMkIIb",
+                   #     " 1     user1            3       0      (0)None             ",
+                   #     " 2     user2            11      111    (1)Red      * Red 90    Il-2M_Late",
+                   #     " 3     user3            22      222    (2)Blue     + 99        HurricaneMkIIb",
                    # ]
 
         Output:
