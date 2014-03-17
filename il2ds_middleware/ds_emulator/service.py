@@ -3,7 +3,6 @@
 import datetime
 import os
 
-from twisted.application import internet
 from twisted.application.service import Service, MultiService
 from twisted.python import log
 from zope.interface import implementer
@@ -21,7 +20,6 @@ from il2ds_middleware.ds_emulator.interfaces import (IPilotService,
 class _CommonServiceMixin():
 
     evt_log = None
-    parent = None
     client = None
 
     def send(self, line):
@@ -88,8 +86,8 @@ class RootService(MultiService, _CommonServiceMixin):
             if line == LONG_OPERATION_CMD:
                 self._long_operation()
                 break
-            if self._chat(line):
-                break
+            if line.startswith("chat"):
+                return self._chat(line)
             return False
         return True
 
@@ -107,8 +105,6 @@ class RootService(MultiService, _CommonServiceMixin):
         time.sleep(self.lop_duration)
 
     def _chat(self, line):
-        if not line.startswith("chat"):
-            return False
         idx = line.find('ALL')
         if idx < 0:
             idx = line.find('TO')
@@ -150,6 +146,9 @@ class PilotService(Service, _CommonServiceMixin):
             if line == "user":
                 self.show_common_info()
                 break
+            if line == "user STAT":
+                self.show_statistics()
+                break
             if line.startswith("kick"):
                 self._kick(callsign=line[4:].strip())
                 break
@@ -164,8 +163,47 @@ class PilotService(Service, _CommonServiceMixin):
                 'channel': self.channel,
                 'state': PILOT_STATE.IDLE,
                 'army': "(0)None",
-                'ping': 99,
-                'score': 100,
+                'ping': 0,
+                'score': 0,
+                'kills': {
+                    'enemy': {
+                        'aircraft': 0,
+                        'static_aircraft': 0,
+                        'tank': 0,
+                        'car': 0,
+                        'artillery': 0,
+                        'aaa': 0,
+                        'wagon': 0,
+                        'ship': 0,
+                        'radio': 0,
+                    },
+                    'friend': {
+                        'aircraft': 0,
+                        'static_aircraft': 0,
+                        'tank': 0,
+                        'car': 0,
+                        'artillery': 0,
+                        'aaa': 0,
+                        'wagon': 0,
+                        'ship': 0,
+                        'radio': 0,
+                    },
+                },
+                'weapons': {
+                    'bullets': {
+                        'fire': 0,
+                        'hit': 0,
+                        'hit_air': 0,
+                    },
+                    'rockets': {
+                        'fire': 0,
+                        'hit': 0,
+                    },
+                    'bombs': {
+                        'fire': 0,
+                        'hit': 0,
+                    },
+                },
             }
             self.channel += self.channel_inc
             return pilot
@@ -259,6 +297,58 @@ class PilotService(Service, _CommonServiceMixin):
                    i+1, callsign, pilot['ping'], pilot['score'], pilot['army'],
                    craft_info)
             self.send(line)
+
+    def show_statistics(self):
+
+        def separate():
+            self.send("-"*55)
+
+        def show(name, value):
+            self.send("{0}: \\t\\t{1}".format(name, value))
+
+        separate()
+        for callsign, pilot in self.pilots.iteritems():
+            show("Name", callsign)
+            show("Score", pilot['score'])
+            show("State", pilot['state'].name)
+
+            kills = pilot['kills']['enemy']
+            show("Enemy Aircraft Kill", kills['aircraft'])
+            show("Enemy Static Aircraft Kill", kills['static_aircraft'])
+            show("Enemy Tank Kill", kills['tank'])
+            show("Enemy Car Kill", kills['car'])
+            show("Enemy Artillery Kill", kills['artillery'])
+            show("Enemy AAA Kill", kills['aaa'])
+            show("Enemy Wagon Kill", kills['wagon'])
+            show("Enemy Ship Kill", kills['ship'])
+            show("Enemy Radio Kill", kills['radio'])
+
+            kills = pilot['kills']['friend']
+            show("Friend Aircraft Kill", kills['aircraft'])
+            show("Friend Static Aircraft Kill", kills['static_aircraft'])
+            show("Friend Tank Kill", kills['tank'])
+            show("Friend Car Kill", kills['car'])
+            show("Friend Artillery Kill", kills['artillery'])
+            show("Friend AAA Kill", kills['aaa'])
+            show("Friend Wagon Kill", kills['wagon'])
+            show("Friend Ship Kill", kills['ship'])
+            show("Friend Radio Kill", kills['radio'])
+
+            bullets = pilot['weapons']['bullets']
+            show("Fire Bullets", bullets['fire'])
+            show("Hit Bullets", bullets['hit'])
+            show("Hit Air Bullets", bullets['hit_air'])
+
+            rockets = pilot['weapons']['rockets']
+            # Yep, yes: 'Roskets' with 's' inside.
+            show("Fire Roskets", rockets['fire'])
+            show("Hit Roskets", rockets['hit'])
+
+            bombs = pilot['weapons']['bombs']
+            show("Fire Bombs", bombs['fire'])
+            show("Hit Bombs", bombs['hit'])
+
+            separate()
 
     def stopService(self):
         self.pilots = None

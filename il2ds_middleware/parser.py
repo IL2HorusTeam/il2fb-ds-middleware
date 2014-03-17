@@ -367,7 +367,7 @@ class ConsoleParser(object):
                     'bullets': {},
                     'rockets': {},
                     'bombs': {},
-                }
+                },
             }
             return info
 

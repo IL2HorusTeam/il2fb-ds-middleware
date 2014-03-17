@@ -184,33 +184,24 @@ class PilotsTestCase(BaseEmulatorTestCase):
         def join_user(unused):
             responses = expected_join_responses(
                 1, "user0", "192.168.1.2", self.srvc.port)
-
-            d = defer.Deferred()
-            self.console_client_factory.receiver = \
-                self._get_expecting_line_receiver(responses, d)
-            d.addCallback(self._get_pilots_count_checker(1))
-            d.addCallback(do_test_again)
-
-            self.srvc.join("user0", "192.168.1.2")
-            return d
-
-        def do_test_again(unused):
-            responses = [
+            responses.extend([
                 " N       Name           Ping    Score   Army        Aircraft\\n",
-                " 1      user0            99      100    (0)None             \\n",
-            ]
+                " 1      user0            0       0      (0)None             \\n",
+            ])
 
             d = defer.Deferred()
             self.console_client_factory.receiver = \
                 self._get_expecting_line_receiver(responses, d)
             d.addCallback(spawn_user)
+
+            self.srvc.join("user0", "192.168.1.2")
             self.console_client.sendLine("user")
             return d
 
         def spawn_user(unused):
             responses = [
                 " N       Name           Ping    Score   Army        Aircraft\\n",
-                " 1      user0            99      100    (0)None     * Red 1     A6M2-21\\n",
+                " 1      user0            0       0      (0)None     * Red 1     A6M2-21\\n",
             ]
 
             d = defer.Deferred()
@@ -219,6 +210,66 @@ class PilotsTestCase(BaseEmulatorTestCase):
 
             self.srvc.spawn("user0")
             self.console_client.sendLine("user")
+            return d
+
+        return do_test()
+
+    def test_show_statistics(self):
+
+        def do_test():
+            responses = [
+                "-------------------------------------------------------\\n",
+            ]
+
+            d = defer.Deferred()
+            self.console_client_factory.receiver = \
+                self._get_expecting_line_receiver(responses, d)
+            d.addCallback(join_user)
+            self.console_client.sendLine("user STAT")
+            return d
+
+        def join_user(unused):
+            responses = expected_join_responses(
+                1, "user0", "192.168.1.2", self.srvc.port)
+            responses.extend([
+                "-------------------------------------------------------\\n",
+                "Name: \\t\\tuser0\\n",
+                "Score: \\t\\t0\\n",
+                "State: \\t\\tIDLE\\n",
+                "Enemy Aircraft Kill: \\t\\t0\\n",
+                "Enemy Static Aircraft Kill: \\t\\t0\\n",
+                "Enemy Tank Kill: \\t\\t0\\n",
+                "Enemy Car Kill: \\t\\t0\\n",
+                "Enemy Artillery Kill: \\t\\t0\\n",
+                "Enemy AAA Kill: \\t\\t0\\n",
+                "Enemy Wagon Kill: \\t\\t0\\n",
+                "Enemy Ship Kill: \\t\\t0\\n",
+                "Enemy Radio Kill: \\t\\t0\\n",
+                "Friend Aircraft Kill: \\t\\t0\\n",
+                "Friend Static Aircraft Kill: \\t\\t0\\n",
+                "Friend Tank Kill: \\t\\t0\\n",
+                "Friend Car Kill: \\t\\t0\\n",
+                "Friend Artillery Kill: \\t\\t0\\n",
+                "Friend AAA Kill: \\t\\t0\\n",
+                "Friend Wagon Kill: \\t\\t0\\n",
+                "Friend Ship Kill: \\t\\t0\\n",
+                "Friend Radio Kill: \\t\\t0\\n",
+                "Fire Bullets: \\t\\t0\\n",
+                "Hit Bullets: \\t\\t0\\n",
+                "Hit Air Bullets: \\t\\t0\\n",
+                "Fire Roskets: \\t\\t0\\n",
+                "Hit Roskets: \\t\\t0\\n",
+                "Fire Bombs: \\t\\t0\\n",
+                "Hit Bombs: \\t\\t0\\n",
+                "-------------------------------------------------------\\n",
+            ])
+
+            d = defer.Deferred()
+            self.console_client_factory.receiver = \
+                self._get_expecting_line_receiver(responses, d)
+
+            self.srvc.join("user0", "192.168.1.2")
+            self.console_client.sendLine("user STAT")
             return d
 
         return do_test()
