@@ -87,26 +87,20 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
         d = self.console_client._send_request(LONG_OPERATION_CMD)
         return self.assertFailure(d, defer.TimeoutError)
 
+    @defer.inlineCallbacks
     def test_manual_input(self):
+        d = self.expect_console_lines([
+            "mission",
+            "Mission NOT loaded",
+        ])
+        self.service.manual_input("mission")
+        yield d
 
-        def do_test():
-            d = self.expect_console_lines([
-                "mission",
-                "Mission NOT loaded",
-            ])
-            self.service.manual_input("mission")
-            return d.addCallback(wait_a_bit)
-
-        def wait_a_bit(unused):
-            """
-            Wait to receive <consoleN><1>
-            """
-            d = defer.Deferred()
-            from twisted.internet import reactor
-            reactor.callLater(0.05, d.callback, None)
-            return d
-
-        return do_test()
+        # Wait to receive <consoleN><1>
+        d = defer.Deferred()
+        from twisted.internet import reactor
+        reactor.callLater(0.05, d.callback, None)
+        yield d
 
     @defer.inlineCallbacks
     def test_mission_load(self):
@@ -267,13 +261,8 @@ class DeviceLinkClientProtocolTestCase(DeviceLinkClientProtocolBaseTestCase):
 
     @defer.inlineCallbacks
     def test_all_pos_with_no_count(self):
-
-        def get_count():
-            d = defer.Deferred()
-            d.callback(0)
-            return d
-
-        response = yield self.dl_client._all_pos(get_count, 'foo')
+        response = yield self.dl_client._all_pos(
+            lambda: defer.succeed(0), 'foo')
         self.assertIsInstance(response, list)
         self.assertEqual(response, [])
 

@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from twisted.internet import defer
+
 from il2ds_middleware.ds_emulator.tests.base import BaseEmulatorTestCase
 
 
@@ -67,29 +69,26 @@ class CommonsTestCase(BaseEmulatorTestCase):
         self.console_client.sendLine("abracadabracadabr")
         return d
 
+    @defer.inlineCallbacks
     def test_server_info(self):
+        d = self.expect_console_lines([
+            "Type: Local server\\n",
+            "Name: Server\\n",
+            "Description: \\n",
+        ])
+        self.console_client.sendLine("server")
+        yield d
 
-        def do_test():
-            d = self.expect_console_lines([
-                "Type: Local server\\n",
-                "Name: Server\\n",
-                "Description: \\n",
-            ]).addCallback(change_info)
-            self.console_client.sendLine("server")
-            return d
+        self.service.set_server_info("Test server",
+                                     "This is a server emulator")
 
-        def change_info(unused):
-            d = self.expect_console_lines([
-                "Type: Local server\\n",
-                "Name: Test server\\n",
-                "Description: This is a server emulator\\n",
-            ])
-            self.service.set_server_info("Test server",
-                                         "This is a server emulator")
-            self.console_client.sendLine("server")
-            return d
-
-        return do_test()
+        d = self.expect_console_lines([
+            "Type: Local server\\n",
+            "Name: Test server\\n",
+            "Description: This is a server emulator\\n",
+        ])
+        self.console_client.sendLine("server")
+        yield d
 
 
 class PilotsTestCase(BaseEmulatorTestCase):
@@ -152,100 +151,87 @@ class PilotsTestCase(BaseEmulatorTestCase):
         self.console_client.sendLine("kick user0")
         return d
 
+    @defer.inlineCallbacks
     def test_show_common_info(self):
+        d = self.expect_console_lines([
+            " N       Name           Ping    Score   Army        Aircraft\\n",
+        ])
+        self.console_client.sendLine("user")
+        yield d
 
-        def do_test():
-            d = self.expect_console_lines([
-                " N       Name           Ping    Score   Army        Aircraft\\n",
-            ]).addCallback(join_user)
-            self.console_client.sendLine("user")
-            return d
+        responses = expected_join_responses(
+            1, "user0", "192.168.1.2", self.srvc.port)
+        responses.extend([
+            " N       Name           Ping    Score   Army        Aircraft\\n",
+            " 1      user0            0       0      (0)None             \\n",
+        ])
+        d = self.expect_console_lines(responses)
+        self.srvc.join("user0", "192.168.1.2")
+        self.console_client.sendLine("user")
+        yield d
 
-        def join_user(unused):
-            responses = expected_join_responses(
-                1, "user0", "192.168.1.2", self.srvc.port)
-            responses.extend([
-                " N       Name           Ping    Score   Army        Aircraft\\n",
-                " 1      user0            0       0      (0)None             \\n",
-            ])
+        d = self.expect_console_lines([
+            " N       Name           Ping    Score   Army        Aircraft\\n",
+            " 1      user0            0       0      (0)None     * Red 1     A6M2-21\\n",
+        ])
+        self.srvc.spawn("user0")
+        self.console_client.sendLine("user")
+        yield d
 
-            d = self.expect_console_lines(responses).addCallback(spawn_user)
-
-            self.srvc.join("user0", "192.168.1.2")
-            self.console_client.sendLine("user")
-            return d
-
-        def spawn_user(unused):
-            d = self.expect_console_lines([
-                " N       Name           Ping    Score   Army        Aircraft\\n",
-                " 1      user0            0       0      (0)None     * Red 1     A6M2-21\\n",
-            ])
-            self.srvc.spawn("user0")
-            self.console_client.sendLine("user")
-            return d
-
-        return do_test()
-
+    @defer.inlineCallbacks
     def test_show_statistics(self):
+        d = self.expect_console_lines([
+            "-------------------------------------------------------\\n",
+        ])
+        self.console_client.sendLine("user STAT")
+        yield d
 
-        def do_test():
-            d = self.expect_console_lines([
-                "-------------------------------------------------------\\n",
-            ]).addCallback(join_user)
-            self.console_client.sendLine("user STAT")
-            return d
-
-        def join_user(unused):
-            responses = expected_join_responses(
-                1, "user0", "192.168.1.2", self.srvc.port)
-            responses.extend([
-                "-------------------------------------------------------\\n",
-                "Name: \\t\\tuser0\\n",
-                "Score: \\t\\t0\\n",
-                "State: \\t\\tIDLE\\n",
-                "Enemy Aircraft Kill: \\t\\t0\\n",
-                "Enemy Static Aircraft Kill: \\t\\t0\\n",
-                "Enemy Tank Kill: \\t\\t0\\n",
-                "Enemy Car Kill: \\t\\t0\\n",
-                "Enemy Artillery Kill: \\t\\t0\\n",
-                "Enemy AAA Kill: \\t\\t0\\n",
-                "Enemy Wagon Kill: \\t\\t0\\n",
-                "Enemy Ship Kill: \\t\\t0\\n",
-                "Enemy Radio Kill: \\t\\t0\\n",
-                "Friend Aircraft Kill: \\t\\t0\\n",
-                "Friend Static Aircraft Kill: \\t\\t0\\n",
-                "Friend Tank Kill: \\t\\t0\\n",
-                "Friend Car Kill: \\t\\t0\\n",
-                "Friend Artillery Kill: \\t\\t0\\n",
-                "Friend AAA Kill: \\t\\t0\\n",
-                "Friend Wagon Kill: \\t\\t0\\n",
-                "Friend Ship Kill: \\t\\t0\\n",
-                "Friend Radio Kill: \\t\\t0\\n",
-                "Fire Bullets: \\t\\t0\\n",
-                "Hit Bullets: \\t\\t0\\n",
-                "Hit Air Bullets: \\t\\t0\\n",
-                "Fire Roskets: \\t\\t0\\n",
-                "Hit Roskets: \\t\\t0\\n",
-                "Fire Bombs: \\t\\t0\\n",
-                "Hit Bombs: \\t\\t0\\n",
-                "-------------------------------------------------------\\n",
-            ])
-
-            d = self.expect_console_lines(responses)
-
-            self.srvc.join("user0", "192.168.1.2")
-            self.console_client.sendLine("user STAT")
-            return d
-
-        return do_test()
+        responses = expected_join_responses(
+            1, "user0", "192.168.1.2", self.srvc.port)
+        responses.extend([
+            "-------------------------------------------------------\\n",
+            "Name: \\t\\tuser0\\n",
+            "Score: \\t\\t0\\n",
+            "State: \\t\\tIDLE\\n",
+            "Enemy Aircraft Kill: \\t\\t0\\n",
+            "Enemy Static Aircraft Kill: \\t\\t0\\n",
+            "Enemy Tank Kill: \\t\\t0\\n",
+            "Enemy Car Kill: \\t\\t0\\n",
+            "Enemy Artillery Kill: \\t\\t0\\n",
+            "Enemy AAA Kill: \\t\\t0\\n",
+            "Enemy Wagon Kill: \\t\\t0\\n",
+            "Enemy Ship Kill: \\t\\t0\\n",
+            "Enemy Radio Kill: \\t\\t0\\n",
+            "Friend Aircraft Kill: \\t\\t0\\n",
+            "Friend Static Aircraft Kill: \\t\\t0\\n",
+            "Friend Tank Kill: \\t\\t0\\n",
+            "Friend Car Kill: \\t\\t0\\n",
+            "Friend Artillery Kill: \\t\\t0\\n",
+            "Friend AAA Kill: \\t\\t0\\n",
+            "Friend Wagon Kill: \\t\\t0\\n",
+            "Friend Ship Kill: \\t\\t0\\n",
+            "Friend Radio Kill: \\t\\t0\\n",
+            "Fire Bullets: \\t\\t0\\n",
+            "Hit Bullets: \\t\\t0\\n",
+            "Hit Air Bullets: \\t\\t0\\n",
+            "Fire Roskets: \\t\\t0\\n",
+            "Hit Roskets: \\t\\t0\\n",
+            "Fire Bombs: \\t\\t0\\n",
+            "Hit Bombs: \\t\\t0\\n",
+            "-------------------------------------------------------\\n",
+        ])
+        d = self.expect_console_lines(responses)
+        self.srvc.join("user0", "192.168.1.2")
+        self.console_client.sendLine("user STAT")
+        yield d
 
 
 class MissionsTestCase(BaseEmulatorTestCase):
 
     def setUp(self):
-        r = super(MissionsTestCase, self).setUp()
+        result = super(MissionsTestCase, self).setUp()
         self.srvc = self.service.getServiceNamed('missions')
-        return r
+        return result
 
     def tearDown(self):
         self.srvc = None

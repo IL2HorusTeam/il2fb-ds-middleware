@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import tempfile
 
-from twisted.internet.defer import Deferred
-
 from il2ds_middleware.ds_emulator.tests.base import BaseEmulatorTestCase
 
 
