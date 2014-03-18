@@ -159,6 +159,86 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
         self.console_client.sendLine("chat test message")
         return d
 
+    @defer.inlineCallbacks
+    def test_users_count(self):
+        srvc = self.service.getServiceNamed('pilots')
+
+        count = yield self.console_client.users_count()
+        self.assertEqual(count, 0)
+
+        srvc.join("user0", "192.168.1.2")
+        count = yield self.console_client.users_count()
+        self.assertEqual(count, 1)
+
+    @defer.inlineCallbacks
+    def test_users_common_info(self):
+        srvc = self.service.getServiceNamed('pilots')
+
+        strings = yield self.console_client.users_common_info()
+        self.assertIsInstance(strings, list)
+        self.assertEqual(strings, [
+            " N       Name           Ping    Score   Army        Aircraft",
+        ])
+
+        srvc.join("user0", "192.168.1.2")
+        strings = yield self.console_client.users_common_info()
+        self.assertEqual(strings, [
+            " N       Name           Ping    Score   Army        Aircraft",
+            " 1      user0            0       0      (0)None             ",
+        ])
+
+        srvc.spawn("user0")
+        strings = yield self.console_client.users_common_info()
+        self.assertEqual(strings, [
+            " N       Name           Ping    Score   Army        Aircraft",
+            " 1      user0            0       0      (0)None     * Red 1     A6M2-21",
+        ])
+
+    @defer.inlineCallbacks
+    def test_users_statistics(self):
+        srvc = self.service.getServiceNamed('pilots')
+
+        strings = yield self.console_client.users_statistics()
+        self.assertIsInstance(strings, list)
+        self.assertEqual(strings, [
+            "-------------------------------------------------------",
+        ])
+
+        srvc.join("user0", "192.168.1.2")
+        strings = yield self.console_client.users_statistics()
+        self.assertEqual(strings, [
+            "-------------------------------------------------------",
+            "Name: \\t\\tuser0",
+            "Score: \\t\\t0",
+            "State: \\t\\tIDLE",
+            "Enemy Aircraft Kill: \\t\\t0",
+            "Enemy Static Aircraft Kill: \\t\\t0",
+            "Enemy Tank Kill: \\t\\t0",
+            "Enemy Car Kill: \\t\\t0",
+            "Enemy Artillery Kill: \\t\\t0",
+            "Enemy AAA Kill: \\t\\t0",
+            "Enemy Wagon Kill: \\t\\t0",
+            "Enemy Ship Kill: \\t\\t0",
+            "Enemy Radio Kill: \\t\\t0",
+            "Friend Aircraft Kill: \\t\\t0",
+            "Friend Static Aircraft Kill: \\t\\t0",
+            "Friend Tank Kill: \\t\\t0",
+            "Friend Car Kill: \\t\\t0",
+            "Friend Artillery Kill: \\t\\t0",
+            "Friend AAA Kill: \\t\\t0",
+            "Friend Wagon Kill: \\t\\t0",
+            "Friend Ship Kill: \\t\\t0",
+            "Friend Radio Kill: \\t\\t0",
+            "Fire Bullets: \\t\\t0",
+            "Hit Bullets: \\t\\t0",
+            "Hit Air Bullets: \\t\\t0",
+            "Fire Roskets: \\t\\t0",
+            "Hit Roskets: \\t\\t0",
+            "Fire Bombs: \\t\\t0",
+            "Hit Bombs: \\t\\t0",
+            "-------------------------------------------------------",
+        ])
+
 
 class DeviceLinkClientProtocolBaseTestCase(BaseMiddlewareTestCase):
 
@@ -203,7 +283,7 @@ class DeviceLinkClientProtocolTestCase(DeviceLinkClientProtocolBaseTestCase):
 
     @defer.inlineCallbacks
     def test_pilot_pos(self):
-        self.pilots.join("user0", "192.168.1.{0}")
+        self.pilots.join("user0", "192.168.1.2")
         self.pilots.spawn("user0", pos={'x': 100, 'y': 200, 'z': 300, })
 
         yield self.dl_client.refresh_radar()
@@ -287,7 +367,7 @@ class PasredDeviceLinkClientProtocolTestCase(
 
     @defer.inlineCallbacks
     def test_pilot_pos(self):
-        self.pilots.join("user0", "192.168.1.{0}")
+        self.pilots.join("user0", "192.168.1.2")
         self.pilots.spawn("user0", pos={'x': 100, 'y': 200, 'z': 300, })
 
         yield self.dl_client.refresh_radar()

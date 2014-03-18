@@ -153,10 +153,10 @@ class ConsoleParserTestCase(TestCase):
 
     def test_users_common_info(self):
         datas = [
-            " N      Name           Ping    Score   Army        Aircraft",
-            " 1      user1          3       0      (0)None              ",
-            " 2      user2          11      111    (1)Red       * Red 90    Il-2M_Late",
-            " 3      user3          22      222    (2)Blue      + 99        HurricaneMkIIb", ]
+            " N       Name           Ping    Score   Army        Aircraft",
+            " 1      user1            3       0      (0)None             ",
+            " 2      user2            11      111    (1)Red      * Red 90    Il-2M_Late",
+            " 3      user3            22      222    (2)Blue     + 99        HurricaneMkIIb", ]
         all_info = self.parser.users_common_info(datas)
         self.assertIsInstance(all_info, dict)
         self.assertEqual(len(all_info), 3)

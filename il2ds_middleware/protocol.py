@@ -15,10 +15,7 @@ from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as DL_OPCODE,
     REQUEST_TIMEOUT, REQUEST_MISSION_LOAD_TIMEOUT, CHAT_MAX_LENGTH, )
 from il2ds_middleware.parser import (ConsolePassthroughParser,
     DeviceLinkPassthroughParser, )
-from il2ds_middleware.requests import (
-    REQ_SERVER_INFO, REQ_MISSION_STATUS, REQ_MISSION_LOAD, REQ_MISSION_BEGIN,
-    REQ_MISSION_END, REQ_MISSION_DESTROY, REQ_CHAT, CHAT_ALL, CHAT_USER,
-    CHAT_ARMY, )
+from il2ds_middleware.requests import *
 
 
 ConsoleRequest = namedtuple('ConsoleRequest', 'rid results deferred watchdog')
@@ -119,10 +116,7 @@ class ConsoleClient(LineOnlyReceiver):
 
     def server_info(self):
         """
-        Request server info.
-
-        Output:
-        Deferred object.
+        Request server info. Returns deferred.
         """
         d = self._send_request(REQ_SERVER_INFO)
         d.addCallback(self.parser.server_info)
@@ -130,10 +124,7 @@ class ConsoleClient(LineOnlyReceiver):
 
     def mission_status(self, *args):
         """
-        Request mission status
-
-        Output:
-        Deferred object.
+        Request mission status. Returns deferred.
         """
         d = self._send_request(REQ_MISSION_STATUS)
         d.addCallback(self.parser.mission_status)
@@ -156,10 +147,7 @@ class ConsoleClient(LineOnlyReceiver):
 
     def mission_begin(self):
         """
-        Request to begin mission.
-
-        Output:
-        Deferred object.
+        Request to begin mission. Returns deferred.
         """
         d = self._send_request(REQ_MISSION_BEGIN)
         d.addCallback(self.parser.mission_status)
@@ -167,10 +155,7 @@ class ConsoleClient(LineOnlyReceiver):
 
     def mission_end(self):
         """
-        Request to end mission.
-
-        Output:
-        Deferred object.
+        Request to end mission. Returns deferred.
         """
         d = self._send_request(REQ_MISSION_END)
         d.addCallback(lambda _: self.mission_status())
@@ -178,10 +163,7 @@ class ConsoleClient(LineOnlyReceiver):
 
     def mission_destroy(self):
         """
-        Request to end mission.
-
-        Output:
-        Deferred object.
+        Request to end mission. Returns deferred.
         """
         d = self._send_request(REQ_MISSION_DESTROY)
         d.addCallback(lambda _: self.mission_status())
@@ -225,6 +207,38 @@ class ConsoleClient(LineOnlyReceiver):
             self.sendLine(
                 REQ_CHAT.format(chunk.encode('unicode-escape'), suffix))
             last += step
+
+    @defer.inlineCallbacks
+    def users_count(self):
+        """
+        Get count users of connected users. Returns deferred.
+        """
+        strings = yield self._request_users_common_info()
+        defer.returnValue(len(strings) - 1) # '1' is for user table's header
+
+    @defer.inlineCallbacks
+    def users_common_info(self):
+        """
+        Get common information about pilots shown by 'user' command.
+        Returns deferred.
+        """
+        strings = yield self._request_users_common_info()
+        defer.returnValue(self.parser.users_common_info(strings))
+
+    @defer.inlineCallbacks
+    def users_statistics(self):
+        """
+        Get full information about pilots' statistics shown by 'user STAT'
+        command. Returns deferred.
+        """
+        strings = yield self._send_request(REQ_USERS_STATISTICS)
+        defer.returnValue(self.parser.users_statistics(strings))
+
+    def _request_users_common_info(self):
+        """
+        Request output lines from 'user' command. Returns deferred.
+        """
+        return self._send_request(REQ_USERS_COMMON_INFO)
 
 
 class ConsoleClientFactory(ClientFactory):
