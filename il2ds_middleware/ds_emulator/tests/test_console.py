@@ -102,11 +102,6 @@ class PilotsTestCase(BaseEmulatorTestCase):
         self.srvc = None
         return super(PilotsTestCase, self).tearDown()
 
-    def _get_pilots_count_checker(self, expected_count):
-        def check(unused):
-            self.assertEqual(len(self.srvc.pilots), expected_count)
-        return check
-
     def test_join(self):
         responses = expected_join_responses(
             1, "user0", "192.168.1.2", self.srvc.port)
@@ -114,12 +109,11 @@ class PilotsTestCase(BaseEmulatorTestCase):
             3, "user1", "192.168.1.3", self.srvc.port))
 
         d = self.expect_console_lines(responses)
-        d.addCallback(self._get_pilots_count_checker(2))
-
         self.srvc.join("user0", "192.168.1.2")
         self.srvc.join("user1", "192.168.1.3")
         return d
 
+    @defer.inlineCallbacks
     def test_leave(self):
         responses = expected_join_responses(
             1, "user0", "192.168.1.2", self.srvc.port)
@@ -129,27 +123,58 @@ class PilotsTestCase(BaseEmulatorTestCase):
             1, "user0", "192.168.1.2", self.srvc.port))
 
         d = self.expect_console_lines(responses)
-        d.addCallback(self._get_pilots_count_checker(1))
         self.srvc.join("user0", "192.168.1.2")
         self.srvc.join("user1", "192.168.1.3")
         self.srvc.leave("user0")
         self.srvc.leave("fake_user")
-        return d
+        yield d
+        self.assertEqual(len(self.srvc.pilots), 1)
 
-    def test_kick(self):
+    @defer.inlineCallbacks
+    def test_kick_user(self):
         responses = expected_join_responses(
             1, "user0", "192.168.1.2", self.srvc.port)
         responses.extend(expected_join_responses(
             3, "user1", "192.168.1.3", self.srvc.port))
         responses.extend(expected_kick_responses(
+            3, "user1", "192.168.1.3", self.srvc.port))
+        responses.extend(expected_kick_responses(
             1, "user0", "192.168.1.2", self.srvc.port))
 
         d = self.expect_console_lines(responses)
-        d.addCallback(self._get_pilots_count_checker(1))
         self.srvc.join("user0", "192.168.1.2")
         self.srvc.join("user1", "192.168.1.3")
+        self.console_client.sendLine("kick user1")
         self.console_client.sendLine("kick user0")
-        return d
+        yield d
+        self.assertEqual(len(self.srvc.pilots), 0)
+
+    @defer.inlineCallbacks
+    def test_kick_number(self):
+        responses = expected_join_responses(
+            1, "user0", "192.168.1.2", self.srvc.port)
+        responses.extend(expected_join_responses(
+            3, "user1", "192.168.1.3", self.srvc.port))
+        responses.extend(expected_join_responses(
+            5, "user2", "192.168.1.4", self.srvc.port))
+        responses.extend(expected_kick_responses(
+            5, "user2", "192.168.1.4", self.srvc.port))
+        responses.extend(expected_kick_responses(
+            1, "user0", "192.168.1.2", self.srvc.port))
+
+        d = self.expect_console_lines(responses)
+        self.srvc.join("user0", "192.168.1.2")
+        self.srvc.join("user1", "192.168.1.3")
+        self.srvc.join("user2", "192.168.1.4")
+        self.console_client.sendLine("kick 3")
+        self.console_client.sendLine("kick 1")
+        yield d
+        self.assertEqual(len(self.srvc.pilots), 1)
+
+    def test_kick_number_invalid(self):
+        self.assertEqual(len(self.srvc.pilots), 0)
+        self.console_client.sendLine("kick 1")
+        self.assertEqual(len(self.srvc.pilots), 0)
 
     @defer.inlineCallbacks
     def test_show_common_info(self):

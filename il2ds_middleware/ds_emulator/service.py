@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-
 import datetime
 import os
+
+from collections import OrderedDict
 
 from twisted.application.service import Service, MultiService
 from twisted.python import log
@@ -139,7 +140,7 @@ class PilotService(Service, _CommonServiceMixin):
     port = 21000
 
     def __init__(self):
-        self.pilots = {}
+        self.pilots = OrderedDict()
 
     def parse_line(self, line):
         while True:
@@ -150,7 +151,11 @@ class PilotService(Service, _CommonServiceMixin):
                 self.show_statistics()
                 break
             if line.startswith("kick"):
-                self._kick(callsign=line[4:].strip())
+                arg = line.split(' ', 1)[1]
+                try:
+                    self.kick_number(int(arg))
+                except ValueError:
+                    self.kick_user(arg)
                 break
             return False
         return True
@@ -224,7 +229,15 @@ class PilotService(Service, _CommonServiceMixin):
     def leave(self, callsign):
         self._leave(callsign)
 
-    def _kick(self, callsign):
+    def kick_number(self, number):
+        try:
+            callsign = self.pilots.keys()[number - 1]
+        except IndexError:
+            log.err("Kick error: invalid number {0}.".format(number))
+        else:
+            self.kick_user(callsign)
+
+    def kick_user(self, callsign):
         self._leave(callsign, reason="You have been kicked from the server.")
 
     def _leave(self, callsign, reason=None):
@@ -351,7 +364,7 @@ class PilotService(Service, _CommonServiceMixin):
             separate()
 
     def stopService(self):
-        self.pilots = None
+        self.pilots.clear()
         return Service.stopService(self)
 
 

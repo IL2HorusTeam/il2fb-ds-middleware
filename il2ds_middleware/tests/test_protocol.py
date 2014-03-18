@@ -183,6 +183,8 @@ class DeviceLinkClientProtocolBaseTestCase(BaseMiddlewareTestCase):
 
 class DeviceLinkClientProtocolTestCase(DeviceLinkClientProtocolBaseTestCase):
 
+    timeout = 0.2
+
     def test_long_operation(self):
         command = DeviceLinkCommand(LONG_OPERATION_CMD, None)
         d = self.dl_client._deferred_request(command)
@@ -271,6 +273,7 @@ class PasredDeviceLinkClientProtocolTestCase(
     DeviceLinkClientProtocolBaseTestCase):
 
     dl_client_parser_class = DeviceLinkParser
+    timeout = 0.2
 
     @defer.inlineCallbacks
     def test_pilot_count(self):
