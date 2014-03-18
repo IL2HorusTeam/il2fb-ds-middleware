@@ -114,23 +114,21 @@ class ConsoleClient(LineOnlyReceiver):
                 request.watchdog.cancel()
                 request.deferred.callback(request.results)
 
-    def server_info(self):
+    def server_info(self, timeout=None):
         """
         Request server info. Returns deferred.
         """
-        d = self._send_request(REQ_SERVER_INFO)
-        d.addCallback(self.parser.server_info)
-        return d
+        return self._send_request(REQ_SERVER_INFO, timeout).addCallback(
+            self.parser.server_info)
 
-    def mission_status(self, *args):
+    def mission_status(self, timeout=None):
         """
         Request mission status. Returns deferred.
         """
-        d = self._send_request(REQ_MISSION_STATUS)
-        d.addCallback(self.parser.mission_status)
-        return d
+        return self._send_request(REQ_MISSION_STATUS, timeout).addCallback(
+            self.parser.mission_status)
 
-    def mission_load(self, mission):
+    def mission_load(self, mission, timeout=None):
         """
         Request to load mission.
 
@@ -140,34 +138,31 @@ class ConsoleClient(LineOnlyReceiver):
         Output:
         Deferred object.
         """
-        d = self._send_request(REQ_MISSION_LOAD.format(mission),
-                               REQUEST_MISSION_LOAD_TIMEOUT)
-        d.addCallback(self.parser.mission_status)
-        return d
+        timeout = timeout or REQUEST_MISSION_LOAD_TIMEOUT
+        return self._send_request(
+            REQ_MISSION_LOAD.format(mission), timeout).addCallback(
+            self.parser.mission_status)
 
-    def mission_begin(self):
+    def mission_begin(self, timeout=None):
         """
         Request to begin mission. Returns deferred.
         """
-        d = self._send_request(REQ_MISSION_BEGIN)
-        d.addCallback(self.parser.mission_status)
-        return d
+        return self._send_request(REQ_MISSION_BEGIN, timeout).addCallback(
+            lambda unused: self.mission_status(timeout))
 
-    def mission_end(self):
+    def mission_end(self, timeout=None):
         """
         Request to end mission. Returns deferred.
         """
-        d = self._send_request(REQ_MISSION_END)
-        d.addCallback(lambda _: self.mission_status())
-        return d
+        return self._send_request(REQ_MISSION_END, timeout).addCallback(
+            lambda unused: self.mission_status(timeout))
 
-    def mission_destroy(self):
+    def mission_destroy(self, timeout=None):
         """
         Request to end mission. Returns deferred.
         """
-        d = self._send_request(REQ_MISSION_DESTROY)
-        d.addCallback(lambda _: self.mission_status())
-        return d
+        return self._send_request(REQ_MISSION_DESTROY, timeout).addCallback(
+            lambda unused: self.mission_status(timeout))
 
     def chat_all(self, message):
         """
@@ -209,36 +204,77 @@ class ConsoleClient(LineOnlyReceiver):
             last += step
 
     @defer.inlineCallbacks
-    def users_count(self):
+    def users_count(self, timeout=None):
         """
         Get count users of connected users. Returns deferred.
         """
-        strings = yield self._request_users_common_info()
+        strings = yield self._request_users_common_info(timeout)
         defer.returnValue(len(strings) - 1) # '1' is for user table's header
 
     @defer.inlineCallbacks
-    def users_common_info(self):
+    def users_common_info(self, timeout=None):
         """
         Get common information about pilots shown by 'user' command.
         Returns deferred.
         """
-        strings = yield self._request_users_common_info()
+        strings = yield self._request_users_common_info(timeout)
         defer.returnValue(self.parser.users_common_info(strings))
 
     @defer.inlineCallbacks
-    def users_statistics(self):
+    def users_statistics(self, timeout=None):
         """
         Get full information about pilots' statistics shown by 'user STAT'
         command. Returns deferred.
         """
-        strings = yield self._send_request(REQ_USERS_STATISTICS)
+        strings = yield self._send_request(REQ_USERS_STATISTICS, timeout)
         defer.returnValue(self.parser.users_statistics(strings))
 
-    def _request_users_common_info(self):
+    def _request_users_common_info(self, timeout=None):
         """
         Request output lines from 'user' command. Returns deferred.
         """
-        return self._send_request(REQ_USERS_COMMON_INFO)
+        return self._send_request(REQ_USERS_COMMON_INFO, timeout)
+
+    def kick_callsign(self, callsign, timeout=None):
+        """
+        Kick user by callsign.
+
+        Input:
+        `callsign` # callsign of the user to be kicked
+        """
+        self.sendLine(REQ_KICK_CALLSIGN.format(callsign))
+        return self.users_count(timeout)
+
+    def kick_number(self, number, timeout=None):
+        """
+        Kick user by number, assigned by server (execute 'user' on server or
+        press 'S' in game to see user numbers).
+
+        Input:
+        `number`  # number of the user to be kicked
+        """
+        self.sendLine(REQ_KICK_NUMBER.format(number))
+        return self.users_count(timeout)
+
+    def kick_all(self, max_count, timeout=None):
+        """
+        Kick everyone from server.
+
+        Input:
+        `max_count`  # maximal possible number of users on server. See
+                     # 'NET/serverChannels' in 'confs.ini' for this value
+        """
+        for i in xrange(max_count):
+            # Kick 1st user in cycle. It's important to kick all of the users.
+            # Do not rely on 'user_count' method in this situation: number
+            # of users may change between getting current user list and kicking
+            # the last user. It's OK if number of users will decrease, but if
+            # it will increase, then someone may not be kicked. There is still
+            # a little chance that someone will connect to server during
+            # kicking process, but nothing can be done with this due to current
+            # server functionality.
+            self.sendLine(REQ_KICK_FIRST)
+        return self.users_count(timeout)
 
 
 class ConsoleClientFactory(ClientFactory):

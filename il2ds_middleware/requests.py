@@ -14,6 +14,7 @@ CHAT_ARMY = "ARMY {0}"
 
 REQ_KICK_CALLSIGN = "kick {0}"
 REQ_KICK_NUMBER = "kick# {0}"
+REQ_KICK_FIRST = "kick# 1"
 
 REQ_USERS_COMMON_INFO = "user"
 REQ_USERS_STATISTICS = "user STAT"
