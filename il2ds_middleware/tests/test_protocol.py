@@ -153,7 +153,7 @@ class ConsoleClientFactoryTestCase(BaseMiddlewareTestCase):
         self.assertEqual(response, ["Mission NOT loaded", ])
 
     def test_chat(self):
-        responses = ["Chat: Server: \ttest message"]*3
+        responses = ["Chat: Server: \ttest message", ]*3
         responses.append("Command not found: chat test message")
 
         d = self.expect_console_lines(responses)
