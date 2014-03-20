@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
+import tx_logging
+
 from twisted.application.internet import TimerService
 from twisted.application.service import Service
 from twisted.internet import defer
-from twisted.python import log
 
 from zope.interface import implementer
 
@@ -11,15 +12,21 @@ from il2ds_middleware.interface.service import (IPilotService, IObjectsService,
     IMissionService, )
 
 
+LOG = tx_logging.getLogger(__name__)
+
+
 class ClientBaseService(Service):
-    """Base console client sevice. Client must be set up manually."""
+    """
+    Base console client sevice. Client must be set up manually.
+    """
     client = None
 
 
 @implementer(IPilotService)
 class PilotBaseService(ClientBaseService):
-
-    """Base muted pilots service."""
+    """
+    Base pilots muted service.
+    """
 
     def user_joined(self, info):
         """
@@ -102,7 +109,7 @@ class PilotBaseService(ClientBaseService):
         """
 
     def went_to_menu(self, info):
-         """
+        """
         Process 'user went to refly menu' event.
 
         Input:
@@ -365,7 +372,6 @@ class PilotBaseService(ClientBaseService):
                 # }
         """
 
-
     def toggle_wingtip_smokes(self, info):
         """
         Process 'user toggled wingtip smokes' event.
@@ -516,8 +522,9 @@ class PilotBaseService(ClientBaseService):
 
 @implementer(IObjectsService)
 class ObjectsBaseService(ClientBaseService):
-
-    """Base muted map objects service."""
+    """
+    Base map objects muted service.
+    """
 
     def building_destroyed_by_user(self, info):
         """
@@ -606,8 +613,9 @@ class ObjectsBaseService(ClientBaseService):
 
 @implementer(IMissionService)
 class MissionBaseService(ClientBaseService):
-
-    """Base muted mission service."""
+    """
+    Base mission muted service.
+    """
 
     def on_status_info(self, info):
         """
@@ -649,8 +657,9 @@ class MissionBaseService(ClientBaseService):
 
 
 class MissionService(MissionBaseService):
-
-    """Default mission service."""
+    """
+    Default mission service.
+    """
 
     def __init__(self, log_watcher=None):
         """
@@ -705,7 +714,6 @@ class MissionService(MissionBaseService):
 
 
 class LogWatchingBaseService(TimerService):
-
     """
     Base server's events log watcher. Reads lines from specified file with
     given time period.
@@ -723,13 +731,17 @@ class LogWatchingBaseService(TimerService):
         TimerService.__init__(self, period, self.do_watch)
 
     def do_watch(self):
-        """Log reading callback."""
+        """
+        Log reading callback.
+        """
         self.log_file.seek(self.log_file.tell())
         for line in self.log_file.readlines():
             self.got_line(line)
 
     def got_line(self, line):
-        """Process new line from events log."""
+        """
+        Process new line from events log.
+        """
 
     def startService(self):
         if self.log_file is not None:
@@ -737,7 +749,7 @@ class LogWatchingBaseService(TimerService):
         try:
             self.log_file = open(self.log_path, 'r')
         except IOError as e:
-            log.err("Failed to open events log: {0}.".format(e))
+            LOG.error("Failed to open events log: {0}.".format(e))
         else:
             self.log_file.seek(self.log_file.tell())
             self.log_file.readlines()
@@ -753,7 +765,6 @@ class LogWatchingBaseService(TimerService):
 
 
 class LogWatchingService(LogWatchingBaseService):
-
     """
     Default service for reading events from specified log file. Reads file line
     by line with given period and parses with parser.
@@ -770,6 +781,8 @@ class LogWatchingService(LogWatchingBaseService):
         self.set_parser(None)
 
     def got_line(self, line):
-        """Pass line from log file to parser if it is specified."""
+        """
+        Pass line from log file to parser if it is specified.
+        """
         if self.parser:
             self.parser.parse_line(line.strip())

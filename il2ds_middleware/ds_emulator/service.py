@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import datetime
 import os
+import tx_logging
 
 from collections import OrderedDict
 
 from twisted.application.service import Service, MultiService
-from twisted.python import log
 from zope.interface import implementer
 
 from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as OPCODE,
@@ -15,6 +15,9 @@ from il2ds_middleware.ds_emulator.constants import (LONG_OPERATION_DURATION,
     LONG_OPERATION_CMD, )
 from il2ds_middleware.ds_emulator.interfaces import (IPilotService,
     IMissionService, IStaticObjectService, IDeviceLinkService, IEventLogger, )
+
+
+LOG = tx_logging.getLogger(__name__)
 
 
 @implementer(ILineParser)
@@ -233,7 +236,7 @@ class PilotService(Service, _CommonServiceMixin):
         try:
             callsign = self.pilots.keys()[number - 1]
         except IndexError:
-            log.err("Kick error: invalid number {0}.".format(number))
+            LOG.error("Kick error: invalid number {0}.".format(number))
         else:
             self.kick_user(callsign)
 
@@ -243,7 +246,8 @@ class PilotService(Service, _CommonServiceMixin):
     def _leave(self, callsign, reason=None):
         pilot = self.pilots.get(callsign)
         if pilot is None:
-            log.err("Pilot with callsign \"{0}\" not found.".format(callsign))
+            LOG.error("Pilot with callsign \"{0}\" not found.".format(
+                      callsign))
             return
         del self.pilots[callsign]
 
@@ -567,7 +571,7 @@ class EventLoggingService(Service):
         if self.log_file is not None:
             self._do_log(line)
         else:
-            log.msg("Logging event into nowhere: \"{0}\"".format(line))
+            LOG.info("Logging event into nowhere: \"{0}\"".format(line))
 
     def _do_log(self, line):
         evt_time = datetime.datetime.now()

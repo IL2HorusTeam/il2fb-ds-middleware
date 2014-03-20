@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 import datetime
-
-from twisted.python import log
+import tx_logging
 
 from zope.interface import implementer
 
 from il2ds_middleware.interface.parser import ILineParser
 from il2ds_middleware.service import LogWatchingBaseService
+
+
+LOG = tx_logging.getLogger(__name__)
 
 
 @implementer(ILineParser)
@@ -18,7 +20,7 @@ class LogWatchingService(LogWatchingBaseService):
         try:
             time, data = self.parse_line(line)
         except ValueError:
-            log.err("Failed to parse line:\n\t{0}".format(line))
+            LOG.error("Failed to parse line:\n\t{0}".format(line))
         else:
             if self.receiver is not None:
                 self.receiver(data)

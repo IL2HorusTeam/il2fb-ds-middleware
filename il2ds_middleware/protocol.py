@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import socket
+import tx_logging
 
 from collections import namedtuple, deque
 
@@ -7,7 +8,6 @@ from twisted.internet import defer
 from twisted.internet.error import ConnectionDone
 from twisted.internet.protocol import ClientFactory, DatagramProtocol
 from twisted.protocols.basic import LineOnlyReceiver
-from twisted.python import log
 
 from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as DL_OPCODE,
     DEVICE_LINK_PREFIXES, DEVICE_LINK_CMD_SEPARATOR as DL_CMD_SEP,
@@ -16,6 +16,9 @@ from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as DL_OPCODE,
 from il2ds_middleware.parser import (ConsolePassthroughParser,
     DeviceLinkPassthroughParser, )
 from il2ds_middleware.requests import *
+
+
+LOG = tx_logging.getLogger(__name__)
 
 
 ConsoleRequest = namedtuple('ConsoleRequest', 'rid results deferred watchdog')
@@ -49,7 +52,7 @@ class ConsoleClient(LineOnlyReceiver):
     def _make_request(self, timeout):
 
         def on_timeout():
-            log.err("Console request #{0} is timed out".format(rid))
+            LOG.error("Console request #{0} is timed out".format(rid))
             self._requests.remove(request)
             defer.timeout(deferred)
 
@@ -93,21 +96,21 @@ class ConsoleClient(LineOnlyReceiver):
         try:
             rid = int(line.split('|')[1])
         except IndexError:
-            log.err("RID format is malformed in \"{0}\"".format(line))
+            LOG.error("RID format is malformed in \"{0}\"".format(line))
         except ValueError:
-            log.err("Could not get RID value from \"{0}\"".format(line))
+            LOG.error("Could not get RID value from \"{0}\"".format(line))
         else:
             self._process_request_id(rid)
 
     def _process_request_id(self, rid):
         if self._request is None:
             if not self._requests:
-                log.err("No pending requests, but got RID {0}".format(rid))
+                LOG.error("No pending requests, but got RID {0}".format(rid))
                 return
             if rid == self._requests[0].rid:
                 self._request = self._requests.popleft()
             else:
-                log.err("Unexpected RID: {0}".format(rid))
+                LOG.error("Unexpected RID: {0}".format(rid))
         elif self._request.rid == rid:
             request, self._request = self._request, None
             if not request.deferred.called:
@@ -342,14 +345,14 @@ class DeviceLinkProtocol(DatagramProtocol):
 
     def datagramReceived(self, data, address):
         if self.address is not None and address != self.address:
-            log.msg("Message from unknown peer: {0}:{1}.".format(*address))
+            LOG.info("Message from unknown peer: {0}:{1}.".format(*address))
             return
         if data.startswith(DEVICE_LINK_PREFIXES['answer']):
             processor = self.answers_received
         elif data.startswith(DEVICE_LINK_PREFIXES['request']):
             processor = self.requests_received
         else:
-            log.err("Malformed data from {0}: \"{1}\"")
+            LOG.error("Malformed data from {0}: \"{1}\"")
             return
         prepared_data = data[1:].strip(DL_CMD_SEP)
         payloads = self._parse(prepared_data)
@@ -423,7 +426,7 @@ class DeviceLinkClient(DeviceLinkProtocol):
 
     def _answer_received(self, answer):
         if not self._requests:
-            log.err("No pending requests, but got answer {0}".format(answer))
+            LOG.error("No pending requests, but got answer {0}".format(answer))
             return
         opcode, arg = answer
 
@@ -433,12 +436,13 @@ class DeviceLinkClient(DeviceLinkProtocol):
                 request.watchdog.cancel()
                 request.deferred.callback(arg)
         else:
-            log.err("Unexpected opcode: {0}".format(opcode))
+            LOG.error("Unexpected opcode: {0}".format(opcode))
 
     def _make_request(self, opcode, timeout):
 
         def on_timeout():
-            log.err("Device Link request \"{0}\" is timed out".format(opcode))
+            LOG.error(
+                "Device Link request \"{0}\" is timed out".format(opcode))
             self._requests.remove(request)
             defer.timeout(deferred)
 

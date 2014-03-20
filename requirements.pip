@@ -4,6 +4,7 @@
 #
 #     pip install -r requirements.pip
 
+il2ds-log-parser>=0.10.1
 twisted>=13.2.0
+tx-logging>=1.0.0
 zope.interface==4.0.5
-il2ds-log-parser==0.10.0
