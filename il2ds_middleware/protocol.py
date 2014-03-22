@@ -22,8 +22,8 @@ from il2ds_middleware.requests import *
 LOG = tx_logging.getLogger(__name__)
 
 
-ConsoleRequest = namedtuple('ConsoleRequest', 'rid results deferred watchdog')
-DeviceLinkRequest = namedtuple('DeviceLinkRequest', 'opcode deferred watchdog')
+ConsoleRequest = namedtuple('ConsoleRequest', 'rid results deferred')
+DeviceLinkRequest = namedtuple('DeviceLinkRequest', 'opcode deferred')
 
 
 class ConsoleClient(LineOnlyReceiver):
@@ -59,13 +59,15 @@ class ConsoleClient(LineOnlyReceiver):
 
         rid = self._generate_request_id()
         results = []
+
         deferred = defer.Deferred()
+        deferred.addCallback(lambda unused: watchdog.cancel())
 
         from twisted.internet import reactor
         watchdog = reactor.callLater(timeout,
                                      lambda: deferred.called or on_timeout())
 
-        request = ConsoleRequest(rid, results, deferred, watchdog)
+        request = ConsoleRequest(rid, results, deferred)
         self._requests.append(request)
         return request
 
@@ -115,7 +117,6 @@ class ConsoleClient(LineOnlyReceiver):
         elif self._request.rid == rid:
             request, self._request = self._request, None
             if not request.deferred.called:
-                request.watchdog.cancel()
                 request.deferred.callback(request.results)
 
     def server_info(self, timeout=None):
@@ -533,7 +534,6 @@ class DeviceLinkClient(DeviceLinkProtocol):
         if self._requests[0].opcode == opcode:
             request = self._requests.popleft()
             if not request.deferred.called:
-                request.watchdog.cancel()
                 request.deferred.callback(arg)
         else:
             LOG.error("Unexpected opcode: {0}".format(opcode))
@@ -547,12 +547,13 @@ class DeviceLinkClient(DeviceLinkProtocol):
             defer.timeout(deferred)
 
         deferred = defer.Deferred()
+        deferred.addCallback(lambda unused: watchdog.cancel())
 
         from twisted.internet import reactor
         watchdog = reactor.callLater(timeout,
                                      lambda: deferred.called or on_timeout())
 
-        request = DeviceLinkRequest(opcode, deferred, watchdog)
+        request = DeviceLinkRequest(opcode, deferred)
         self._requests.append(request)
         return request
 

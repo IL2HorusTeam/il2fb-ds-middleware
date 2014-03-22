@@ -13,15 +13,13 @@ from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as OPCODE,
 from il2ds_middleware.interface.parser import ILineParser
 from il2ds_middleware.ds_emulator.constants import (LONG_OPERATION_DURATION,
     LONG_OPERATION_CMD, )
-from il2ds_middleware.ds_emulator.interfaces import (IPilotService,
-    IMissionService, IStaticObjectService, IDeviceLinkService, IEventLogger, )
 
 
 LOG = tx_logging.getLogger(__name__)
 
 
 @implementer(ILineParser)
-class _CommonServiceMixin():
+class CommonServiceMixin():
 
     evt_log = None
     client = None
@@ -33,7 +31,7 @@ class _CommonServiceMixin():
             self.parent.send(line)
 
 
-class RootService(MultiService, _CommonServiceMixin):
+class RootService(MultiService, CommonServiceMixin):
     """
     Top-level service.
     """
@@ -134,8 +132,7 @@ class RootService(MultiService, _CommonServiceMixin):
         self.send("<consoleN><{0}>".format(self.user_command_id))
 
 
-@implementer(IPilotService)
-class PilotService(Service, _CommonServiceMixin):
+class PilotService(Service, CommonServiceMixin):
 
     name = "pilots"
     channel = 1
@@ -372,8 +369,7 @@ class PilotService(Service, _CommonServiceMixin):
         return Service.stopService(self)
 
 
-@implementer(IMissionService)
-class MissionService(Service, _CommonServiceMixin):
+class MissionService(Service, CommonServiceMixin):
 
     name = "missions"
     status = MISSION_STATUS.NOT_LOADED
@@ -461,7 +457,6 @@ class MissionService(Service, _CommonServiceMixin):
         return Service.stopService(self)
 
 
-@implementer(IStaticObjectService)
 class StaticService(Service):
 
     name = "static"
@@ -488,7 +483,6 @@ class StaticService(Service):
             if self.objects[x]['state'] != OBJECT_STATE.DESTROYED]
 
 
-@implementer(IDeviceLinkService)
 class DeviceLinkService(Service):
 
     name = "dl"
@@ -558,7 +552,6 @@ class DeviceLinkService(Service):
         return (LONG_OPERATION_CMD, None, )
 
 
-@implementer(IEventLogger)
 class EventLoggingService(Service):
 
     def __init__(self, log_path=None, keep_log=True):
