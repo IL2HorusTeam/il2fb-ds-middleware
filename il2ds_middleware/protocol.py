@@ -6,7 +6,8 @@ from collections import namedtuple, deque
 
 from twisted.internet import defer
 from twisted.internet.error import ConnectionDone
-from twisted.internet.protocol import ClientFactory, DatagramProtocol
+from twisted.internet.protocol import (ClientFactory,
+    ReconnectingClientFactory, DatagramProtocol, )
 from twisted.protocols.basic import LineOnlyReceiver
 
 from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as DL_OPCODE,
@@ -282,7 +283,7 @@ class ConsoleClient(LineOnlyReceiver):
 
 class ConsoleClientFactory(ClientFactory):
     """
-    Factory for building server console's client protocols.
+    Factory for building console's client protocols.
     """
 
     protocol = ConsoleClient
@@ -324,6 +325,105 @@ class ConsoleClientFactory(ClientFactory):
                 d.callback(None)
             else:
                 d.errback(reason)
+
+
+class ReconnectingConsoleClientFactory(ReconnectingClientFactory):
+    """
+    Factory for building console's client protocols with support of
+    reconnection to server in case of loosing connection.
+    """
+    # Client's protocol class.
+    protocol = ConsoleClient
+
+    # Parser instance which will be passed to client's protocol. Instance of
+    # 'ConsolePassthroughParser' will be used if this value is not specified.
+    parser = None
+
+    # Float value for server requests timeout in seconds which will be passed
+    # to client's protocol. 'REQUEST_TIMEOUT' will be used if this value is not
+    # specified.
+    request_timeout = None
+
+    # Client's protocol instance placeholder.
+    client = None
+
+    # Deferred, which will be invoked after the connection with server is
+    # established.
+    on_connected = None
+
+    # Deferred, which will be invoked after the connection with server is lost.
+    # 'on_connected' and 'on_disconnected' deferreds will be recreated before
+    # invocation of this deferred, so you will need to update your callbacks
+    # for connection and disconnection during processing this deferred's
+    # callback.
+    on_disconnected = None
+
+    def __init__(self, parser=None, timeout_value=None):
+        """
+        Optional input:
+        `parser`        : an object implementing IConsoleParser interface
+        `timeout_value` : float value for server requests timeout in seconds
+        """
+        self.parser = parser
+        self.timeout_value = timeout_value
+        self._update_deferreds()
+
+    def buildProtocol(self, addr):
+        """
+        Create a single protocol for communicating with game server's console.
+        """
+        client = ReconnectingClientFactory.buildProtocol(self, addr)
+        client.parser = self.parser or ConsolePassthroughParser()
+        client.timeout_value = self.timeout_value or REQUEST_TIMEOUT
+        self.client = client
+        return self.client
+
+    def clientConnectionMade(self, client):
+        """
+        A callback which is called when connection is successfully established.
+        Invokes public callback and tells about this event to the outer world.
+        """
+        self.resetDelay()
+        LOG.debug("Connection successfully established")
+        if self.on_connected is not None:
+            d, self.on_connected = self.on_connected, None
+            d.callback(client)
+
+    def clientConnectionFailed(self, connector, reason):
+        """
+        A callback which is called when connection could not be established.
+        Overrides base method and logs connection failure.
+        """
+        if self.continueTrying:
+            LOG.error("Failed to connect to server: {0}".format(
+                      unicode(reason.value)))
+        ReconnectingClientFactory.clientConnectionFailed(
+            self, connector, reason)
+
+    def clientConnectionLost(self, connector, reason):
+        d, self.on_disconnected = self.on_disconnected, None
+        if self.continueTrying == 0:
+            LOG.debug("Connection with server was closed.")
+            # Invoke callback and tell that connection was closed cleanly
+            if d:
+                d.callback(None)
+        else:
+            LOG.error("Connection with server is lost: {0}".format(
+                      unicode(reason.value)))
+            self._update_deferreds()
+            # Invoke callback and tell that connection was lost
+            if d:
+                d.errback(reason)
+            ReconnectingClientFactory.clientConnectionLost(
+                self, connector, reason)
+
+    def _update_deferreds(self):
+        """
+        Recreate public deferreds, so listeners can update their callbacks for
+        connection and disconnection events.
+        """
+        self.on_connected = defer.Deferred()
+        self.on_disconnected = defer.Deferred()
 
 
 class DeviceLinkProtocol(DatagramProtocol):
