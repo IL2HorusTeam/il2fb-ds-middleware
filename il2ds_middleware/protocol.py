@@ -456,10 +456,10 @@ class DeviceLinkProtocol(DatagramProtocol):
             LOG.error("Malformed data from {0}: \"{1}\"")
             return
         prepared_data = data[1:].strip(DL_CMD_SEP)
-        payloads = self._parse(prepared_data)
+        payloads = self.decompose(prepared_data)
         processor(payloads, address)
 
-    def _parse(self, data):
+    def decompose(self, data):
         results = []
         for chunk in data.split(DL_CMD_SEP):
             command = chunk.split(DL_ARGS_SEP)
@@ -468,10 +468,14 @@ class DeviceLinkProtocol(DatagramProtocol):
         return results
 
     def answers_received(self, answers, address):
-        """Process received answers from server."""
+        """
+        Process received answers from server.
+        """
 
     def requests_received(self, requests, address):
-        """Process received requests from client."""
+        """
+        Process received requests from client.
+        """
 
     def send_request(self, request, address=None):
         self.send_requests([request, ], address)
@@ -487,10 +491,10 @@ class DeviceLinkProtocol(DatagramProtocol):
 
     def _send_payloads(self, prefix, payloads, address=None):
         data = DL_CMD_SEP.join(
-            [prefix, self._format(payloads), ])
+            [prefix, self.compose(payloads), ])
         self.transport.write(data, address or self.address)
 
-    def _format(self, payloads):
+    def compose(self, payloads):
         chunks = []
         for payload in payloads:
             cmd, arg = payload
@@ -593,18 +597,18 @@ class DeviceLinkClient(DeviceLinkProtocol):
         self.send_request(DL_OPCODE.RADAR_REFRESH.make_command())
         return defer.succeed(None)
 
-    def pilot_count(self):
+    def pilot_count(self, timeout=None):
         """
         Request active pilots count.
 
         Output:
         Deferred object.
         """
-        d = self._deferred_request(DL_OPCODE.PILOT_COUNT.make_command())
-        d.addCallback(self.parser.pilot_count)
-        return d
+        return self._deferred_request(
+            DL_OPCODE.PILOT_COUNT.make_command(), timeout).addCallback(
+            self.parser.pilot_count)
 
-    def pilot_pos(self, index):
+    def pilot_pos(self, index, timeout=None):
         """
         Request active pilot position.
 
@@ -614,33 +618,33 @@ class DeviceLinkClient(DeviceLinkProtocol):
         Output:
         Deferred object.
         """
-        d = self._deferred_request(DL_OPCODE.PILOT_POS.make_command(index))
-        d.addCallback(self.parser.pilot_pos)
-        return d
+        return self._deferred_request(
+            DL_OPCODE.PILOT_POS.make_command(index), timeout).addCallback(
+            self.parser.pilot_pos)
 
-    def all_pilots_pos(self):
+    def all_pilots_pos(self, timeout=None):
         """
         Request list of positions of all active pilots.
 
         Output:
         Deferred object.
         """
-        d = self._all_pos(self.pilot_count, DL_OPCODE.PILOT_POS)
-        d.addCallback(self.parser.all_pilots_pos)
-        return d
+        return self._all_pos(
+            self.pilot_count, DL_OPCODE.PILOT_POS, timeout).addCallback(
+            self.parser.all_pilots_pos)
 
-    def static_count(self):
+    def static_count(self, timeout=None):
         """
         Request active static objects count.
 
         Output:
         Deferred object.
         """
-        d = self._deferred_request(DL_OPCODE.STATIC_COUNT.make_command())
-        d.addCallback(self.parser.static_count)
-        return d
+        return self._deferred_request(
+            DL_OPCODE.STATIC_COUNT.make_command(), timeout).addCallback(
+            self.parser.static_count)
 
-    def static_pos(self, index):
+    def static_pos(self, index, timeout=None):
         """
         Request active static object position.
 
@@ -650,28 +654,28 @@ class DeviceLinkClient(DeviceLinkProtocol):
         Output:
         Deferred object.
         """
-        d = self._deferred_request(DL_OPCODE.STATIC_POS.make_command(index))
-        d.addCallback(self.parser.static_pos)
-        return d
+        return self._deferred_request(
+            DL_OPCODE.STATIC_POS.make_command(index), timeout).addCallback(
+            self.parser.static_pos)
 
-    def all_static_pos(self):
+    def all_static_pos(self, timeout=None):
         """
         Request list of positions of all active static objects.
 
         Output:
         Deferred object.
         """
-        d = self._all_pos(self.static_count, DL_OPCODE.STATIC_POS)
-        d.addCallback(self.parser.all_static_pos)
-        return d
+        return self._all_pos(
+            self.static_count, DL_OPCODE.STATIC_POS, timeout).addCallback(
+            self.parser.all_static_pos)
 
-    def _all_pos(self, get_count, pos_opcode):
+    def _all_pos(self, get_count, pos_opcode, timeout=None):
 
         def on_count(result):
             count = int(result)
             if not count:
                 return []
             return self._deferred_requests([
-                pos_opcode.make_command(i) for i in xrange(count)])
+                pos_opcode.make_command(i) for i in xrange(count)], timeout)
 
         return get_count().addCallback(on_count)
