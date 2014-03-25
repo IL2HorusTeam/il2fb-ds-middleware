@@ -53,8 +53,10 @@ class UnexpectedLineError(Exception):
 
 class BaseTestCase(unittest.TestCase):
 
-    device_link_server_host = "127.0.0.1"
-    device_link_server_port = 0
+    dl_server_host = "127.0.0.1"
+    dl_server_port = 0
+
+    log_path = None
 
     def setUp(self):
         # Init console --------------------------------------------------------
@@ -64,7 +66,7 @@ class BaseTestCase(unittest.TestCase):
         self.console_server = ConsoleServer()
         self.console_server.factory = ConsoleServerFactory()
 
-        self.server_service = RootService()
+        self.server_service = RootService(self.log_path)
 
         self.server_service.client = self.console_server
         self.console_server.service = self.server_service
@@ -79,8 +81,8 @@ class BaseTestCase(unittest.TestCase):
 
         from twisted.internet import reactor
         self.dl_server_listener = reactor.listenUDP(
-            self.device_link_server_port, self.dl_server,
-            interface=self.device_link_server_host)
+            self.dl_server_port, self.dl_server,
+            interface=self.dl_server_host)
 
         endpoint = self.dl_server_listener.getHost()
         self.dl_client = DeviceLinkClient((endpoint.host, endpoint.port))
@@ -131,16 +133,17 @@ class BaseTestCase(unittest.TestCase):
         add_watchdog(d, timeout)
         return got_line, d
 
+    def _expect_lines(self, expected_lines=None, timeout=None):
+        return self._get_expecting_line_receiver(expected_lines, timeout) \
+               if expected_lines else \
+               self._get_unexpecting_line_receiver(timeout)
+
     def expect_console_lines(self, expected_lines=None, timeout=None):
-        self.console_client.lineReceived, d = \
-            self._get_expecting_line_receiver(expected_lines, timeout) \
-            if expected_lines else \
-            self._get_unexpecting_line_receiver(timeout)
+        self.console_client.lineReceived, d = self._expect_lines(
+            expected_lines, timeout)
         return d
 
     def expect_dl_lines(self, expected_lines=None, timeout=None):
-        self.dl_client.got_line, d = \
-            self._get_expecting_line_receiver(expected_lines, timeout) \
-            if expected_lines else \
-            self._get_unexpecting_line_receiver(timeout)
+        self.dl_client.got_line, d = self._expect_lines(
+            expected_lines, timeout)
         return d

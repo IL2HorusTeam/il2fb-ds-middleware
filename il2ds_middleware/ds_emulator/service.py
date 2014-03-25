@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import datetime
-import os
 import tx_logging
 
 from collections import OrderedDict
@@ -118,10 +117,10 @@ class RootService(MultiService, CommonServiceMixin):
         self.send("Chat: Server: \t{0}".format(msg))
         return True
 
-    def set_server_info(self, name="", description=""):
+    def set_server_info(self, name=None, description=None):
         self.info = {
-            'name': name,
-            'description': description,
+            'name': name or "",
+            'description': description or "",
         }
 
     def manual_input(self, line):
@@ -216,14 +215,12 @@ class PilotService(Service, CommonServiceMixin):
         pilot = create_pilot()
         self.pilots[callsign] = pilot
 
-        self.send(
-            "socket channel '{0}' start creating: ip {1}:{2}".format(
-                pilot['channel'], pilot['ip'], self.port))
+        self.send("socket channel '{0}' start creating: ip {1}:{2}".format(
+                  pilot['channel'], pilot['ip'], self.port))
         self.send("Chat: --- {0} joins the game.".format(callsign))
-        self.send(
-            "socket channel '{0}', ip {1}:{2}, {3}, "
-            "is complete created.".format(
-                pilot['channel'], pilot['ip'], self.port, callsign))
+        self.send("socket channel '{0}', ip {1}:{2}, {3}, "
+                  "is complete created.".format(
+                  pilot['channel'], pilot['ip'], self.port, callsign))
         self.evt_log.enlog("{0} has connected".format(callsign))
 
     def leave(self, callsign):
@@ -277,21 +274,20 @@ class PilotService(Service, CommonServiceMixin):
             }
             self.evt_log.enlog(
                 "{0}:{1}(0) seat occupied by {0} at {2} {3}".format(
-                    callsign, pilot['craft']['code'],
-                    pilot['pos']['x'], pilot['pos']['y']))
+                callsign, pilot['craft']['code'],
+                pilot['pos']['x'], pilot['pos']['y']))
             self.evt_log.enlog(
                 "{0}:{1} loaded weapons '{2}' fuel {3}%".format(
-                    callsign, pilot['craft']['code'],
-                    pilot['craft']['weapons'], pilot['craft']['fuel']))
+                callsign, pilot['craft']['code'],
+                pilot['craft']['weapons'], pilot['craft']['fuel']))
 
     def kill(self, callsign):
         pilot = self.pilots.get(callsign)
         if pilot is not None:
             pilot['state'] = PILOT_STATE.DEAD
-            self.evt_log.enlog(
-                "{0}:{1}(0) was killed at {2} {3}".format(
-                    callsign, pilot['craft']['code'],
-                    pilot['pos']['x'], pilot['pos']['y']))
+            self.evt_log.enlog("{0}:{1}(0) was killed at {2} {3}".format(
+                               callsign, pilot['craft']['code'],
+                               pilot['pos']['x'], pilot['pos']['y']))
 
     def get_active(self):
         return [
@@ -467,8 +463,7 @@ class StaticService(Service):
 
     def spawn(self, name, pos=None):
         self.objects[name] = {
-            'pos': pos or {
-                'x': 0, 'y': 0, 'z': 0, },
+            'pos': pos or {'x': 0, 'y': 0, 'z': 0, },
             'state': OBJECT_STATE.ALIVE,
         }
 
@@ -479,8 +474,10 @@ class StaticService(Service):
             name, attacker_name, obj['pos']['x'], obj['pos']['y']))
 
     def get_active(self):
-        return [x for x in self.objects.keys()
-            if self.objects[x]['state'] != OBJECT_STATE.DESTROYED]
+        return [
+            x for x in self.objects.keys()
+            if self.objects[x]['state'] != OBJECT_STATE.DESTROYED
+        ]
 
 
 class DeviceLinkService(Service):
@@ -506,11 +503,10 @@ class DeviceLinkService(Service):
         return OPCODE.PILOT_COUNT.make_command(result)
 
     def pilot_pos(self, arg):
-        data = self._pos(
-            known_container=self.known_air,
-            primary_container=self.pilot_srvc.pilots,
-            invalid_states=[PILOT_STATE.IDLE, PILOT_STATE.DEAD, ],
-            idx=arg, idx_append=True)
+        data = self._pos(known_container=self.known_air,
+                         primary_container=self.pilot_srvc.pilots,
+                         invalid_states=[PILOT_STATE.IDLE, PILOT_STATE.DEAD, ],
+                         idx=arg, idx_append=True)
         return OPCODE.PILOT_POS.make_command(data) if data else None
 
     def static_count(self):
@@ -518,15 +514,14 @@ class DeviceLinkService(Service):
         return OPCODE.STATIC_COUNT.make_command(result)
 
     def static_pos(self, arg):
-        data = self._pos(
-            known_container=self.known_static,
-            primary_container=self.static_srvc.objects,
-            invalid_states=[OBJECT_STATE.DESTROYED, ],
-            idx=arg)
+        data = self._pos(known_container=self.known_static,
+                         primary_container=self.static_srvc.objects,
+                         invalid_states=[OBJECT_STATE.DESTROYED, ],
+                         idx=arg)
         return OPCODE.STATIC_POS.make_command(data) if data else None
 
     def _pos(self, known_container, primary_container, invalid_states,
-            idx, idx_append=False):
+             idx, idx_append=False):
         if idx is None:
             return None
         try:
@@ -599,6 +594,4 @@ class EventLoggingService(Service):
 
     def stopService(self):
         self.stop_log()
-        if self.log_path is not None and os.path.isfile(self.log_path):
-            os.remove(self.log_path)
         return Service.stopService(self)
