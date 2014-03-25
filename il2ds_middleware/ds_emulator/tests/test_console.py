@@ -20,11 +20,11 @@ class ConnectionTestCase(unittest.TestCase):
             def makeConnection(self, transport):
                 self.transport = transport
 
+        factory = ConsoleServerFactory()
+        server = factory.buildProtocol(addr=None)
         client = TestProtocol()
-        server = ConsoleServer()
-        server.factory = ConsoleServerFactory()
 
-        d = server.factory.on_connected
+        d = factory.on_connected
         add_watchdog(d)
 
         loopback.loopbackAsync(server, client)
@@ -33,11 +33,11 @@ class ConnectionTestCase(unittest.TestCase):
         return d
 
     def test_disconnection(self):
+        factory = ConsoleServerFactory()
+        server = factory.buildProtocol(addr=None)
         client = Protocol()
-        server = ConsoleServer()
-        server.factory = ConsoleServerFactory()
 
-        d = server.factory.on_connection_lost
+        d = factory.on_connection_lost
         add_watchdog(d)
 
         loopback.loopbackAsync(server, client)

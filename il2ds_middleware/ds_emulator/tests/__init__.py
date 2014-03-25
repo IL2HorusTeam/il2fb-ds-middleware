@@ -10,26 +10,7 @@ from il2ds_middleware.ds_emulator.protocol import (ConsoleServer,
     ConsoleServerFactory, DeviceLinkServerProtocol, )
 from il2ds_middleware.ds_emulator.service import RootService
 
-
-def add_watchdog(deferred, timeout=None, callback=None):
-
-    def _callback(value):
-        if not watchdog.called:
-            watchdog.cancel()
-        return value
-
-    deferred.addBoth(_callback)
-
-    def on_timeout():
-        if deferred.called:
-            return
-        if callback is not None:
-            callback()
-        else:
-            defer.timeout(deferred)
-
-    from twisted.internet import reactor
-    watchdog = reactor.callLater(timeout or 0.05, on_timeout)
+from il2ds_middleware.tests import add_watchdog, UnexpectedLineError
 
 
 class DeviceLinkClient(DeviceLinkProtocol):
@@ -40,15 +21,6 @@ class DeviceLinkClient(DeviceLinkProtocol):
 
     def got_line(self, line):
         pass
-
-
-class UnexpectedLineError(Exception):
-
-    def __init__(self, line):
-        self.line = line
-
-    def __str__(self):
-        return "Unexpected line: {0}".format(self.line)
 
 
 class BaseTestCase(unittest.TestCase):

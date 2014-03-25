@@ -36,8 +36,13 @@ class ConsoleServerFactory(ServerFactory):
     protocol = ConsoleServer
 
     def __init__(self):
+        self._client = None
         self.on_connected = Deferred()
         self.on_connection_lost = Deferred()
+
+    def buildProtocol(self, addr):
+        self._client = ServerFactory.buildProtocol(self, addr)
+        return self._client
 
     def client_connected(self, client):
         if self.on_connected is not None:
