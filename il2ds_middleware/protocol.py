@@ -60,7 +60,7 @@ class ConsoleClient(LineOnlyReceiver):
             self._requests.remove(request)
             defer.timeout(deferred)
 
-        def _callback(value):
+        def clean_up(value):
             if not watchdog.called:
                 watchdog.cancel()
             return value
@@ -69,7 +69,7 @@ class ConsoleClient(LineOnlyReceiver):
         results = []
 
         deferred = defer.Deferred()
-        deferred.addBoth(_callback)
+        deferred.addBoth(clean_up)
 
         from twisted.internet import reactor
         watchdog = reactor.callLater(timeout,
@@ -547,8 +547,13 @@ class DeviceLinkClient(DeviceLinkProtocol):
             self._requests.remove(request)
             defer.timeout(deferred)
 
+        def clean_up(value):
+            if not watchdog.called:
+                watchdog.cancel()
+            return value
+
         deferred = defer.Deferred()
-        deferred.addCallback(lambda unused: watchdog.cancel())
+        deferred.addBoth(clean_up)
 
         from twisted.internet import reactor
         watchdog = reactor.callLater(timeout,
@@ -558,14 +563,14 @@ class DeviceLinkClient(DeviceLinkProtocol):
         self._requests.append(request)
         return request
 
-    def _deferred_request(self, command, timeout=None):
+    def deferred_request(self, command, timeout=None):
         timeout = timeout or self.timeout
         request = self._make_request(command.opcode, timeout)
         self.send_request(command)
         return request.deferred
 
     @defer.inlineCallbacks
-    def _deferred_requests(self, commands, timeout=None):
+    def deferred_requests(self, commands, timeout=None):
         timeout = timeout or self.timeout
 
         def on_results(results):
@@ -601,7 +606,7 @@ class DeviceLinkClient(DeviceLinkProtocol):
         Output:
         Deferred object.
         """
-        return self._deferred_request(
+        return self.deferred_request(
             DL_OPCODE.PILOT_COUNT.make_command(), timeout).addCallback(
             self.parser.pilot_count)
 
@@ -615,7 +620,7 @@ class DeviceLinkClient(DeviceLinkProtocol):
         Output:
         Deferred object.
         """
-        return self._deferred_request(
+        return self.deferred_request(
             DL_OPCODE.PILOT_POS.make_command(index), timeout).addCallback(
             self.parser.pilot_pos)
 
@@ -637,7 +642,7 @@ class DeviceLinkClient(DeviceLinkProtocol):
         Output:
         Deferred object.
         """
-        return self._deferred_request(
+        return self.deferred_request(
             DL_OPCODE.STATIC_COUNT.make_command(), timeout).addCallback(
             self.parser.static_count)
 
@@ -651,7 +656,7 @@ class DeviceLinkClient(DeviceLinkProtocol):
         Output:
         Deferred object.
         """
-        return self._deferred_request(
+        return self.deferred_request(
             DL_OPCODE.STATIC_POS.make_command(index), timeout).addCallback(
             self.parser.static_pos)
 
@@ -672,7 +677,7 @@ class DeviceLinkClient(DeviceLinkProtocol):
             count = int(result)
             if not count:
                 return []
-            return self._deferred_requests([
+            return self.deferred_requests([
                 pos_opcode.make_command(i) for i in xrange(count)], timeout)
 
         return get_count().addCallback(on_count)

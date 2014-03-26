@@ -68,7 +68,7 @@ class DeviceLinkServerProtocol(DeviceLinkProtocol):
                 opcode = OPCODE.lookupByValue(cmd)
             except ValueError:
                 if cmd == LONG_OPERATION_CMD:
-                    answers.append(self.service.long_operation())
+                    return
                 else:
                     LOG.error("Unknown command: {0}".format(cmd))
             else:

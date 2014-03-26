@@ -3,12 +3,14 @@ from twisted.internet import error, defer
 from twisted.protocols import loopback
 from twisted.trial import unittest
 
+from il2ds_middleware.constants import DeviceLinkCommand
 from il2ds_middleware.parser import ConsolePassthroughParser
 from il2ds_middleware.protocol import (ConsoleClient, ConsoleClientFactory,
-    ReconnectingConsoleClientFactory, )
+    ReconnectingConsoleClientFactory, DeviceLinkClient, )
 
 from il2ds_middleware.ds_emulator.constants import LONG_OPERATION_CMD
-from il2ds_middleware.ds_emulator.protocol import ConsoleServerFactory
+from il2ds_middleware.ds_emulator.protocol import (ConsoleServerFactory,
+    DeviceLinkServerProtocol, )
 from il2ds_middleware.ds_emulator.service import RootService
 
 from il2ds_middleware.tests import expecting_line_receiver
@@ -186,8 +188,6 @@ class ReconnectingConsoleClientFactoryTestCase(unittest.TestCase):
 
 class ConsoleClientTestCase(unittest.TestCase):
 
-    log_path = None
-
     def setUp(self):
         # Init console --------------------------------------------------------
         factory = ConsoleClientFactory()
@@ -196,7 +196,7 @@ class ConsoleClientTestCase(unittest.TestCase):
         factory = ConsoleServerFactory()
         self.console_server = factory.buildProtocol(addr=None)
 
-        self.server_service = RootService(self.log_path)
+        self.server_service = RootService()
         self.pilots = self.server_service.getServiceNamed('pilots')
         self.missions = self.server_service.getServiceNamed('missions')
 
@@ -440,3 +440,125 @@ class ConsoleClientTestCase(unittest.TestCase):
         self.assertEqual(strings, [
             " N       Name           Ping    Score   Army        Aircraft",
         ])
+
+
+class DeviceLinkClientProtocolTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.server_service = RootService()
+        self.pilots = self.server_service.getServiceNamed('pilots')
+        self.static = self.server_service.getServiceNamed('static')
+        self.server_service.startService()
+
+        # Init Device Link ----------------------------------------------------
+        self.dl_server = DeviceLinkServerProtocol()
+        self.dl_server.service = self.server_service.getServiceNamed('dl')
+
+        from twisted.internet import reactor
+        self.dl_server_listener = reactor.listenUDP(0, self.dl_server,
+                                                    interface="127.0.0.1")
+
+        endpoint = self.dl_server_listener.getHost()
+        self.dl_client = DeviceLinkClient((endpoint.host, endpoint.port))
+        self.dl_client_connector = reactor.listenUDP(0, self.dl_client)
+
+    def tearDown(self):
+        self.dl_client_connector.stopListening()
+        self.dl_server_listener.stopListening()
+
+        return self.server_service.stopService()
+
+    def _spawn_pilots(self):
+        for i in xrange(2, 255):
+            callsign = "user{0}".format(i - 2)
+            self.pilots.join(callsign, "192.168.1.{0}".format(i))
+            self.pilots.spawn(callsign, pos={
+                'x': i*100, 'y': i*200, 'z': i*300, })
+
+    def _spawn_static(self):
+        for i in xrange(1000):
+            self.static.spawn("{0}_Static".format(i), pos={
+                'x': i*100, 'y': i*200, 'z': i*300, })
+
+    def test_long_operation(self):
+        command = DeviceLinkCommand(LONG_OPERATION_CMD, None)
+        d = self.dl_client.deferred_request(command)
+        return self.assertFailure(d, defer.TimeoutError)
+
+    @defer.inlineCallbacks
+    def test_pilot_count(self):
+        response = yield self.dl_client.pilot_count()
+        self.assertEqual(response, '0')
+
+        self._spawn_pilots()
+        yield self.dl_client.refresh_radar()
+
+        response = yield self.dl_client.pilot_count()
+        self.assertEqual(response, '253')
+
+    @defer.inlineCallbacks
+    def test_pilot_pos(self):
+        self.pilots.join("user0", "192.168.1.2")
+        self.pilots.spawn("user0", pos={'x': 100, 'y': 200, 'z': 300, })
+
+        yield self.dl_client.refresh_radar()
+        response = yield self.dl_client.pilot_pos(0)
+        self.assertEqual(response, '0:user0_0;100;200;300')
+
+    @defer.inlineCallbacks
+    def test_all_pilots_pos(self):
+        self._spawn_pilots()
+        yield self.dl_client.refresh_radar()
+        responses = yield self.dl_client.all_pilots_pos()
+
+        self.assertIsInstance(responses, list)
+        self.assertEqual(len(responses), 253)
+        checked = []
+        for s in responses:
+            start = s.index('user') + 4
+            stop = s.index(';')
+
+            idx = int(s[start:stop].split('_')[0])
+            self.assertNotIn(idx, checked)
+            checked.append(idx)
+
+    @defer.inlineCallbacks
+    def test_static_count(self):
+        response = yield self.dl_client.static_count()
+        self.assertEqual(response, '0')
+
+        self._spawn_static()
+        yield self.dl_client.refresh_radar()
+        response = yield self.dl_client.static_count()
+        self.assertEqual(response, '1000')
+
+    @defer.inlineCallbacks
+    def test_static_pos(self):
+        self.static.spawn("0_Static", pos={'x': 100, 'y': 200, 'z': 300, })
+        yield self.dl_client.refresh_radar()
+        response = yield self.dl_client.static_pos(0)
+        self.assertEqual(response, '0:0_Static;100;200;300')
+
+    @defer.inlineCallbacks
+    def test_all_static_pos(self):
+        self._spawn_static()
+
+        yield self.dl_client.refresh_radar()
+        responses = yield self.dl_client.all_static_pos()
+
+        self.assertIsInstance(responses, list)
+        self.assertEqual(len(responses), 1000)
+        checked = []
+        for s in responses:
+            start = s.index(':') + 1
+            stop = s.index('_')
+            idx = int(s[start:stop])
+            self.assertNotIn(idx, checked)
+            checked.append(idx)
+
+    @defer.inlineCallbacks
+    def test_all_pos_with_no_count(self):
+        response = yield self.dl_client._all_pos(
+            lambda: defer.succeed(0), 'foo')
+        self.assertIsInstance(response, list)
+        self.assertEqual(response, [])

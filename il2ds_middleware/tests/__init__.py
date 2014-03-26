@@ -15,12 +15,12 @@ class UnexpectedLineError(Exception):
 
 def add_watchdog(deferred, timeout=None, callback=None):
 
-    def _callback(value):
+    def clean_up(value):
         if not watchdog.called:
             watchdog.cancel()
         return value
 
-    deferred.addBoth(_callback)
+    deferred.addBoth(clean_up)
 
     def on_timeout():
         if deferred.called:
