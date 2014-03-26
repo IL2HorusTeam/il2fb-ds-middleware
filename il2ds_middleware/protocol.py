@@ -42,6 +42,9 @@ class ConsoleClient(LineOnlyReceiver):
         self._request = None
         self._requests = deque()
 
+        from twisted.internet import reactor
+        self.clock = reactor
+
     def connectionMade(self):
         self.factory.clientConnectionMade(self)
 
@@ -57,11 +60,16 @@ class ConsoleClient(LineOnlyReceiver):
             self._requests.remove(request)
             defer.timeout(deferred)
 
+        def _callback(value):
+            if not watchdog.called:
+                watchdog.cancel()
+            return value
+
         rid = self._generate_request_id()
         results = []
 
         deferred = defer.Deferred()
-        deferred.addCallback(lambda unused: watchdog.cancel())
+        deferred.addBoth(_callback)
 
         from twisted.internet import reactor
         watchdog = reactor.callLater(timeout,
@@ -71,12 +79,14 @@ class ConsoleClient(LineOnlyReceiver):
         self._requests.append(request)
         return request
 
-    def _send_request(self, line, timeout=None):
+    def send_request(self, line, timeout=None):
         request = self._make_request(timeout or self.timeout)
         wrapper = "rid|{0}".format(request.rid)
+
         self.sendLine(wrapper)
         self.sendLine(line)
         self.sendLine(wrapper)
+
         return request.deferred
 
     def lineReceived(self, line):
@@ -123,14 +133,14 @@ class ConsoleClient(LineOnlyReceiver):
         """
         Request server info. Returns deferred.
         """
-        return self._send_request(REQ_SERVER_INFO, timeout).addCallback(
+        return self.send_request(REQ_SERVER_INFO, timeout).addCallback(
             self.parser.server_info)
 
     def mission_status(self, timeout=None):
         """
         Request mission status. Returns deferred.
         """
-        return self._send_request(REQ_MISSION_STATUS, timeout).addCallback(
+        return self.send_request(REQ_MISSION_STATUS, timeout).addCallback(
             self.parser.mission_status)
 
     def mission_load(self, mission, timeout=None):
@@ -144,7 +154,7 @@ class ConsoleClient(LineOnlyReceiver):
         Deferred object.
         """
         timeout = timeout or REQUEST_MISSION_LOAD_TIMEOUT
-        return self._send_request(
+        return self.send_request(
             REQ_MISSION_LOAD.format(mission), timeout).addCallback(
             self.parser.mission_status)
 
@@ -152,21 +162,21 @@ class ConsoleClient(LineOnlyReceiver):
         """
         Request to begin mission. Returns deferred.
         """
-        return self._send_request(REQ_MISSION_BEGIN, timeout).addCallback(
+        return self.send_request(REQ_MISSION_BEGIN, timeout).addCallback(
             lambda unused: self.mission_status(timeout))
 
     def mission_end(self, timeout=None):
         """
         Request to end mission. Returns deferred.
         """
-        return self._send_request(REQ_MISSION_END, timeout).addCallback(
+        return self.send_request(REQ_MISSION_END, timeout).addCallback(
             lambda unused: self.mission_status(timeout))
 
     def mission_destroy(self, timeout=None):
         """
         Request to end mission. Returns deferred.
         """
-        return self._send_request(REQ_MISSION_DESTROY, timeout).addCallback(
+        return self.send_request(REQ_MISSION_DESTROY, timeout).addCallback(
             lambda unused: self.mission_status(timeout))
 
     def chat_all(self, message):
@@ -231,14 +241,14 @@ class ConsoleClient(LineOnlyReceiver):
         Get full information about pilots' statistics shown by 'user STAT'
         command. Returns deferred.
         """
-        strings = yield self._send_request(REQ_USERS_STATISTICS, timeout)
+        strings = yield self.send_request(REQ_USERS_STATISTICS, timeout)
         defer.returnValue(self.parser.users_statistics(strings))
 
     def _request_users_common_info(self, timeout=None):
         """
         Request output lines from 'user' command. Returns deferred.
         """
-        return self._send_request(REQ_USERS_COMMON_INFO, timeout)
+        return self.send_request(REQ_USERS_COMMON_INFO, timeout)
 
     def kick_callsign(self, callsign, timeout=None):
         """

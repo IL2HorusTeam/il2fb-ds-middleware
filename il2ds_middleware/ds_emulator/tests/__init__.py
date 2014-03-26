@@ -25,9 +25,6 @@ class DeviceLinkClient(DeviceLinkProtocol):
 
 class BaseTestCase(unittest.TestCase):
 
-    dl_server_host = "127.0.0.1"
-    dl_server_port = 0
-
     log_path = None
 
     def setUp(self):
@@ -35,8 +32,8 @@ class BaseTestCase(unittest.TestCase):
         self.console_client = basic.LineReceiver()
         self.console_client.lineReceived = lambda line: None
 
-        self.console_server = ConsoleServer()
-        self.console_server.factory = ConsoleServerFactory()
+        factory = ConsoleServerFactory()
+        self.console_server = factory.buildProtocol(addr=None)
 
         self.server_service = RootService(self.log_path)
 
@@ -52,9 +49,8 @@ class BaseTestCase(unittest.TestCase):
         self.dl_server.service = self.server_service.getServiceNamed('dl')
 
         from twisted.internet import reactor
-        self.dl_server_listener = reactor.listenUDP(
-            self.dl_server_port, self.dl_server,
-            interface=self.dl_server_host)
+        self.dl_server_listener = reactor.listenUDP(0, self.dl_server,
+                                                    interface="127.0.0.1")
 
         endpoint = self.dl_server_listener.getHost()
         self.dl_client = DeviceLinkClient((endpoint.host, endpoint.port))

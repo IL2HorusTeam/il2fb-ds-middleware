@@ -10,8 +10,7 @@ from zope.interface import implementer
 from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as OPCODE,
     MISSION_STATUS, PILOT_STATE, OBJECT_STATE, )
 from il2ds_middleware.interface.parser import ILineParser
-from il2ds_middleware.ds_emulator.constants import (LONG_OPERATION_DURATION,
-    LONG_OPERATION_CMD, )
+from il2ds_middleware.ds_emulator.constants import LONG_OPERATION_CMD
 
 
 LOG = tx_logging.getLogger(__name__)
@@ -34,10 +33,10 @@ class RootService(MultiService, CommonServiceMixin):
     """
     Top-level service.
     """
-    lop_duration = LONG_OPERATION_DURATION
 
     def __init__(self, log_path=None):
         MultiService.__init__(self)
+        self.muted = False
         self.evt_log = EventLoggingService(log_path)
         self.user_command_id = 0
         self.set_server_info()
@@ -60,6 +59,12 @@ class RootService(MultiService, CommonServiceMixin):
             service.setServiceParent(self)
             service.evt_log = self.evt_log
 
+    def mute(self):
+        self.muted = True
+
+    def unmute(self):
+        self.muted = False
+
     def startService(self):
         MultiService.startService(self)
 
@@ -68,15 +73,16 @@ class RootService(MultiService, CommonServiceMixin):
         return MultiService.stopService(self)
 
     def parse_line(self, line):
-        result = False
-        for service in self.services:
-            if not ILineParser.providedBy(service):
-                continue
-            result = service.parse_line(line)
-            if result:
-                break
-        if not result and not self._parse(line):
-            self.send("Command not found: " + line)
+        if not self.muted:
+            result = False
+            for service in self.services:
+                if not ILineParser.providedBy(service):
+                    continue
+                result = service.parse_line(line)
+                if result:
+                    break
+            if not result and not self._parse(line):
+                self.send("Command not found: " + line)
         return True
 
     def _parse(self, line):
@@ -85,7 +91,6 @@ class RootService(MultiService, CommonServiceMixin):
                 self._server_info()
                 break
             if line == LONG_OPERATION_CMD:
-                self._long_operation()
                 break
             if line.startswith("chat"):
                 return self._chat(line)
@@ -100,10 +105,6 @@ class RootService(MultiService, CommonServiceMixin):
         ]
         for line in response:
             self.send(line)
-
-    def _long_operation(self):
-        import time
-        time.sleep(self.lop_duration)
 
     def _chat(self, line):
         idx = line.find('ALL')
@@ -483,7 +484,6 @@ class StaticService(Service):
 class DeviceLinkService(Service):
 
     name = "dl"
-    lop_duration = LONG_OPERATION_DURATION
     pilot_srvc = None
     static_srvc = None
 
@@ -540,11 +540,6 @@ class DeviceLinkService(Service):
                 data = ';'.join([str(chunk) for chunk in chunks])
         finally:
             return ':'.join([idx, data, ])
-
-    def long_operation(self):
-        import time
-        time.sleep(self.lop_duration)
-        return (LONG_OPERATION_CMD, None, )
 
 
 class EventLoggingService(Service):
