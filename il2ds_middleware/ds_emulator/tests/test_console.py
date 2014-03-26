@@ -6,8 +6,9 @@ from twisted.trial import unittest
 
 from il2ds_middleware.ds_emulator.protocol import (ConsoleServer,
     ConsoleServerFactory, )
-from il2ds_middleware.ds_emulator.tests import (BaseTestCase,
-    UnexpectedLineError, add_watchdog, )
+from il2ds_middleware.ds_emulator.tests import BaseTestCase
+
+from il2ds_middleware.tests import UnexpectedLineError, add_watchdog
 
 
 class ConnectionTestCase(unittest.TestCase):

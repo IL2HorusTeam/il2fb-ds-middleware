@@ -11,6 +11,7 @@ from il2ds_middleware.interface.parser import ILineParser
 from il2ds_middleware.service import LogWatchingBaseService
 
 from il2ds_middleware.ds_emulator.tests import BaseTestCase
+from il2ds_middleware.tests import expect_lines
 
 
 LOG = tx_logging.getLogger(__name__)
@@ -65,7 +66,7 @@ class EventsLogTestCase(BaseTestCase):
         missions = self.server_service.getServiceNamed('missions')
         static = self.server_service.getServiceNamed('static')
 
-        self.log_watcher.process_line, d = self._expect_lines([
+        self.log_watcher.process_line, d = expect_lines([
             "Mission: net/dogfight/test.mis is Playing\n",
             "Mission BEGIN\n",
             "user0 has connected\n",

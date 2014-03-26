@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from twisted.internet import error, defer
 from twisted.protocols import loopback
-from twisted.python.failure import Failure
 from twisted.trial import unittest
 
 from il2ds_middleware.parser import ConsolePassthroughParser
@@ -12,7 +11,7 @@ from il2ds_middleware.ds_emulator.constants import LONG_OPERATION_CMD
 from il2ds_middleware.ds_emulator.protocol import ConsoleServerFactory
 from il2ds_middleware.ds_emulator.service import RootService
 
-from il2ds_middleware.tests import add_watchdog, UnexpectedLineError
+from il2ds_middleware.tests import expecting_line_receiver
 
 
 class ConsoleClientFactoryTestCase(unittest.TestCase):
@@ -212,35 +211,9 @@ class ConsoleClientTestCase(unittest.TestCase):
         self.console_server.transport.loseConnection()
         return self.server_service.stopService()
 
-    def _get_expecting_line_receiver(self, expected_lines, timeout=None):
-        expected_lines = expected_lines[:]
-
-        def got_line(line):
-            if d.called:
-                return
-            if expected_lines:
-                try:
-                    self.assertEqual(line, expected_lines.pop(0))
-                except Exception as e:
-                    d.errback(e)
-                else:
-                    if not expected_lines:
-                        d.callback(None)
-            else:
-                d.errback(Failure(UnexpectedLineError(line)))
-
-        def on_timeout():
-            d.errback(unittest.FailTest(
-                "Timed out, remaining lines:\n{0}".format(
-                "\n\t".join(["\"%s\"" % line for line in expected_lines]))))
-
-        d = defer.Deferred()
-        add_watchdog(d, timeout, on_timeout)
-        return got_line, d
-
     def expect_console_lines(self, expected_lines=None, timeout=None):
         self.console_client.got_line, d = \
-            self._get_expecting_line_receiver(expected_lines, timeout)
+            expecting_line_receiver(expected_lines, timeout)
         return d
 
     def test_wrong_rid(self):

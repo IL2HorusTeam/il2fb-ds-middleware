@@ -3,8 +3,7 @@ from twisted.internet import defer
 
 from il2ds_middleware.constants import (DeviceLinkCommand,
     DEVICE_LINK_OPCODE as OPCODE, )
-from il2ds_middleware.ds_emulator.tests import (BaseTestCase,
-    UnexpectedLineError, )
+from il2ds_middleware.ds_emulator.tests import BaseTestCase
 
 
 class DeviceLinkTestCase(BaseTestCase):
