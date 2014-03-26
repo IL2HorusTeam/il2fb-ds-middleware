@@ -333,40 +333,21 @@ class ReconnectingConsoleClientFactory(ReconnectingClientFactory):
     Factory for building console's client protocols with support of
     reconnection to server in case of loosing connection.
     """
+
     # Client's protocol class.
     protocol = ConsoleClient
-
-    # Parser instance which will be passed to client's protocol. Instance of
-    # 'ConsolePassthroughParser' will be used if this value is not specified.
-    parser = None
-
-    # Float value for server requests timeout in seconds which will be passed
-    # to client's protocol. 'REQUEST_TIMEOUT' will be used if this value is not
-    # specified.
-    request_timeout = None
 
     # Client's protocol instance placeholder.
     client = None
 
-    # Deferred, which will be invoked after the connection with server is
-    # established.
-    on_connected = None
-
-    # Deferred, which will be invoked after the connection with server is lost.
-    # 'on_connected' and 'on_disconnected' deferreds will be recreated before
-    # invocation of this deferred, so you will need to update your callbacks
-    # for connection and disconnection during processing this deferred's
-    # callback.
-    on_disconnected = None
-
-    def __init__(self, parser=None, timeout_value=None):
+    def __init__(self, parser=None, timeout=None):
         """
         Optional input:
-        `parser`        : an object implementing IConsoleParser interface
-        `timeout_value` : float value for server requests timeout in seconds
+        `parser`  : an object implementing IConsoleParser interface
+        `timeout` : float value for server requests timeout in seconds
         """
         self.parser = parser
-        self.timeout_value = timeout_value
+        self.timeout = timeout
         self._update_deferreds()
 
     def buildProtocol(self, addr):
@@ -375,7 +356,7 @@ class ReconnectingConsoleClientFactory(ReconnectingClientFactory):
         """
         client = ReconnectingClientFactory.buildProtocol(self, addr)
         client.parser = self.parser or ConsolePassthroughParser()
-        client.timeout_value = self.timeout_value or REQUEST_TIMEOUT
+        client.timeout = self.timeout or REQUEST_TIMEOUT
         self.client = client
         return self.client
 
@@ -386,8 +367,8 @@ class ReconnectingConsoleClientFactory(ReconnectingClientFactory):
         """
         self.resetDelay()
         LOG.debug("Connection successfully established")
-        if self.on_connected is not None:
-            d, self.on_connected = self.on_connected, None
+        if self.on_connecting is not None:
+            d, self.on_connecting = self.on_connecting, None
             d.callback(client)
 
     def clientConnectionFailed(self, connector, reason):
@@ -395,41 +376,47 @@ class ReconnectingConsoleClientFactory(ReconnectingClientFactory):
         A callback which is called when connection could not be established.
         Overrides base method and logs connection failure.
         """
+        LOG.error("Failed to connect to server: {0}".format(
+                  unicode(reason.value)))
         if self.continueTrying:
-            LOG.error("Failed to connect to server: {0}".format(
-                      unicode(reason.value)))
-        ReconnectingClientFactory.clientConnectionFailed(
-            self, connector, reason)
+            ReconnectingClientFactory.clientConnectionFailed(self, connector,
+                                                             reason)
+        elif self.on_connecting is not None:
+            d, self.on_connecting = self.on_connecting, None
+            d.errback(reason)
 
     def clientConnectionLost(self, connector, reason):
-        d, self.on_disconnected = self.on_disconnected, None
-        if self.continueTrying == 0:
-            LOG.debug("Connection with server was closed.")
-            # Invoke callback and tell that connection was closed cleanly
-            if d:
-                d.callback(None)
-        else:
+        d, self.on_connection_lost = self.on_connection_lost, None
+
+        def log_error():
             LOG.error("Connection with server is lost: {0}".format(
                       unicode(reason.value)))
+        if self.continueTrying:
+            log_error()
             self._update_deferreds()
-            # Invoke callback and tell that connection was lost
-            if d:
+            d.errback(reason)
+            ReconnectingClientFactory.clientConnectionLost(self, connector,
+                                                           reason)
+        else:
+            if isinstance(reason.value, ConnectionDone):
+                LOG.debug("Connection with server was closed.")
+                d.callback(None)
+            else:
+                log_error()
                 d.errback(reason)
-            ReconnectingClientFactory.clientConnectionLost(
-                self, connector, reason)
 
     def _update_deferreds(self):
         """
         Recreate public deferreds, so listeners can update their callbacks for
         connection and disconnection events.
         """
-        self.on_connected = defer.Deferred()
-        self.on_disconnected = defer.Deferred()
+        self.on_connecting = defer.Deferred()
+        self.on_connection_lost = defer.Deferred()
 
 
 class DeviceLinkProtocol(DatagramProtocol):
     """
-    Base protocol for communicating with server's DeviceLink interface.
+    Base protocol for communicating with server's Device Link interface.
     """
 
     def __init__(self, address=None):
@@ -505,7 +492,7 @@ class DeviceLinkProtocol(DatagramProtocol):
 
 class DeviceLinkClient(DeviceLinkProtocol):
     """
-    Default DeviceLink client protocol.
+    Default Device Link client protocol.
     """
 
     # Max number of consequent commands. We need to split large groups of
