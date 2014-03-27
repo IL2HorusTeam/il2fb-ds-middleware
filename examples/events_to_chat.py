@@ -21,7 +21,7 @@ def wrap_pos(line, info):
         line, info['pos']['x'], info['pos']['y'])
 
 
-class PilotService(service.PilotBaseService):
+class PilotService(service.MutedPilotService):
 
     def user_joined(self, info):
         line = "Hello, {0} coming from {1}! We are watching you!".format(
@@ -150,7 +150,7 @@ class PilotService(service.PilotBaseService):
         self.client.chat_all(wrap_time(wrap_pos(line, info)))
 
 
-class ObjectsService(service.ObjectsBaseService):
+class ObjectsService(service.MutedObjectsService):
 
     def building_destroyed_by_user(self, info):
         line = "Building {0} was destroyed by {1} on {2}".format(
@@ -173,15 +173,15 @@ class ObjectsService(service.ObjectsBaseService):
         self.client.chat_all(wrap_time(wrap_pos(line, info)))
 
 
-class MissionService(service.MissionService):
+class MissionsService(service.MissionsService):
 
     def began(self, (status, mission)):
         self.client.chat_all(
             wrap_time("Mission \"{0}\" is playing.".format(mission)))
-        service.MissionService.began(self, (status, mission))
+        service.MissionsService.began(self, (status, mission))
 
     def ended(self, (status, mission)):
-        service.MissionService.ended(self, (status, mission))
+        service.MissionsService.ended(self, (status, mission))
         self.client.chat_all(
             wrap_time("Mission \"{0}\" has ended.".format(mission)))
 
@@ -237,7 +237,7 @@ def main():
     objects = ObjectsService()
 
     log_watcher = service.LogWatchingService(options.log)
-    missions = MissionService(log_watcher)
+    missions = MissionsService(log_watcher)
     p = EventLogParser((pilots, objects, missions))
     log_watcher.set_parser(p)
 

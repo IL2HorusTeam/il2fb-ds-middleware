@@ -13,7 +13,7 @@ from il2ds_middleware.protocol import ConsoleClientFactory, DeviceLinkClient
 from il2ds_middleware import service
 
 
-class PilotService(service.PilotBaseService):
+class PilotService(service.MutedPilotService):
 
     dlink = None
 
@@ -28,20 +28,20 @@ class PilotService(service.PilotBaseService):
         print "%s says: %s" % info
 
 
-class ObjectsService(service.ObjectsBaseService):
+class ObjectsService(service.MutedObjectsService):
     pass
 
 
-class MissionService(service.MissionService):
+class MissionsService(service.MissionsService):
 
     dlink = None
 
     def began(self, info=None):
-        service.MissionService.began(self)
+        service.MissionsService.began(self)
         self.dlink.refresh_radar()
 
     def ended(self, info=None):
-        service.MissionService.ended(self)
+        service.MissionsService.ended(self)
         self.dlink.refresh_radar()
 
 
@@ -118,7 +118,7 @@ def main():
     objects.setServiceParent(root)
 
     log_watcher = service.LogWatchingService(options.log)
-    missions = MissionService(log_watcher)
+    missions = MissionsService(log_watcher)
     parser = EventLogParser((pilots, objects, missions))
     log_watcher.set_parser(parser)
     missions.setServiceParent(root)

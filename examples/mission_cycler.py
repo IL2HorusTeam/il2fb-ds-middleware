@@ -15,7 +15,7 @@ from il2ds_middleware.protocol import ConsoleClientFactory
 from il2ds_middleware import service
 
 
-class PilotService(service.PilotBaseService):
+class PilotService(service.MutedPilotService):
 
     def __init__(self, missions):
         self.missions = missions
@@ -25,7 +25,7 @@ class PilotService(service.PilotBaseService):
             self.client.chat_user(self.missions.time_left_str(), callsign)
 
 
-class MissionService(service.MissionBaseService):
+class MissionsService(service.MutedMissionsService):
 
     def __init__(self, mission, duration):
         self.mission = mission
@@ -134,7 +134,7 @@ def main():
     def on_connection_lost(err):
         print "Connection was lost."
 
-    missions = MissionService(options.mission, options.duration)
+    missions = MissionsService(options.mission, options.duration)
     pilots = PilotService(missions)
 
     p = ConsoleParser((pilots, missions))

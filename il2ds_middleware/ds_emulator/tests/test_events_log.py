@@ -8,7 +8,7 @@ from twisted.internet import defer
 from zope.interface import implementer
 
 from il2ds_middleware.interface.parser import ILineParser
-from il2ds_middleware.service import LogWatchingBaseService
+from il2ds_middleware.service import LogWatchingService
 
 from il2ds_middleware.ds_emulator.tests import BaseTestCase
 from il2ds_middleware.tests import expect_lines
@@ -18,7 +18,7 @@ LOG = tx_logging.getLogger(__name__)
 
 
 @implementer(ILineParser)
-class LogWatchingService(LogWatchingBaseService):
+class LogWatchingService(LogWatchingService):
 
     def got_line(self, line):
         try:

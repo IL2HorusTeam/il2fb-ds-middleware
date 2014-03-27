@@ -49,7 +49,7 @@ class RootService(MultiService, CommonServiceMixin):
         pilots = PilotService()
         static = StaticService()
         dl = DeviceLinkService()
-        missions = MissionService()
+        missions = MissionsService()
 
         dl.pilot_srvc = pilots
         dl.static_srvc = static
@@ -366,7 +366,7 @@ class PilotService(Service, CommonServiceMixin):
         return Service.stopService(self)
 
 
-class MissionService(Service, CommonServiceMixin):
+class MissionsService(Service, CommonServiceMixin):
 
     name = "missions"
     status = MISSION_STATUS.NOT_LOADED

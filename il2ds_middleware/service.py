@@ -23,7 +23,7 @@ class ClientBaseService(Service):
 
 
 @implementer(IPilotService)
-class PilotBaseService(ClientBaseService):
+class MutedPilotService(ClientBaseService):
     """
     Base pilots muted service.
     """
@@ -521,7 +521,7 @@ class PilotBaseService(ClientBaseService):
 
 
 @implementer(IObjectsService)
-class ObjectsBaseService(ClientBaseService):
+class MutedObjectsService(ClientBaseService):
     """
     Base map objects muted service.
     """
@@ -612,7 +612,7 @@ class ObjectsBaseService(ClientBaseService):
 
 
 @implementer(IMissionService)
-class MissionBaseService(ClientBaseService):
+class MutedMissionsService(ClientBaseService):
     """
     Base mission muted service.
     """
@@ -656,7 +656,7 @@ class MissionBaseService(ClientBaseService):
         """
 
 
-class MissionService(MissionBaseService):
+class MissionsService(MutedMissionsService):
     """
     Default mission service.
     """
@@ -708,18 +708,18 @@ class MissionService(MissionBaseService):
     def stopService(self):
 
         def callback(_):
-            MissionBaseService.stopService(self)
+            MutedMissionsService.stopService(self)
 
         return self.log_watcher.stopService().addBoth(callback)
 
 
-class LogWatchingBaseService(TimerService):
+class LogWatchingService(TimerService):
     """
     Base server's events log watcher. Reads lines from specified file with
     given time period.
     """
 
-    def __init__(self, log_path, period=1):
+    def __init__(self, log_path, period=1, parser=None):
         """
         Input:
         `log_path`      # string path to server's events log file.
@@ -728,6 +728,7 @@ class LogWatchingBaseService(TimerService):
         """
         self.log_file = None
         self.log_path = log_path
+        self.set_parser(parser)
         TimerService.__init__(self, period, self.do_watch)
 
     def do_watch(self):
@@ -738,10 +739,18 @@ class LogWatchingBaseService(TimerService):
         for line in self.log_file.readlines():
             self.got_line(line)
 
+    def set_parser(self, parser):
+        self.parser = parser
+
+    def clear_parser(self):
+        self.set_parser(None)
+
     def got_line(self, line):
         """
-        Process new line from events log.
+        Pass line from log file to parser if it is specified.
         """
+        if self.parser:
+            self.parser.parse_line(line.strip())
 
     def startService(self):
         if self.log_file is not None:
@@ -762,27 +771,3 @@ class LogWatchingBaseService(TimerService):
             self.log_file.close()
             self.log_file = None
             return TimerService.stopService(self)
-
-
-class LogWatchingService(LogWatchingBaseService):
-    """
-    Default service for reading events from specified log file. Reads file line
-    by line with given period and parses with parser.
-    """
-
-    def __init__(self, log_path, period=1, parser=None):
-        LogWatchingBaseService.__init__(self, log_path, period)
-        self.set_parser(parser)
-
-    def set_parser(self, parser):
-        self.parser = parser
-
-    def clear_parser(self):
-        self.set_parser(None)
-
-    def got_line(self, line):
-        """
-        Pass line from log file to parser if it is specified.
-        """
-        if self.parser:
-            self.parser.parse_line(line.strip())

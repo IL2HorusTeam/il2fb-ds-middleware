@@ -5,7 +5,7 @@ from twisted.internet import defer
 from il2ds_middleware import service
 
 
-class PilotService(service.PilotBaseService):
+class PilotService(service.MutedPilotService):
 
     def __init__(self):
         self.buffer = []
@@ -22,7 +22,7 @@ class PilotService(service.PilotBaseService):
     append_info
 
 
-class ObjectsService(service.ObjectsBaseService):
+class ObjectsService(service.MutedObjectsService):
 
     def __init__(self):
         self.buffer = []
@@ -34,7 +34,7 @@ class ObjectsService(service.ObjectsBaseService):
     static_destroyed_by_user = bridge_destroyed_by_user = append_info
 
 
-class MissionService(service.MissionBaseService):
+class MissionsService(service.MutedMissionsService):
 
     def __init__(self):
         self.buffer = []

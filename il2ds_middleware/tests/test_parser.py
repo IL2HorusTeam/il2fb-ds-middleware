@@ -12,7 +12,7 @@ from il2ds_middleware.parser import (ConsoleParser, ConsolePassthroughParser,
     EventLogPassthroughParser, )
 
 from il2ds_middleware.tests.service import (PilotService, ObjectsService,
-    MissionService, )
+    MissionsService, )
 
 
 verifyClass(ILineParser, ConsoleParser)
@@ -32,7 +32,7 @@ class ConsoleParserTestCase(TestCase):
 
     def setUp(self):
         self.pilot_srvc = PilotService()
-        self.mission_srvc = MissionService()
+        self.mission_srvc = MissionsService()
         self.parser = ConsoleParser((self.pilot_srvc, self.mission_srvc))
         self.pilot_srvc.startService()
 
@@ -317,7 +317,7 @@ class EventLogParserTestCase(TestCase):
     def setUp(self):
         self.pilot_srvc = PilotService()
         self.obj_srvc = ObjectsService()
-        self.mission_srvc = MissionService()
+        self.mission_srvc = MissionsService()
         self.parser = EventLogParser(
             (self.pilot_srvc, self.obj_srvc, self.mission_srvc))
         self.pilot_srvc.startService()
