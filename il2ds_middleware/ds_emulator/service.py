@@ -37,7 +37,7 @@ class RootService(MultiService, CommonServiceMixin):
     def __init__(self, log_path=None):
         MultiService.__init__(self)
         self.muted = False
-        self.evt_log = EventLoggingService(log_path)
+        self.evt_log = EventLogger(log_path)
         self.user_command_id = 0
         self.set_server_info()
         self._init_children()
@@ -46,16 +46,16 @@ class RootService(MultiService, CommonServiceMixin):
         """
         Initialize children services.
         """
-        pilots = PilotService()
-        static = StaticService()
+        pilots = PilotsService()
+        statics = StaticsService()
         dl = DeviceLinkService()
         missions = MissionsService()
 
-        dl.pilot_srvc = pilots
-        dl.static_srvc = static
-        missions.dl_srvc = dl
+        dl.pilots = pilots
+        dl.statics = statics
+        missions.device_link = dl
 
-        for service in [pilots, static, missions, dl, ]:
+        for service in [pilots, statics, missions, dl, ]:
             service.setServiceParent(self)
             service.evt_log = self.evt_log
 
@@ -132,7 +132,7 @@ class RootService(MultiService, CommonServiceMixin):
         self.send("<consoleN><{0}>".format(self.user_command_id))
 
 
-class PilotService(Service, CommonServiceMixin):
+class PilotsService(Service, CommonServiceMixin):
 
     name = "pilots"
     channel = 1
@@ -371,7 +371,7 @@ class MissionsService(Service, CommonServiceMixin):
     name = "missions"
     status = MISSION_STATUS.NOT_LOADED
     mission = None
-    dl_srvc = None
+    device_link = None
 
     def parse_line(self, line):
         if not line.startswith("mission"):
@@ -435,8 +435,7 @@ class MissionsService(Service, CommonServiceMixin):
         else:
             self.status = MISSION_STATUS.NOT_LOADED
             self.mission = None
-            if self.dl_srvc:
-                self.dl_srvc.forget_everything()
+            self.device_link.forget_everything()
 
     def _mission_not_loaded(self):
         self.send("ERROR mission: Mission NOT loaded")
@@ -454,9 +453,9 @@ class MissionsService(Service, CommonServiceMixin):
         return Service.stopService(self)
 
 
-class StaticService(Service):
+class StaticsService(Service):
 
-    name = "static"
+    name = "statics"
     objects = None
 
     def __init__(self):
@@ -484,8 +483,8 @@ class StaticService(Service):
 class DeviceLinkService(Service):
 
     name = "dl"
-    pilot_srvc = None
-    static_srvc = None
+    pilots = None
+    statics = None
 
     def __init__(self):
         self.forget_everything()
@@ -495,8 +494,8 @@ class DeviceLinkService(Service):
         self.known_static = []
 
     def refresh_radar(self):
-        self.known_air = self.pilot_srvc.get_active()
-        self.known_static = self.static_srvc.get_active()
+        self.known_air = self.pilots.get_active()
+        self.known_static = self.statics.get_active()
 
     def pilot_count(self):
         result = len(self.known_air)
@@ -504,7 +503,7 @@ class DeviceLinkService(Service):
 
     def pilot_pos(self, arg):
         data = self._pos(known_container=self.known_air,
-                         primary_container=self.pilot_srvc.pilots,
+                         primary_container=self.pilots.pilots,
                          invalid_states=[PILOT_STATE.IDLE, PILOT_STATE.DEAD, ],
                          idx=arg, idx_append=True)
         return OPCODE.PILOT_POS.make_command(data) if data else None
@@ -515,7 +514,7 @@ class DeviceLinkService(Service):
 
     def static_pos(self, arg):
         data = self._pos(known_container=self.known_static,
-                         primary_container=self.static_srvc.objects,
+                         primary_container=self.statics.objects,
                          invalid_states=[OBJECT_STATE.DESTROYED, ],
                          idx=arg)
         return OPCODE.STATIC_POS.make_command(data) if data else None
@@ -542,7 +541,7 @@ class DeviceLinkService(Service):
             return ':'.join([idx, data, ])
 
 
-class EventLoggingService(Service):
+class EventLogger(Service):
 
     def __init__(self, log_path=None, keep_log=True):
         self.log_path = log_path

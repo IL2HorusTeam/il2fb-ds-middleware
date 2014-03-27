@@ -447,7 +447,7 @@ class DeviceLinkClientProtocolTestCase(unittest.TestCase):
     def setUp(self):
         self.server_service = RootService()
         self.pilots = self.server_service.getServiceNamed('pilots')
-        self.static = self.server_service.getServiceNamed('static')
+        self.static = self.server_service.getServiceNamed('statics')
         self.server_service.startService()
 
         # Init Device Link ----------------------------------------------------

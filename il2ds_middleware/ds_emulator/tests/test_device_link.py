@@ -107,7 +107,7 @@ class DeviceLinkTestCase(BaseTestCase):
         cmd_radar = OPCODE.RADAR_REFRESH.make_command()
         cmd_count = OPCODE.STATIC_COUNT.make_command()
 
-        static = self.server_service.getServiceNamed('static')
+        static = self.server_service.getServiceNamed('statics')
 
         d = self.expect_dl_lines(["A/1014\\0", ])
         self.dl_client.send_request(cmd_count)
@@ -141,7 +141,7 @@ class DeviceLinkTestCase(BaseTestCase):
         cmd_pos1 = OPCODE.STATIC_POS.make_command(1)
         cmd_pos_both = [cmd_pos0, cmd_pos1, ]
 
-        static = self.server_service.getServiceNamed('static')
+        static = self.server_service.getServiceNamed('statics')
 
         d = self.expect_dl_lines(["A/1016\\0:BADINDEX/1016\\1:BADINDEX", ])
         self.dl_client.send_request(OPCODE.STATIC_POS.make_command())

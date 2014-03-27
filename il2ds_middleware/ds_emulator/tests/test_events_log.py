@@ -6,6 +6,7 @@ import tx_logging
 
 from twisted.internet import defer
 from zope.interface import implementer
+from zope.interface.verify import verifyClass
 
 from il2ds_middleware.interface.parser import ILineParser
 from il2ds_middleware.service import LogWatchingService
@@ -45,6 +46,9 @@ class LogWatchingService(LogWatchingService):
             return time, data
 
 
+verifyClass(ILineParser, LogWatchingService)
+
+
 class EventsLogTestCase(BaseTestCase):
 
     def setUp(self):
@@ -64,7 +68,7 @@ class EventsLogTestCase(BaseTestCase):
     def test_event_log(self):
         pilots = self.server_service.getServiceNamed('pilots')
         missions = self.server_service.getServiceNamed('missions')
-        static = self.server_service.getServiceNamed('static')
+        static = self.server_service.getServiceNamed('statics')
 
         self.log_watcher.process_line, d = expect_lines([
             "Mission: net/dogfight/test.mis is Playing\n",
