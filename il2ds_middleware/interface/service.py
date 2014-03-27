@@ -7,7 +7,7 @@ class IPilotService(Interface):
 
     """Interface for creating pilots-monitoring services."""
 
-    def user_joined(self, info):
+    def user_joined(info):
         """
         Process 'user joined server' event.
 
@@ -16,7 +16,7 @@ class IPilotService(Interface):
                 # channel number and remote IP address.
         """
 
-    def user_left(self, info):
+    def user_left(info):
         """
         Process 'user left server' event.
 
@@ -26,7 +26,7 @@ class IPilotService(Interface):
                 # disconnection.
         """
 
-    def user_chat(self, info):
+    def user_chat(info):
         """
         Process 'user sent message to chat' event.
 
@@ -35,7 +35,7 @@ class IPilotService(Interface):
                 # the message.
         """
 
-    def seat_occupied(self, info):
+    def seat_occupied(info):
         """
         Process 'user occupied seat' event.
 
@@ -44,7 +44,7 @@ class IPilotService(Interface):
                 # callsign and aircraft, seat number and position on map.
         """
 
-    def selected_army(self, info):
+    def selected_army(info):
         """
         Process 'user selected army' event.
 
@@ -53,7 +53,7 @@ class IPilotService(Interface):
                 # callsign, army name and position on map.
         """
 
-    def went_to_menu(self, info):
+    def went_to_menu(info):
         """
         Process 'user went to refly menu' event.
 
@@ -62,7 +62,7 @@ class IPilotService(Interface):
                 # callsign.
         """
 
-    def weapons_loaded(self, info):
+    def weapons_loaded(info):
         """
         Process 'user loaded weapons' event.
 
@@ -71,7 +71,7 @@ class IPilotService(Interface):
                 # callsign, selected aircraft, its loadout and fuel percentage.
         """
 
-    def was_killed(self, info):
+    def was_killed(info):
         """
         Process 'crew member was killed' event.
 
@@ -80,7 +80,7 @@ class IPilotService(Interface):
                 # callsign and aircraft, seat number and position on map.
         """
 
-    def was_killed_by_user(self, info):
+    def was_killed_by_user(info):
         """
         Process 'crew member was killed by user' event.
 
@@ -90,7 +90,7 @@ class IPilotService(Interface):
                 # aircraft and position on map.
         """
 
-    def took_off(self, info):
+    def took_off(info):
         """
         Process 'user took off' event.
 
@@ -99,7 +99,7 @@ class IPilotService(Interface):
                 # callsign, aircraft and position on map.
         """
 
-    def landed(self, info):
+    def landed(info):
         """
         Process 'user landed' event.
 
@@ -108,7 +108,7 @@ class IPilotService(Interface):
                 # callsign, aircraft and position on map.
         """
 
-    def crashed(self, info):
+    def crashed(info):
         """
         Process 'user crashed' event.
 
@@ -117,7 +117,7 @@ class IPilotService(Interface):
                 # callsign, aircraft and position on map.
         """
 
-    def damaged_self(self, info):
+    def damaged_self(info):
         """
         Process 'user damaged himself' event.
 
@@ -126,7 +126,7 @@ class IPilotService(Interface):
                 # callsign and aircraft, position on map.
         """
 
-    def was_damaged_by_user(self, info):
+    def was_damaged_by_user(info):
         """
         Process 'user was damaged by user' event.
 
@@ -136,7 +136,7 @@ class IPilotService(Interface):
                 # position on map.
         """
 
-    def was_damaged_on_ground(self, info):
+    def was_damaged_on_ground(info):
         """
         Process 'user was damaged on the ground' event.
 
@@ -145,7 +145,7 @@ class IPilotService(Interface):
                 # callsign and aircraft, position on map.
         """
 
-    def shot_down_self(self, info):
+    def shot_down_self(info):
         """
         Process 'user shot down himself' event.
 
@@ -154,7 +154,7 @@ class IPilotService(Interface):
                 # callsign and aircraft, position on map.
         """
 
-    def was_shot_down_by_user(self, info):
+    def was_shot_down_by_user(info):
         """
         Process 'user was shot down by user' event.
 
@@ -164,7 +164,7 @@ class IPilotService(Interface):
                 # position on map.
         """
 
-    def was_shot_down_by_static(self, info):
+    def was_shot_down_by_static(info):
         """
         Process 'user was shot down by static object' event.
 
@@ -174,7 +174,7 @@ class IPilotService(Interface):
                 # map.
         """
 
-    def toggle_wingtip_smokes(self, info):
+    def toggle_wingtip_smokes(info):
         """
         Process 'user toggled wingtip smokes' event.
 
@@ -184,7 +184,7 @@ class IPilotService(Interface):
                 # on map.
         """
 
-    def toggle_landing_lights(self, info):
+    def toggle_landing_lights(info):
         """
         Process 'user toggled landing lights' event.
 
@@ -194,7 +194,7 @@ class IPilotService(Interface):
                 # on map.
         """
 
-    def bailed_out(self, info):
+    def bailed_out(info):
         """
         Process 'crew member bailed out' event.
 
@@ -203,7 +203,7 @@ class IPilotService(Interface):
                 # callsign and aircraft, seat number and position on map.
         """
 
-    def parachute_opened(self, info):
+    def parachute_opened(info):
         """
         Process 'crew member's parachute opened' event.
 
@@ -212,7 +212,7 @@ class IPilotService(Interface):
                 # callsign and aircraft, seat number and position on map.
         """
 
-    def was_captured(self, info):
+    def was_captured(info):
         """
         Process 'crew member was captured' event.
 
@@ -221,7 +221,7 @@ class IPilotService(Interface):
                 # callsign and aircraft, seat number and position on map.
         """
 
-    def was_wounded(self, info):
+    def was_wounded(info):
         """
         Process 'crew member was wounded' event.
 
@@ -230,7 +230,7 @@ class IPilotService(Interface):
                 # callsign and aircraft, seat number and position on map.
         """
 
-    def was_heavily_wounded(self, info):
+    def was_heavily_wounded(info):
         """
         Process 'crew member was heavily wounded' event.
 
@@ -244,7 +244,7 @@ class IObjectsService(Interface):
 
     """Interface for creating objects-monitoring services."""
 
-    def building_destroyed_by_user(self, info):
+    def building_destroyed_by_user(info):
         """
         Process 'building was destroyed by user' event.
 
@@ -253,7 +253,7 @@ class IObjectsService(Interface):
                 # name, user's callsign and aircraft, position on map.
         """
 
-    def tree_destroyed_by_user(self, info):
+    def tree_destroyed_by_user(info):
         """
         Process 'tree was destroyed by user' event.
 
@@ -262,7 +262,7 @@ class IObjectsService(Interface):
                 # name, user's callsign and aircraft, position on map.
         """
 
-    def static_destroyed_by_user(self, info):
+    def static_destroyed_by_user(info):
         """
         Process 'static object was destroyed by user' event.
 
@@ -271,7 +271,7 @@ class IObjectsService(Interface):
                 # name, user's callsign and aircraft, position on map.
         """
 
-    def bridge_destroyed_by_user(self, info):
+    def bridge_destroyed_by_user(info):
         """
         Process 'bridge was destroyed by user' event.
 
@@ -285,7 +285,7 @@ class IMissionService(Interface):
 
     """Interface for creating mission-monitoring services."""
 
-    def on_status_info(self, info):
+    def on_status_info(info):
         """
         Process incoming information about mission's status.
 
@@ -293,7 +293,7 @@ class IMissionService(Interface):
         `info`  # An object with information about mission's status and name.
         """
 
-    def was_won(self, info):
+    def was_won(info):
         """
         Process 'current mission was won by an army' event.
 
@@ -302,7 +302,7 @@ class IMissionService(Interface):
                 # army's name.
         """
 
-    def target_end(self, info):
+    def target_end(info):
         """
         Process event of target's success or failure.
 

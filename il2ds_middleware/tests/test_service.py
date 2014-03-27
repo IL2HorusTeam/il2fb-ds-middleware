@@ -1,9 +1,18 @@
 # -*- coding: utf-8 -*-
 from twisted.trial.unittest import TestCase
+from zope.interface.verify import verifyClass
 
 from il2ds_middleware.constants import MISSION_STATUS
-from il2ds_middleware.service import MissionService
+from il2ds_middleware.interface.service import (IPilotService, IObjectsService,
+    IMissionService, )
+from il2ds_middleware.service import (PilotBaseService, ObjectsBaseService,
+    MissionBaseService, MissionService, )
 from il2ds_middleware.tests.service import FakeLogWatchingService
+
+
+verifyClass(IPilotService, PilotBaseService)
+verifyClass(IObjectsService, ObjectsBaseService)
+verifyClass(IMissionService, MissionBaseService)
 
 
 class MissionServiceTestCase(TestCase):

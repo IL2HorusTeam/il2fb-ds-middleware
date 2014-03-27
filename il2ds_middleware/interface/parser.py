@@ -12,7 +12,7 @@ class ILineParser(Interface):
     Interface for creating general-purpose string parsers.
     """
 
-    def parse_line(self, line):
+    def parse_line(line):
         """
         Parse line due to internal logic.
 
@@ -29,7 +29,7 @@ class IConsoleParser(ILineParser):
     Parse server console's string messages.
     """
 
-    def server_info(self, lines):
+    def server_info(lines):
         """
         Parse a sequence of lines containing information about server.
 
@@ -49,7 +49,7 @@ class IConsoleParser(ILineParser):
         A server describing object.
         """
 
-    def mission_status(self, lines):
+    def mission_status(lines):
         """
         Parse information about mission's status.
 
@@ -65,7 +65,7 @@ class IConsoleParser(ILineParser):
         was successfully parsed. Otherwise `None`.
         """
 
-    def user_joined(self, line):
+    def user_joined(line):
         """
         Parse information about joined user.
 
@@ -78,7 +78,7 @@ class IConsoleParser(ILineParser):
         was successfully parsed. Otherwise `None`.
         """
 
-    def user_left(self, line):
+    def user_left(line):
         """
         Parse information about disconnected user.
 
@@ -91,7 +91,7 @@ class IConsoleParser(ILineParser):
         line was successfully parsed. Otherwise `None`.
         """
 
-    def user_chat(self, line):
+    def user_chat(line):
         """
         Parse a message sent by user to the game chat.
 
@@ -106,7 +106,7 @@ class IConsoleParser(ILineParser):
         input line was successfully parsed. Otherwise `None`.
         """
 
-    def users_common_info(self, lines):
+    def users_common_info(lines):
         """
         Parse common information about users.
 
@@ -125,7 +125,7 @@ class IConsoleParser(ILineParser):
         An object which provides common information about users.
         """
 
-    def users_statistics(self, lines):
+    def users_statistics(lines):
         """
         Parse detailed statistics about each user.
 
@@ -177,7 +177,7 @@ class IDeviceLinkParser(Interface):
     Parse string output from DeviceLink interface.
     """
 
-    def pilot_count(self, data):
+    def pilot_count(data):
         """
         Parse information about currently active pilots.
 
@@ -190,7 +190,7 @@ class IDeviceLinkParser(Interface):
         Any object containing information about currently active pilots.
         """
 
-    def pilot_pos(self, data):
+    def pilot_pos(data):
         """
         Parse string containing information about pilot's position coordinates.
 
@@ -205,7 +205,7 @@ class IDeviceLinkParser(Interface):
         coordinates.
         """
 
-    def all_pilots_pos(self, datas):
+    def all_pilots_pos(datas):
         """
         Pasrse a sequence of strings containing information about pilots'
         position coordinates.
@@ -224,7 +224,7 @@ class IDeviceLinkParser(Interface):
         and coordinates.
         """
 
-    def static_count(self, data):
+    def static_count(data):
         """
         Parse information about currently active static objects.
 
@@ -238,7 +238,7 @@ class IDeviceLinkParser(Interface):
         objects.
         """
 
-    def static_pos(self, data):
+    def static_pos(data):
         """
         Parse string containing information about static object's position
         coordinates.
@@ -254,7 +254,7 @@ class IDeviceLinkParser(Interface):
         coordinates.
         """
 
-    def all_static_pos(self, datas):
+    def all_static_pos(datas):
         """
         Pasrse a sequence of strings containing information about static
         objects' position coordinates.

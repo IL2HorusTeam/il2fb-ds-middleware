@@ -2,12 +2,30 @@
 import datetime
 
 from twisted.trial.unittest import TestCase
+from zope.interface.verify import verifyClass
 
+from il2ds_middleware.interface.parser import (ILineParser, IConsoleParser,
+    IDeviceLinkParser, )
 from il2ds_middleware.constants import MISSION_STATUS, PILOT_LEAVE_REASON
-from il2ds_middleware.parser import (ConsoleParser, EventLogParser,
-    EventLogPassthroughParser, DeviceLinkParser, )
+from il2ds_middleware.parser import (ConsoleParser, ConsolePassthroughParser,
+    DeviceLinkParser, DeviceLinkPassthroughParser, EventLogParser,
+    EventLogPassthroughParser, )
+
 from il2ds_middleware.tests.service import (PilotService, ObjectsService,
     MissionService, )
+
+
+verifyClass(ILineParser, ConsoleParser)
+verifyClass(IConsoleParser, ConsoleParser)
+
+verifyClass(ILineParser, ConsolePassthroughParser)
+verifyClass(IConsoleParser, ConsolePassthroughParser)
+
+verifyClass(IDeviceLinkParser, DeviceLinkParser)
+verifyClass(IDeviceLinkParser, DeviceLinkPassthroughParser)
+
+verifyClass(ILineParser, EventLogParser)
+verifyClass(ILineParser, EventLogPassthroughParser)
 
 
 class ConsoleParserTestCase(TestCase):
