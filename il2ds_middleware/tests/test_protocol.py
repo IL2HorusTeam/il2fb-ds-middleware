@@ -223,6 +223,10 @@ class ConsoleClientTestCase(unittest.TestCase):
         self.console_client._process_request_wrapper("rid/smth")
         self.console_client._process_request_wrapper("rid|smth")
 
+    def test_unfinished_requests(self):
+        for i in range(1000):
+            self.console_client._make_request(1)
+
     @defer.inlineCallbacks
     def test_mission_status(self):
         response = yield self.console_client.mission_status()
@@ -462,11 +466,11 @@ class DeviceLinkClientProtocolTestCase(unittest.TestCase):
         self.dl_client = DeviceLinkClient((endpoint.host, endpoint.port))
         self.dl_client_connector = reactor.listenUDP(0, self.dl_client)
 
+    @defer.inlineCallbacks
     def tearDown(self):
-        self.dl_client_connector.stopListening()
-        self.dl_server_listener.stopListening()
-
-        return self.server_service.stopService()
+        yield defer.maybeDeferred(self.dl_client_connector.stopListening)
+        yield defer.maybeDeferred(self.dl_server_listener.stopListening)
+        yield self.server_service.stopService()
 
     def _spawn_pilots(self):
         for i in xrange(2, 255):
@@ -484,6 +488,10 @@ class DeviceLinkClientProtocolTestCase(unittest.TestCase):
         command = DeviceLinkCommand(LONG_OPERATION_CMD, None)
         d = self.dl_client.deferred_request(command)
         return self.assertFailure(d, defer.TimeoutError)
+
+    def test_unfinished_requests(self):
+        for i in range(1000):
+            self.dl_client._make_request('foo', 1)
 
     @defer.inlineCallbacks
     def test_pilot_count(self):

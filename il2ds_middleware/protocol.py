@@ -22,22 +22,19 @@ from il2ds_middleware.requests import *
 LOG = tx_logging.getLogger(__name__)
 
 
-ConsoleRequest = namedtuple('ConsoleRequest', 'rid results deferred')
-DeviceLinkRequest = namedtuple('DeviceLinkRequest', 'opcode deferred')
+ConsoleRequest = namedtuple('ConsoleRequest', 'rid results deferred watchdog')
+DeviceLinkRequest = namedtuple('DeviceLinkRequest', 'opcode deferred watchdog')
 
 
 class ConsoleClient(LineOnlyReceiver):
     """
     Server console client protocol. To capture server's output, every request
     to server gets own request ID (rid) which is send before and after request.
-
-    Parser and timeout are set up by factory.
     """
 
-    parser = None
-    timeout = None
-
-    def __init__(self):
+    def __init__(self, parser=None, timeout=None):
+        self.parser = parser
+        self.timeout = timeout or REQUEST_TIMEOUT
         self._request_id = 0
         self._request = None
         self._requests = deque()
@@ -47,6 +44,12 @@ class ConsoleClient(LineOnlyReceiver):
 
     def connectionMade(self):
         self.factory.clientConnectionMade(self)
+
+    def connectionLost(self, reason):
+        for request in self._requests:
+            request.watchdog.cancel()
+            request.deferred.cancel()
+        self._requests.clear()
 
     def _generate_request_id(self):
         request_id = self._request_id
@@ -61,7 +64,7 @@ class ConsoleClient(LineOnlyReceiver):
             defer.timeout(deferred)
 
         def clean_up(value):
-            if not watchdog.called:
+            if not watchdog.called and not watchdog.cancelled:
                 watchdog.cancel()
             return value
 
@@ -69,13 +72,14 @@ class ConsoleClient(LineOnlyReceiver):
         results = []
 
         deferred = defer.Deferred()
-        deferred.addBoth(clean_up)
+        deferred.addBoth(clean_up).addErrback(
+            lambda failure: failure.trap(defer.CancelledError))
 
         from twisted.internet import reactor
         watchdog = reactor.callLater(timeout,
                                      lambda: deferred.called or on_timeout())
 
-        request = ConsoleRequest(rid, results, deferred)
+        request = ConsoleRequest(rid, results, deferred, watchdog)
         self._requests.append(request)
         return request
 
@@ -297,27 +301,21 @@ class ConsoleClientFactory(ClientFactory):
     Factory for building console's client protocols.
     """
 
-    protocol = ConsoleClient
-
-    def __init__(self, parser=None, timeout=REQUEST_TIMEOUT):
+    def __init__(self, parser=None, timeout=None):
         """
         Input:
         `parser`   # an object implementing IConsoleParser interface
         `timeout`  # float value for server requests timeout in seconds
         """
-        self._client = None
-        self.parser = parser
+        self.parser = parser or ConsolePassthroughParser()
         self.timeout = timeout
         self.on_connecting = defer.Deferred()
         self.on_connection_lost = defer.Deferred()
 
     def buildProtocol(self, addr):
-        self._client = ClientFactory.buildProtocol(self, addr)
-        parser, self.parser = self.parser or ConsolePassthroughParser(), None
-        timeout, self.timeout = self.timeout, None
-        self._client.parser = parser
-        self._client.timeout = timeout
-        return self._client
+        client = ConsoleClient(self.parser, self.timeout)
+        client.factory = self
+        return client
 
     def clientConnectionMade(self, client):
         if self.on_connecting is not None:
@@ -356,19 +354,14 @@ class ReconnectingConsoleClientFactory(ReconnectingClientFactory):
         `parser`  : an object implementing IConsoleParser interface
         `timeout` : float value for server requests timeout in seconds
         """
-        self.parser = parser
+        self.parser = parser or ConsolePassthroughParser()
         self.timeout = timeout
         self._update_deferreds()
 
     def buildProtocol(self, addr):
-        """
-        Create a single protocol for communicating with game server's console.
-        """
-        client = ReconnectingClientFactory.buildProtocol(self, addr)
-        client.parser = self.parser or ConsolePassthroughParser()
-        client.timeout = self.timeout or REQUEST_TIMEOUT
-        self.client = client
-        return self.client
+        client = ConsoleClient(self.parser, self.timeout)
+        client.factory = self
+        return client
 
     def clientConnectionMade(self, client):
         """
@@ -521,6 +514,12 @@ class DeviceLinkClient(DeviceLinkProtocol):
         self.parser = parser or DeviceLinkPassthroughParser()
         self._requests = deque()
 
+    def stopProtocol(self):
+        for request in self._requests:
+            request.watchdog.cancel()
+            request.deferred.cancel()
+        self._requests.clear()
+
     def answers_received(self, answers, address):
         if address == self.address:
             for answer in answers:
@@ -548,24 +547,24 @@ class DeviceLinkClient(DeviceLinkProtocol):
             defer.timeout(deferred)
 
         def clean_up(value):
-            if not watchdog.called:
+            if not watchdog.called and not watchdog.cancelled:
                 watchdog.cancel()
             return value
 
         deferred = defer.Deferred()
-        deferred.addBoth(clean_up)
+        deferred.addBoth(clean_up).addErrback(
+            lambda failure: failure.trap(defer.CancelledError))
 
         from twisted.internet import reactor
         watchdog = reactor.callLater(timeout,
                                      lambda: deferred.called or on_timeout())
 
-        request = DeviceLinkRequest(opcode, deferred)
+        request = DeviceLinkRequest(opcode, deferred, watchdog)
         self._requests.append(request)
         return request
 
     def deferred_request(self, command, timeout=None):
-        timeout = timeout or self.timeout
-        request = self._make_request(command.opcode, timeout)
+        request = self._make_request(command.opcode, timeout or self.timeout)
         self.send_request(command)
         return request.deferred
 

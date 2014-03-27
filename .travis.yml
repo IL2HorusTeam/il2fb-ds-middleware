@@ -3,7 +3,6 @@ python:
     - "2.7"
 install:
     - pip install -e . --use-mirrors
-before_script:
     - pip install coverage coveralls --use-mirrors
 script:
     - coverage run `which trial` -e il2ds_middleware
