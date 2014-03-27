@@ -5,7 +5,7 @@ import optparse
 
 from twisted.application.internet import TimerService
 from twisted.application.service import MultiService
-from twisted.internet import defer, reactor
+from twisted.internet import reactor
 
 from il2ds_middleware.parser import (ConsoleParser, DeviceLinkParser,
     EventLogParser, )
@@ -14,8 +14,6 @@ from il2ds_middleware import service
 
 
 class PilotService(service.MutedPilotService):
-
-    dlink = None
 
     def active_objects_list_changed(self, info):
         self.dlink.refresh_radar()
@@ -33,8 +31,6 @@ class ObjectsService(service.MutedObjectsService):
 
 
 class MissionsService(service.MissionsService):
-
-    dlink = None
 
     def began(self, info=None):
         service.MissionsService.began(self)
@@ -123,18 +119,18 @@ def main():
     log_watcher.set_parser(parser)
     missions.setServiceParent(root)
 
-    def on_start(_):
+    def on_start(unused):
         dl_client.refresh_radar()
-        pilots.dlink = dl_client
-        radar.dlink = dl_client
-        missions.dlink = dl_client
+        pilots.dl_client = dl_client
+        radar.dl_client = dl_client
+        missions.dl_client = dl_client
         root.startService()
         root.client.mission_status()
 
     def on_connected(client):
-        root.client = client
-        pilots.client = client
-        objects.client = client
+        root.cl_client = client
+        pilots.cl_client = client
+        objects.cl_client = client
         d = dl_client.on_start.addCallback(on_start)
         reactor.listenUDP(0, dl_client)
         return d

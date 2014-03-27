@@ -5,11 +5,8 @@ import optparse
 
 from twisted.application.internet import TimerService
 from twisted.application.service import Service
-from twisted.internet import defer, reactor
+from twisted.internet import reactor
 
-from zope.interface import implementer
-
-from il2ds_middleware.interface.service import IMissionService
 from il2ds_middleware.parser import ConsoleParser
 from il2ds_middleware.protocol import ConsoleClientFactory
 from il2ds_middleware import service
@@ -122,8 +119,8 @@ def main():
         print "Rotating mission \"{0}\" with duration of {1} seconds.".format(
             options.mission, options.duration)
 
-        missions.client = client
-        pilots.client = client
+        missions.cl_client = client
+        pilots.cl_client = client
         missions.startService()
         pilots.startService()
 

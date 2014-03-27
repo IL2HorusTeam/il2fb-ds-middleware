@@ -15,15 +15,25 @@ from il2ds_middleware.interface.service import (IPilotService, IObjectsService,
 LOG = tx_logging.getLogger(__name__)
 
 
-class ClientBaseService(Service):
+class ClientService(Service):
     """
-    Base console client sevice. Client must be set up manually.
+    Base console client sevice. Console and Device Link clients must be set up
+    manually.
     """
-    client = None
+    cl_client = None
+    dl_client = None
+
+    @staticmethod
+    def radar_refresher(func):
+        def decorator(self, *args, **kwargs):
+            if self.dl_client:
+                self.dl_client.refresh_radar()
+            func(self, *args, **kwargs)
+        return decorator
 
 
 @implementer(IPilotService)
-class MutedPilotService(ClientBaseService):
+class MutedPilotService(ClientService):
     """
     Base pilots muted service.
     """
@@ -521,7 +531,7 @@ class MutedPilotService(ClientBaseService):
 
 
 @implementer(IObjectsService)
-class MutedObjectsService(ClientBaseService):
+class MutedObjectsService(ClientService):
     """
     Base map objects muted service.
     """
@@ -612,7 +622,7 @@ class MutedObjectsService(ClientBaseService):
 
 
 @implementer(IMissionService)
-class MutedMissionsService(ClientBaseService):
+class MutedMissionsService(ClientService):
     """
     Base mission muted service.
     """

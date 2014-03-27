@@ -4,9 +4,8 @@
 import time
 import optparse
 
-from twisted.internet import defer, reactor
+from twisted.internet import reactor
 
-from il2ds_middleware.constants import MISSION_STATUS
 from il2ds_middleware.parser import ConsoleParser, EventLogParser
 from il2ds_middleware.protocol import ConsoleClientFactory
 from il2ds_middleware import service
@@ -219,9 +218,9 @@ def main():
         options.host, options.port)
 
     def on_connected(client):
-        missions.client = client
-        pilots.client = client
-        objects.client = client
+        missions.cl_client = client
+        pilots.cl_client = client
+        objects.cl_client = client
         missions.startService()
         pilots.startService()
         client.mission_status()
