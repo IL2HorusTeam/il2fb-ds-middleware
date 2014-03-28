@@ -20,7 +20,7 @@ def wrap_pos(line, info):
         line, info['pos']['x'], info['pos']['y'])
 
 
-class PilotService(service.MutedPilotService):
+class PilotsService(service.MutedPilotsService):
 
     def user_joined(self, info):
         line = "Hello, {0} coming from {1}! We are watching you!".format(
@@ -232,7 +232,7 @@ def main():
     def on_connection_lost(err):
         print "Connection was lost."
 
-    pilots = PilotService()
+    pilots = PilotsService()
     objects = ObjectsService()
 
     log_watcher = service.LogWatchingService(options.log)

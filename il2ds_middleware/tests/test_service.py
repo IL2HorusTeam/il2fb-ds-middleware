@@ -3,16 +3,16 @@ from twisted.trial.unittest import TestCase
 from zope.interface.verify import verifyClass
 
 from il2ds_middleware.constants import MISSION_STATUS
-from il2ds_middleware.interface.service import (IPilotService, IObjectsService,
-    IMissionService, )
-from il2ds_middleware.service import (MutedPilotService, MutedObjectsService,
+from il2ds_middleware.interface.service import (IPilotsService, IObjectsService,
+    IMissionsService, )
+from il2ds_middleware.service import (MutedPilotsService, MutedObjectsService,
     MutedMissionsService, MissionsService, )
 from il2ds_middleware.tests.service import FakeLogWatchingService
 
 
-verifyClass(IPilotService, MutedPilotService)
+verifyClass(IPilotsService, MutedPilotsService)
 verifyClass(IObjectsService, MutedObjectsService)
-verifyClass(IMissionService, MutedMissionsService)
+verifyClass(IMissionsService, MutedMissionsService)
 
 
 class MissionServiceTestCase(TestCase):

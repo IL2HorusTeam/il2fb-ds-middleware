@@ -16,28 +16,29 @@ def parse_args():
     parser.add_option('--host', help=help, default='localhost')
 
     help = "The port to connect to. Default is 10000."
-    parser.add_option('--port', type='int', default=10000, help=help)
+    parser.add_option('--port', help=help, type='int', default=10000)
 
     options, args = parser.parse_args()
     return (options.host, options.port)
 
 
-def on_positions(response):
-    print "Number of received coordinates: {count}".format(count=len(response))
+def on_response(response):
+    print "Number of received coordinates: {0}".format(len(response))
+
     for data in response:
         print "{0}: x={1}; y={2}; z={3}".format(
-            data['callsign'],
-            data['pos']['x'], data['pos']['y'], data['pos']['z'], )
+              data['callsign'],
+              data['pos']['x'], data['pos']['y'], data['pos']['z'], )
 
 
-def errback(failure):
-    print "Failed to get pilots coordinates: %s." % failure.value
+def on_failure(failure):
+    print "Failed to get pilots' coordinates: %s." % failure.value
 
 
 def on_start(client):
     client.refresh_radar()
     return client.all_pilots_pos().addCallbacks(
-        on_positions, errback).addBoth(
+        on_response, on_failure).addBoth(
         lambda unused: reactor.stop())
 
 

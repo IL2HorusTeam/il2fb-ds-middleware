@@ -38,7 +38,7 @@ class ConsoleParser(object):
         """
         Input:
         `services`      # a tuple with pilots and mission services
-                        # which implemente IPilotService and IMissionService
+                        # which implements IPilotsService and IMissionsService
                         # correspondingly
         """
         self.pilot_service, self.mission_service = services
@@ -435,8 +435,8 @@ class EventLogParser(lp.MultipleParser):
         """
         Input:
         `services`      # a tuple with pilots, objects and mission services
-                        # which implemente IPilotService, IObjectsService and
-                        # IMissionService correspondingly
+                        # which implements IPilotsService, IObjectsService and
+                        # IMissionsService correspondingly
         """
         pilots, objects, missions = services
         time_position = [
@@ -656,7 +656,7 @@ class DeviceLinkParser(object):
             },
         }
         """
-        return map(self.pilot_pos, datas)
+        return filter(lambda x: x is not None, map(self.pilot_pos, datas))
 
     static_count = pilot_count
 
@@ -705,7 +705,7 @@ class DeviceLinkParser(object):
             },
         }
         """
-        return map(self.static_pos, datas)
+        return filter(lambda x: x is not None, map(self.static_pos, datas))
 
     def _parse_pos(self, data, name_attr='name', strip_idx=False):
         idx, info = data.split(':')

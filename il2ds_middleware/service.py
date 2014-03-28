@@ -8,8 +8,8 @@ from twisted.internet import defer
 from zope.interface import implementer
 
 from il2ds_middleware.constants import MISSION_STATUS
-from il2ds_middleware.interface.service import (IPilotService, IObjectsService,
-    IMissionService, )
+from il2ds_middleware.interface.service import (IPilotsService, IObjectsService,
+    IMissionsService, )
 
 
 LOG = tx_logging.getLogger(__name__)
@@ -32,8 +32,8 @@ class ClientService(Service):
         return decorator
 
 
-@implementer(IPilotService)
-class MutedPilotService(ClientService):
+@implementer(IPilotsService)
+class MutedPilotsService(ClientService):
     """
     Base pilots muted service.
     """
@@ -621,7 +621,7 @@ class MutedObjectsService(ClientService):
         """
 
 
-@implementer(IMissionService)
+@implementer(IMissionsService)
 class MutedMissionsService(ClientService):
     """
     Base mission muted service.

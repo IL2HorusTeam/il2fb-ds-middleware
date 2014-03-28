@@ -3,7 +3,7 @@
 from zope.interface import Interface
 
 
-class IPilotService(Interface):
+class IPilotsService(Interface):
 
     """Interface for creating pilots-monitoring services."""
 
@@ -281,7 +281,7 @@ class IObjectsService(Interface):
         """
 
 
-class IMissionService(Interface):
+class IMissionsService(Interface):
 
     """Interface for creating mission-monitoring services."""
 

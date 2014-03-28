@@ -12,7 +12,7 @@ from il2ds_middleware.protocol import ConsoleClientFactory
 from il2ds_middleware import service
 
 
-class PilotService(service.MutedPilotService):
+class PilotsService(service.MutedPilotsService):
 
     def __init__(self, missions):
         self.missions = missions
@@ -132,7 +132,7 @@ def main():
         print "Connection was lost."
 
     missions = MissionsService(options.mission, options.duration)
-    pilots = PilotService(missions)
+    pilots = PilotsService(missions)
 
     p = ConsoleParser((pilots, missions))
     f = ConsoleClientFactory(parser=p, timeout_value=1)

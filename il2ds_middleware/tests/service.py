@@ -5,7 +5,7 @@ from twisted.internet import defer
 from il2ds_middleware import service
 
 
-class PilotService(service.MutedPilotService):
+class PilotsService(service.MutedPilotsService):
 
     def __init__(self):
         self.buffer = []
