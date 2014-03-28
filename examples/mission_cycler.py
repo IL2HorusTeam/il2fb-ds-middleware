@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 import optparse
 
 from twisted.application.internet import TimerService
@@ -19,7 +18,7 @@ class PilotsService(service.MutedPilotsService):
 
     def user_chat(self, (callsign, msg)):
         if msg == "<timeleft":
-            self.client.chat_user(self.missions.time_left_str(), callsign)
+            self.cl_client.chat_user(self.missions.time_left_str(), callsign)
 
 
 class MissionsService(service.MutedMissionsService):
@@ -36,20 +35,20 @@ class MissionsService(service.MutedMissionsService):
         return self.reload_mission()
 
     def reload_mission(self):
-        return self.client.mission_destroy().addCallback(self.on_destroyed)
+        return self.cl_client.mission_destroy().addCallback(self.on_destroyed)
 
-    def on_destroyed(self, _):
-        self.client.chat_all(
+    def on_destroyed(self, unused):
+        self.cl_client.chat_all(
             "Loading mission \"{0}\".".format(self.mission))
-        d = self.client.mission_load(self.mission)
+        d = self.cl_client.mission_load(self.mission)
         return d.addCallback(self.on_loaded)
 
-    def on_loaded(self, _):
-        return self.client.mission_begin().addCallback(self.on_playing)
+    def on_loaded(self, unused):
+        return self.cl_client.mission_begin().addCallback(self.on_playing)
 
-    def on_playing(self, _):
-        self.client.chat_all(
-            "Mission \"{:}\" is playing.".format(self.mission))
+    def on_playing(self, unused):
+        self.cl_client.chat_all(
+            "Mission \"{0}\" is playing.".format(self.mission))
         self.time_left = self.duration
         self.time_to_notification == 0
         self.time_checker.startService()
@@ -57,10 +56,10 @@ class MissionsService(service.MutedMissionsService):
     def check_time(self):
         if self.time_left == 0:
             self.time_checker.stopService()
-            self.client.chat_all("Mission is ended.")
+            self.cl_client.chat_all("Mission is ended.")
             return self.reload_mission()
         if self.time_to_notification == 0:
-            self.client.chat_all(self.time_left_str())
+            self.cl_client.chat_all(self.time_left_str())
             if not self.check_notification_time(15*60):
                 if not self.check_notification_time(5*60):
                     if not self.check_notification_time(60):
@@ -109,38 +108,35 @@ def parse_args():
     return options
 
 
-def main():
-    options = parse_args()
+if __name__ == '__main__':
 
-    def on_connected(client):
-        peer = client.transport.getPeer()
-        print "Working with server console on {0}:{1}.".format(
+    def on_connection_done(cl_client):
+        peer = cl_client.transport.getPeer()
+        print "Working with server console at {0}:{1}.".format(
             peer.host, peer.port)
         print "Rotating mission \"{0}\" with duration of {1} seconds.".format(
             options.mission, options.duration)
 
-        missions.cl_client = client
-        pilots.cl_client = client
+        missions.cl_client = cl_client
+        pilots.cl_client = cl_client
         missions.startService()
         pilots.startService()
 
-    def on_fail(err):
-        print "Failed to connect: %s" % err.value
+    def on_connection_failed(failure):
+        print "Failed to connect: %s" % failure.value
         reactor.stop()
 
-    def on_connection_lost(err):
-        print "Connection was lost."
+    def on_connection_lost(failure):
+        print "Connection was lost: %s" % failure.value
+
+    options = parse_args()
 
     missions = MissionsService(options.mission, options.duration)
     pilots = PilotsService(missions)
 
     p = ConsoleParser((pilots, missions))
-    f = ConsoleClientFactory(parser=p, timeout_value=1)
-    f.on_connecting.addCallbacks(on_connected, on_fail)
+    f = ConsoleClientFactory(parser=p, timeout=1)
+    f.on_connecting.addCallbacks(on_connection_done, on_connection_failed)
     f.on_connection_lost.addErrback(on_connection_lost)
     reactor.connectTCP(options.host, options.port, f)
     reactor.run()
-
-
-if __name__ == '__main__':
-    main()
