@@ -88,10 +88,12 @@ def parse_args():
     parser.add_option('--log', help=help)
 
     options, args = parser.parse_args()
+
     if not options.log:
         parser.error("Path to events log is not set.")
     if not os.path.exists(options.log) or not os.path.isfile(options.log):
         parser.error("Invalid path to events log.")
+
     return options
 
 
