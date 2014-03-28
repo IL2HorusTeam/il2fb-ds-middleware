@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 import optparse
+
+from twisted.internet import reactor
 
 from il2ds_middleware.parser import DeviceLinkParser
 from il2ds_middleware.protocol import DeviceLinkClient
@@ -21,37 +22,31 @@ def parse_args():
     return (options.host, options.port)
 
 
-def main():
+def on_positions(response):
+    print "Number of received coordinates: {count}".format(count=len(response))
+    for data in response:
+        print "{0}: x={1}; y={2}; z={3}".format(
+            data['callsign'],
+            data['pos']['x'], data['pos']['y'], data['pos']['z'], )
 
-    def on_pos(response):
-        print "Got %s coordinates" % len(response)
-        for data in response:
-            print "{0}: x={1}; y={2}; z={3}".format(
-                data['callsign'],
-                data['pos']['x'], data['pos']['y'], data['pos']['z'], )
 
-    def on_err(err):
-        print "Getting pilots positions failed: %s." % err.value
+def errback(failure):
+    print "Failed to get pilots coordinates: %s." % failure.value
 
-    def do_stop(_):
-        from twisted.internet import reactor
-        reactor.stop()
 
-    def on_start(_):
-        client.refresh_radar()
-        return client.all_pilots_pos().addCallbacks(
-            on_pos, on_err).addBoth(do_stop)
+def on_start(client):
+    client.refresh_radar()
+    return client.all_pilots_pos().addCallbacks(
+        on_positions, errback).addBoth(
+        lambda unused: reactor.stop())
 
+
+if __name__ == '__main__':
     address = parse_args()
     print "Working with Device Link on %s:%s." % address
 
     client = DeviceLinkClient(address, DeviceLinkParser())
     client.on_start.addCallback(on_start)
 
-    from twisted.internet import reactor
     reactor.listenUDP(0, client)
     reactor.run()
-
-
-if __name__ == '__main__':
-    main()

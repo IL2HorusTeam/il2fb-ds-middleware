@@ -432,7 +432,7 @@ class DeviceLinkProtocol(DatagramProtocol):
     def startProtocol(self):
         if self.on_start is not None:
             d, self.on_start = self.on_start, None
-            d.callback(None)
+            d.callback(self)
 
     def datagramReceived(self, data, address):
         if self.address is not None and address != self.address:
