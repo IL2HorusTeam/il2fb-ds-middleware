@@ -107,7 +107,7 @@ if __name__ == '__main__':
         missions.dl_client = dl_client
 
         root.startService()
-        root.cl_client.mission_status()
+        return root.cl_client.mission_status()
 
     def on_connection_done(cl_client):
         root.cl_client = cl_client
