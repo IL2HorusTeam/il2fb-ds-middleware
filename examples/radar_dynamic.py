@@ -10,14 +10,14 @@ from twisted.internet import reactor
 from il2ds_middleware.parser import (ConsoleParser, DeviceLinkParser,
     EventLogParser, )
 from il2ds_middleware.protocol import ConsoleClientFactory, DeviceLinkClient
-from il2ds_middleware.service import (ClientService, LogWatchingService,
+from il2ds_middleware.service import (ClientServiceMixin, LogWatchingService,
     MissionsService as DefaultMissionsService, MutedPilotsService,
     MutedObjectsService, )
 
 
 class PilotsService(MutedPilotsService):
 
-    @ClientService.radar_refresher
+    @ClientServiceMixin.radar_refresher
     def passthrough(self, info):
         pass
 
@@ -31,7 +31,7 @@ class PilotsService(MutedPilotsService):
 
 class MissionsService(DefaultMissionsService):
 
-    @ClientService.radar_refresher
+    @ClientServiceMixin.radar_refresher
     def began(self, info=None):
         DefaultMissionsService.began(self, info)
 

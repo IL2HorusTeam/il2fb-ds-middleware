@@ -20,7 +20,8 @@ REQUEST_MISSION_LOAD_TIMEOUT = 30
 CHAT_MAX_LENGTH = 80
 
 
-DeviceLinkCommand = namedtuple('DeviceLinkCommand', 'opcode arg')
+DeviceLinkCommand = namedtuple('DeviceLinkCommand', field_names=[
+                               'opcode', 'arg'])
 
 
 class DeviceLinkValueConstant(ValueConstant):

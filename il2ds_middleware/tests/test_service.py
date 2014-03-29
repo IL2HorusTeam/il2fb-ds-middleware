@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
+from twisted.application.service import IService
 from twisted.trial.unittest import TestCase
+
 from zope.interface.verify import verifyClass
 
 from il2ds_middleware.constants import MISSION_STATUS
@@ -10,8 +12,13 @@ from il2ds_middleware.service import (MutedPilotsService, MutedObjectsService,
 from il2ds_middleware.tests.service import FakeLogWatchingService
 
 
+verifyClass(IService, MutedPilotsService)
 verifyClass(IPilotsService, MutedPilotsService)
+
+verifyClass(IService, MutedObjectsService)
 verifyClass(IObjectsService, MutedObjectsService)
+
+verifyClass(IService, MutedMissionsService)
 verifyClass(IMissionsService, MutedMissionsService)
 
 

@@ -3,28 +3,42 @@ import tx_logging
 
 from twisted.application.internet import TimerService
 from twisted.application.service import Service
-from twisted.internet import defer
 
+from twisted.internet import defer
 from zope.interface import implementer
 
 from il2ds_middleware.constants import MISSION_STATUS
-from il2ds_middleware.interface.service import (IPilotsService, IObjectsService,
-    IMissionsService, )
+from il2ds_middleware.interface.service import (IPilotsService,
+    IObjectsService, IMissionsService, )
 
 
 LOG = tx_logging.getLogger(__name__)
 
 
-class ClientService(Service):
+class ClientServiceMixin(object):
     """
-    Base console client sevice. Console and Device Link clients must be set up
+    Mixin for client sevices. Console and Device Link clients must be set up
     manually.
     """
-    cl_client = None
-    dl_client = None
+
+    def cl_client(self):
+        """
+        Get instance of server console client protocol.
+        """
+        raise NotImplementedError
+
+    def dl_client(self):
+        """
+        Get instance of server Device Link client protocol.
+        """
+        raise NotImplementedError
 
     @staticmethod
     def radar_refresher(func):
+        """
+        Decorator which refreshes Device Link radar before some method is
+        called.
+        """
         def decorator(self, *args, **kwargs):
             if self.dl_client:
                 self.dl_client.refresh_radar()
@@ -33,9 +47,9 @@ class ClientService(Service):
 
 
 @implementer(IPilotsService)
-class MutedPilotsService(ClientService):
+class MutedPilotsService(Service, ClientServiceMixin):
     """
-    Base pilots muted service.
+    Base pilots muted service which does nothing.
     """
 
     def user_joined(self, info):
@@ -531,9 +545,9 @@ class MutedPilotsService(ClientService):
 
 
 @implementer(IObjectsService)
-class MutedObjectsService(ClientService):
+class MutedObjectsService(Service, ClientServiceMixin):
     """
-    Base map objects muted service.
+    Base map objects muted service which does nothing.
     """
 
     def building_destroyed_by_user(self, info):
@@ -622,9 +636,9 @@ class MutedObjectsService(ClientService):
 
 
 @implementer(IMissionsService)
-class MutedMissionsService(ClientService):
+class MutedMissionsService(Service, ClientServiceMixin):
     """
-    Base mission muted service.
+    Base mission muted service which does nothing.
     """
 
     def on_status_info(self, info):

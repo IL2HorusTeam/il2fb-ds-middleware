@@ -22,8 +22,10 @@ from il2ds_middleware.requests import *
 LOG = tx_logging.getLogger(__name__)
 
 
-ConsoleRequest = namedtuple('ConsoleRequest', 'rid results deferred watchdog')
-DeviceLinkRequest = namedtuple('DeviceLinkRequest', 'opcode deferred watchdog')
+ConsoleRequest = namedtuple('ConsoleRequest', field_names=[
+                            'rid', 'results', 'deferred', 'watchdog'])
+DeviceLinkRequest = namedtuple('DeviceLinkRequest', field_names=[
+                               'opcode', 'deferred', 'watchdog'])
 
 
 class ConsoleClient(LineOnlyReceiver):
