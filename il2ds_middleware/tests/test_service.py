@@ -1,18 +1,32 @@
 # -*- coding: utf-8 -*-
-
-from twisted.application.service import Service
+from twisted.application.service import IService
 from twisted.trial.unittest import TestCase
 
+from zope.interface.verify import verifyClass
+
 from il2ds_middleware.constants import MISSION_STATUS
-from il2ds_middleware.service import MissionService
+from il2ds_middleware.interface.service import (IPilotsService, IObjectsService,
+    IMissionsService, )
+from il2ds_middleware.service import (MutedPilotsService, MutedObjectsService,
+    MutedMissionsService, MissionsService, )
 from il2ds_middleware.tests.service import FakeLogWatchingService
+
+
+verifyClass(IService, MutedPilotsService)
+verifyClass(IPilotsService, MutedPilotsService)
+
+verifyClass(IService, MutedObjectsService)
+verifyClass(IObjectsService, MutedObjectsService)
+
+verifyClass(IService, MutedMissionsService)
+verifyClass(IMissionsService, MutedMissionsService)
 
 
 class MissionServiceTestCase(TestCase):
 
     def setUp(self):
         self.log_watcher = FakeLogWatchingService()
-        self.srvc = MissionService(self.log_watcher)
+        self.srvc = MissionsService(self.log_watcher)
         self.srvc.startService()
 
     def tearDown(self):

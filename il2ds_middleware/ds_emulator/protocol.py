@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
+import tx_logging
 
 from twisted.internet.defer import Deferred
 from twisted.internet.protocol import ServerFactory
 from twisted.protocols.basic import LineReceiver
-from twisted.python import log
 
 from il2ds_middleware.constants import DEVICE_LINK_OPCODE as OPCODE
 from il2ds_middleware.protocol import DeviceLinkProtocol
 from il2ds_middleware.ds_emulator.constants import LONG_OPERATION_CMD
+
+
+LOG = tx_logging.getLogger(__name__)
 
 
 class ConsoleServer(LineReceiver):
@@ -33,8 +36,13 @@ class ConsoleServerFactory(ServerFactory):
     protocol = ConsoleServer
 
     def __init__(self):
+        self._client = None
         self.on_connected = Deferred()
         self.on_connection_lost = Deferred()
+
+    def buildProtocol(self, addr):
+        self._client = ServerFactory.buildProtocol(self, addr)
+        return self._client
 
     def client_connected(self, client):
         if self.on_connected is not None:
@@ -58,11 +66,11 @@ class DeviceLinkServerProtocol(DeviceLinkProtocol):
             answer = None
             try:
                 opcode = OPCODE.lookupByValue(cmd)
-            except ValueError as e:
+            except ValueError:
                 if cmd == LONG_OPERATION_CMD:
-                    answers.append(self.service.long_operation())
+                    return
                 else:
-                    log.err("Unknown command: {0}".format(cmd))
+                    LOG.error("Unknown command: {0}".format(cmd))
             else:
                 if opcode == OPCODE.RADAR_REFRESH:
                     self.service.refresh_radar()

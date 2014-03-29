@@ -1,27 +1,25 @@
 # -*- coding: utf-8 -*-
-
 import datetime
-import os
+import tx_logging
 
-from twisted.application import internet
+from collections import OrderedDict
+
 from twisted.application.service import Service, MultiService
-from twisted.python import log
 from zope.interface import implementer
 
 from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as OPCODE,
     MISSION_STATUS, PILOT_STATE, OBJECT_STATE, )
 from il2ds_middleware.interface.parser import ILineParser
-from il2ds_middleware.ds_emulator.constants import (LONG_OPERATION_DURATION,
-    LONG_OPERATION_CMD, )
-from il2ds_middleware.ds_emulator.interfaces import (IPilotService,
-    IMissionService, IStaticObjectService, IDeviceLinkService, IEventLogger, )
+from il2ds_middleware.ds_emulator.constants import LONG_OPERATION_CMD
+
+
+LOG = tx_logging.getLogger(__name__)
 
 
 @implementer(ILineParser)
-class _CommonServiceMixin():
+class CommonServiceMixin():
 
     evt_log = None
-    parent = None
     client = None
 
     def send(self, line):
@@ -31,15 +29,15 @@ class _CommonServiceMixin():
             self.parent.send(line)
 
 
-class RootService(MultiService, _CommonServiceMixin):
+class RootService(MultiService, CommonServiceMixin):
     """
     Top-level service.
     """
-    lop_duration = LONG_OPERATION_DURATION
 
     def __init__(self, log_path=None):
         MultiService.__init__(self)
-        self.evt_log = EventLoggingService(log_path)
+        self.muted = False
+        self.evt_log = EventLogger(log_path)
         self.user_command_id = 0
         self.set_server_info()
         self._init_children()
@@ -48,18 +46,24 @@ class RootService(MultiService, _CommonServiceMixin):
         """
         Initialize children services.
         """
-        pilots = PilotService()
-        static = StaticService()
+        pilots = PilotsService()
+        statics = StaticsService()
         dl = DeviceLinkService()
-        missions = MissionService()
+        missions = MissionsService()
 
-        dl.pilot_srvc = pilots
-        dl.static_srvc = static
-        missions.dl_srvc = dl
+        dl.pilots = pilots
+        dl.statics = statics
+        missions.device_link = dl
 
-        for service in [pilots, static, missions, dl, ]:
+        for service in [pilots, statics, missions, dl, ]:
             service.setServiceParent(self)
             service.evt_log = self.evt_log
+
+    def mute(self):
+        self.muted = True
+
+    def unmute(self):
+        self.muted = False
 
     def startService(self):
         MultiService.startService(self)
@@ -69,15 +73,16 @@ class RootService(MultiService, _CommonServiceMixin):
         return MultiService.stopService(self)
 
     def parse_line(self, line):
-        result = False
-        for service in self.services:
-            if not ILineParser.providedBy(service):
-                continue
-            result = service.parse_line(line)
-            if result:
-                break
-        if not result and not self._parse(line):
-            self.send("Command not found: " + line)
+        if not self.muted:
+            result = False
+            for service in self.services:
+                if not ILineParser.providedBy(service):
+                    continue
+                result = service.parse_line(line)
+                if result:
+                    break
+            if not result and not self._parse(line):
+                self.send("Command not found: " + line)
         return True
 
     def _parse(self, line):
@@ -86,10 +91,9 @@ class RootService(MultiService, _CommonServiceMixin):
                 self._server_info()
                 break
             if line == LONG_OPERATION_CMD:
-                self._long_operation()
                 break
-            if self._chat(line):
-                break
+            if line.startswith("chat"):
+                return self._chat(line)
             return False
         return True
 
@@ -102,13 +106,7 @@ class RootService(MultiService, _CommonServiceMixin):
         for line in response:
             self.send(line)
 
-    def _long_operation(self):
-        import time
-        time.sleep(self.lop_duration)
-
     def _chat(self, line):
-        if not line.startswith("chat"):
-            return False
         idx = line.find('ALL')
         if idx < 0:
             idx = line.find('TO')
@@ -120,10 +118,10 @@ class RootService(MultiService, _CommonServiceMixin):
         self.send("Chat: Server: \t{0}".format(msg))
         return True
 
-    def set_server_info(self, name="", description=""):
+    def set_server_info(self, name=None, description=None):
         self.info = {
-            'name': name,
-            'description': description,
+            'name': name or "",
+            'description': description or "",
         }
 
     def manual_input(self, line):
@@ -134,8 +132,7 @@ class RootService(MultiService, _CommonServiceMixin):
         self.send("<consoleN><{0}>".format(self.user_command_id))
 
 
-@implementer(IPilotService)
-class PilotService(Service, _CommonServiceMixin):
+class PilotsService(Service, CommonServiceMixin):
 
     name = "pilots"
     channel = 1
@@ -143,12 +140,22 @@ class PilotService(Service, _CommonServiceMixin):
     port = 21000
 
     def __init__(self):
-        self.pilots = {}
+        self.pilots = OrderedDict()
 
     def parse_line(self, line):
         while True:
+            if line == "user":
+                self.show_common_info()
+                break
+            if line == "user STAT":
+                self.show_statistics()
+                break
             if line.startswith("kick"):
-                self._kick(callsign=line[4:].strip())
+                arg = line.split(' ', 1)[1]
+                try:
+                    self.kick_number(int(arg))
+                except ValueError:
+                    self.kick_user(arg)
                 break
             return False
         return True
@@ -160,7 +167,48 @@ class PilotService(Service, _CommonServiceMixin):
                 'ip': ip,
                 'channel': self.channel,
                 'state': PILOT_STATE.IDLE,
-                'army': "None",
+                'army': "(0)None",
+                'ping': 0,
+                'score': 0,
+                'kills': {
+                    'enemy': {
+                        'aircraft': 0,
+                        'static_aircraft': 0,
+                        'tank': 0,
+                        'car': 0,
+                        'artillery': 0,
+                        'aaa': 0,
+                        'wagon': 0,
+                        'ship': 0,
+                        'radio': 0,
+                    },
+                    'friend': {
+                        'aircraft': 0,
+                        'static_aircraft': 0,
+                        'tank': 0,
+                        'car': 0,
+                        'artillery': 0,
+                        'aaa': 0,
+                        'wagon': 0,
+                        'ship': 0,
+                        'radio': 0,
+                    },
+                },
+                'weapons': {
+                    'bullets': {
+                        'fire': 0,
+                        'hit': 0,
+                        'hit_air': 0,
+                    },
+                    'rockets': {
+                        'fire': 0,
+                        'hit': 0,
+                    },
+                    'bombs': {
+                        'fire': 0,
+                        'hit': 0,
+                    },
+                },
             }
             self.channel += self.channel_inc
             return pilot
@@ -168,26 +216,33 @@ class PilotService(Service, _CommonServiceMixin):
         pilot = create_pilot()
         self.pilots[callsign] = pilot
 
-        self.send(
-            "socket channel '{0}' start creating: ip {1}:{2}".format(
-                pilot['channel'], pilot['ip'], self.port))
+        self.send("socket channel '{0}' start creating: ip {1}:{2}".format(
+                  pilot['channel'], pilot['ip'], self.port))
         self.send("Chat: --- {0} joins the game.".format(callsign))
-        self.send(
-            "socket channel '{0}', ip {1}:{2}, {3}, "
-            "is complete created.".format(
-                pilot['channel'], pilot['ip'], self.port, callsign))
+        self.send("socket channel '{0}', ip {1}:{2}, {3}, "
+                  "is complete created.".format(
+                  pilot['channel'], pilot['ip'], self.port, callsign))
         self.evt_log.enlog("{0} has connected".format(callsign))
 
     def leave(self, callsign):
         self._leave(callsign)
 
-    def _kick(self, callsign):
+    def kick_number(self, number):
+        try:
+            callsign = self.pilots.keys()[number - 1]
+        except IndexError:
+            LOG.error("Kick error: invalid number {0}.".format(number))
+        else:
+            self.kick_user(callsign)
+
+    def kick_user(self, callsign):
         self._leave(callsign, reason="You have been kicked from the server.")
 
     def _leave(self, callsign, reason=None):
         pilot = self.pilots.get(callsign)
         if pilot is None:
-            log.err("Pilot with callsign \"{0}\" not found.".format(callsign))
+            LOG.error("Pilot with callsign \"{0}\" not found.".format(
+                      callsign))
             return
         del self.pilots[callsign]
 
@@ -213,44 +268,110 @@ class PilotService(Service, _CommonServiceMixin):
             pilot['pos'] = pos or {
                 'x': 0, 'y': 0, 'z': 0, }
             pilot['craft'] = craft or {
-                'name': "A6M2-21",
+                'code': "A6M2-21",
+                'designation': "* Red 1",
                 'weapons': "1xdt",
                 'fuel': "100",
             }
             self.evt_log.enlog(
                 "{0}:{1}(0) seat occupied by {0} at {2} {3}".format(
-                    callsign, pilot['craft']['name'],
-                    pilot['pos']['x'], pilot['pos']['y']))
+                callsign, pilot['craft']['code'],
+                pilot['pos']['x'], pilot['pos']['y']))
             self.evt_log.enlog(
                 "{0}:{1} loaded weapons '{2}' fuel {3}%".format(
-                    callsign, pilot['craft']['name'],
-                    pilot['craft']['weapons'], pilot['craft']['fuel']))
+                callsign, pilot['craft']['code'],
+                pilot['craft']['weapons'], pilot['craft']['fuel']))
 
     def kill(self, callsign):
         pilot = self.pilots.get(callsign)
         if pilot is not None:
             pilot['state'] = PILOT_STATE.DEAD
-            self.evt_log.enlog(
-                "{0}:{1}(0) was killed at {2} {3}".format(
-                    callsign, pilot['craft']['name'],
-                    pilot['pos']['x'], pilot['pos']['y']))
+            self.evt_log.enlog("{0}:{1}(0) was killed at {2} {3}".format(
+                               callsign, pilot['craft']['code'],
+                               pilot['pos']['x'], pilot['pos']['y']))
 
     def get_active(self):
-        return [x for x in self.pilots.keys()
-            if self.pilots[x]['state'] != PILOT_STATE.IDLE]
+        return [
+            callsign for callsign in self.pilots.keys()
+            if self.pilots[callsign]['state'] != PILOT_STATE.IDLE
+        ]
+
+    def show_common_info(self):
+        line = " {0: <8}{1: <15}{2: <8}{3: <8}{4: <12}{5: <8}".format(
+               "N", "Name", "Ping", "Score", "Army", "Aircraft")
+        self.send(line)
+        for i, (callsign, pilot) in enumerate(self.pilots.items()):
+            craft = pilot.get('craft')
+            craft_info = "{0: <12}{1}".format(
+                          craft['designation'], craft['code']) if craft else ""
+            line = " {0: <7}{1: <17}{2: <8}{3: <7}{4: <12}{5: <8}".format(
+                   i+1, callsign, pilot['ping'], pilot['score'], pilot['army'],
+                   craft_info)
+            self.send(line)
+
+    def show_statistics(self):
+
+        def separate():
+            self.send("-"*55)
+
+        def show(name, value):
+            self.send("{0}: \\t\\t{1}".format(name, value))
+
+        separate()
+        for callsign, pilot in self.pilots.iteritems():
+            show("Name", callsign)
+            show("Score", pilot['score'])
+            show("State", pilot['state'].name)
+
+            kills = pilot['kills']['enemy']
+            show("Enemy Aircraft Kill", kills['aircraft'])
+            show("Enemy Static Aircraft Kill", kills['static_aircraft'])
+            show("Enemy Tank Kill", kills['tank'])
+            show("Enemy Car Kill", kills['car'])
+            show("Enemy Artillery Kill", kills['artillery'])
+            show("Enemy AAA Kill", kills['aaa'])
+            show("Enemy Wagon Kill", kills['wagon'])
+            show("Enemy Ship Kill", kills['ship'])
+            show("Enemy Radio Kill", kills['radio'])
+
+            kills = pilot['kills']['friend']
+            show("Friend Aircraft Kill", kills['aircraft'])
+            show("Friend Static Aircraft Kill", kills['static_aircraft'])
+            show("Friend Tank Kill", kills['tank'])
+            show("Friend Car Kill", kills['car'])
+            show("Friend Artillery Kill", kills['artillery'])
+            show("Friend AAA Kill", kills['aaa'])
+            show("Friend Wagon Kill", kills['wagon'])
+            show("Friend Ship Kill", kills['ship'])
+            show("Friend Radio Kill", kills['radio'])
+
+            bullets = pilot['weapons']['bullets']
+            show("Fire Bullets", bullets['fire'])
+            show("Hit Bullets", bullets['hit'])
+            show("Hit Air Bullets", bullets['hit_air'])
+
+            rockets = pilot['weapons']['rockets']
+            # Yep, yes: 'Roskets' with 's' inside.
+            show("Fire Roskets", rockets['fire'])
+            show("Hit Roskets", rockets['hit'])
+
+            bombs = pilot['weapons']['bombs']
+            show("Fire Bombs", bombs['fire'])
+            show("Hit Bombs", bombs['hit'])
+
+            separate()
 
     def stopService(self):
-        self.pilots = None
+        self.pilots.clear()
         return Service.stopService(self)
 
 
-@implementer(IMissionService)
-class MissionService(Service, _CommonServiceMixin):
+class MissionsService(Service, CommonServiceMixin):
 
     name = "missions"
     status = MISSION_STATUS.NOT_LOADED
     mission = None
-    dl_srvc = None
+    device_link = None
 
     def parse_line(self, line):
         if not line.startswith("mission"):
@@ -314,8 +435,7 @@ class MissionService(Service, _CommonServiceMixin):
         else:
             self.status = MISSION_STATUS.NOT_LOADED
             self.mission = None
-            if self.dl_srvc:
-                self.dl_srvc.forget_everything()
+            self.device_link.forget_everything()
 
     def _mission_not_loaded(self):
         self.send("ERROR mission: Mission NOT loaded")
@@ -333,10 +453,9 @@ class MissionService(Service, _CommonServiceMixin):
         return Service.stopService(self)
 
 
-@implementer(IStaticObjectService)
-class StaticService(Service):
+class StaticsService(Service):
 
-    name = "static"
+    name = "statics"
     objects = None
 
     def __init__(self):
@@ -344,8 +463,7 @@ class StaticService(Service):
 
     def spawn(self, name, pos=None):
         self.objects[name] = {
-            'pos': pos or {
-                'x': 0, 'y': 0, 'z': 0, },
+            'pos': pos or {'x': 0, 'y': 0, 'z': 0, },
             'state': OBJECT_STATE.ALIVE,
         }
 
@@ -356,17 +474,17 @@ class StaticService(Service):
             name, attacker_name, obj['pos']['x'], obj['pos']['y']))
 
     def get_active(self):
-        return [x for x in self.objects.keys()
-            if self.objects[x]['state'] != OBJECT_STATE.DESTROYED]
+        return [
+            x for x in self.objects.keys()
+            if self.objects[x]['state'] != OBJECT_STATE.DESTROYED
+        ]
 
 
-@implementer(IDeviceLinkService)
 class DeviceLinkService(Service):
 
     name = "dl"
-    lop_duration = LONG_OPERATION_DURATION
-    pilot_srvc = None
-    static_srvc = None
+    pilots = None
+    statics = None
 
     def __init__(self):
         self.forget_everything()
@@ -376,19 +494,18 @@ class DeviceLinkService(Service):
         self.known_static = []
 
     def refresh_radar(self):
-        self.known_air = self.pilot_srvc.get_active()
-        self.known_static = self.static_srvc.get_active()
+        self.known_air = self.pilots.get_active()
+        self.known_static = self.statics.get_active()
 
     def pilot_count(self):
         result = len(self.known_air)
         return OPCODE.PILOT_COUNT.make_command(result)
 
     def pilot_pos(self, arg):
-        data = self._pos(
-            known_container=self.known_air,
-            primary_container=self.pilot_srvc.pilots,
-            invalid_states=[PILOT_STATE.IDLE, PILOT_STATE.DEAD, ],
-            idx=arg, idx_append=True)
+        data = self._pos(known_container=self.known_air,
+                         primary_container=self.pilots.pilots,
+                         invalid_states=[PILOT_STATE.IDLE, PILOT_STATE.DEAD, ],
+                         idx=arg, idx_append=True)
         return OPCODE.PILOT_POS.make_command(data) if data else None
 
     def static_count(self):
@@ -396,15 +513,14 @@ class DeviceLinkService(Service):
         return OPCODE.STATIC_COUNT.make_command(result)
 
     def static_pos(self, arg):
-        data = self._pos(
-            known_container=self.known_static,
-            primary_container=self.static_srvc.objects,
-            invalid_states=[OBJECT_STATE.DESTROYED, ],
-            idx=arg)
+        data = self._pos(known_container=self.known_static,
+                         primary_container=self.statics.objects,
+                         invalid_states=[OBJECT_STATE.DESTROYED, ],
+                         idx=arg)
         return OPCODE.STATIC_POS.make_command(data) if data else None
 
     def _pos(self, known_container, primary_container, invalid_states,
-            idx, idx_append=False):
+             idx, idx_append=False):
         if idx is None:
             return None
         try:
@@ -419,19 +535,13 @@ class DeviceLinkService(Service):
                 if idx_append:
                     key = "{:}_{:}".format(key, idx)
                 pos = handler['pos']
-                data = ';'.join([str(_)
-                    for _ in [key, pos['x'], pos['y'], pos['z'], ]])
+                chunks = (key, pos['x'], pos['y'], pos['z'], )
+                data = ';'.join([str(chunk) for chunk in chunks])
         finally:
             return ':'.join([idx, data, ])
 
-    def long_operation(self):
-        import time
-        time.sleep(self.lop_duration)
-        return (LONG_OPERATION_CMD, None, )
 
-
-@implementer(IEventLogger)
-class EventLoggingService(Service):
+class EventLogger(Service):
 
     def __init__(self, log_path=None, keep_log=True):
         self.log_path = log_path
@@ -443,7 +553,7 @@ class EventLoggingService(Service):
         if self.log_file is not None:
             self._do_log(line)
         else:
-            log.msg("Logging event into nowhere: \"{0}\"".format(line))
+            LOG.info("Logging event into nowhere: \"{0}\"".format(line))
 
     def _do_log(self, line):
         evt_time = datetime.datetime.now()
@@ -454,13 +564,13 @@ class EventLoggingService(Service):
 
     def _get_formated_time(self, timestamp):
         """
-        We do not need leading zero before hours, so we will replace it
-        if it is present. To find it we use symbol '-'.
+        We do not need leading zero before hours, so we will replace it if it
+        is present.
         """
-        format = "-%I:%M:%S %p"
+        result = timestamp.strftime("%I:%M:%S %p").lstrip('0')
         if self._day_differs(timestamp):
-            format = "%b %d, %Y " + format
-        return timestamp.strftime(format).replace('-0', '').replace('-', '')
+            result = timestamp.strftime("%b %d, %Y ") + result
+        return result
 
     def _day_differs(self, timestamp):
         return timestamp.day != self.last_evt_time.day \
@@ -478,6 +588,4 @@ class EventLoggingService(Service):
 
     def stopService(self):
         self.stop_log()
-        if self.log_path is not None and os.path.isfile(self.log_path):
-            os.remove(self.log_path)
         return Service.stopService(self)
