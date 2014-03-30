@@ -287,7 +287,7 @@ class ConsoleClient(LineOnlyReceiver):
         """
         for i in xrange(max_count):
             # Kick 1st user in cycle. It's important to kick all of the users.
-            # Do not rely on 'user_count' method in this situation: number
+            # Do not rely on 'users_count' method in this situation: number
             # of users may change between getting current user list and kicking
             # the last user. It's OK if number of users will decrease, but if
             # it will increase, then someone may not be kicked. There is still
