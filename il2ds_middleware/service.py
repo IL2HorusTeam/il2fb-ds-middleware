@@ -8,8 +8,8 @@ from twisted.internet import defer
 from zope.interface import implementer
 
 from il2ds_middleware.constants import MISSION_STATUS
-from il2ds_middleware.interface.service import (IPilotsService,
-    IObjectsService, IMissionsService, )
+from il2ds_middleware.interface.service import (
+    IPilotsService, IObjectsService, IMissionsService, )
 
 
 LOG = tx_logging.getLogger(__name__)
@@ -743,7 +743,7 @@ class LogWatchingService(TimerService):
     given time period.
     """
 
-    def __init__(self, log_path, period=1, parser=None):
+    def __init__(self, log_path=None, period=1, parser=None):
         """
         Input:
         `log_path`      # string path to server's events log file.
@@ -777,12 +777,13 @@ class LogWatchingService(TimerService):
             self.parser.parse_line(line.strip())
 
     def startService(self):
-        if self.log_file is not None:
+        if self.log_file is not None or self.log_path is None:
             return
         try:
             self.log_file = open(self.log_path, 'r')
         except IOError as e:
             LOG.error("Failed to open events log: {0}.".format(e))
+            self.log_file = None
         else:
             self.log_file.seek(self.log_file.tell())
             self.log_file.readlines()

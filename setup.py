@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='il2ds-middleware',
-    version='0.10.0',
+    version='0.10.1',
     description='High-level access to IL-2 FB Dedicated Server.',
     license='BSD License',
     url='https://github.com/IL2HorusTeam/il2ds-middleware',

@@ -384,8 +384,8 @@ class ReconnectingConsoleClientFactory(ReconnectingClientFactory):
         LOG.error("Failed to connect to server: {0}".format(
                   unicode(reason.value)))
         if self.continueTrying:
-            ReconnectingClientFactory.clientConnectionFailed(self, connector,
-                                                             reason)
+            ReconnectingClientFactory.clientConnectionFailed(
+                self, connector, reason)
         elif self.on_connecting is not None:
             d, self.on_connecting = self.on_connecting, None
             d.errback(reason)
@@ -400,8 +400,8 @@ class ReconnectingConsoleClientFactory(ReconnectingClientFactory):
             log_error()
             self._update_deferreds()
             d.errback(reason)
-            ReconnectingClientFactory.clientConnectionLost(self, connector,
-                                                           reason)
+            ReconnectingClientFactory.clientConnectionLost(
+                self, connector, reason)
         else:
             if isinstance(reason.value, ConnectionDone):
                 LOG.debug("Connection with server was closed.")
