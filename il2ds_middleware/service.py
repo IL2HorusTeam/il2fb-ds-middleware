@@ -648,7 +648,7 @@ class MutedMissionsService(Service, ClientServiceMixin):
         Input:
         `info`  # A tuple containing mission's status and name. Name is `None`
                 # if mission is not loaded. Structure:
-                # (MISSION_STATUS, "MISSION_NAME")
+                # (MISSION_STATUS, "MISSION_PATH")
         """
 
     def was_won(self, info):
@@ -702,10 +702,22 @@ class MissionsService(MutedMissionsService):
         """
         status, current_mission_path = info
         if status != self.status:
-            if self.status == MISSION_STATUS.PLAYING:
-                self.ended(info)
-            elif status == MISSION_STATUS.PLAYING:
+            if status == MISSION_STATUS.PLAYING:
                 self.began(info)
+            elif (
+                (
+                    self.status == MISSION_STATUS.PLAYING
+                    and status in [
+                        MISSION_STATUS.LOADED, MISSION_STATUS.NOT_LOADED
+                    ]
+                ) or (
+                    self.status in [
+                        MISSION_STATUS.LOADED, MISSION_STATUS.LOADING,
+                        MISSION_STATUS.STOPPING
+                    ] and status == MISSION_STATUS.NOT_LOADED
+                )
+            ):
+                self.ended(info)
         self.status, self.current_mission_path = status, current_mission_path
 
     def began(self, info=None):
