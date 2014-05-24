@@ -692,7 +692,7 @@ class MissionsService(MutedMissionsService):
                         # log file while mission is running.
         """
         self.status = MISSION_STATUS.NOT_LOADED
-        self.mission = None
+        self.current_mission_path = None
         self.log_watcher = log_watcher
 
     def on_status_info(self, info):
@@ -700,13 +700,13 @@ class MissionsService(MutedMissionsService):
         Process information about mission state. See base class for more
         details.
         """
-        status, mission = info
+        status, current_mission_path = info
         if status != self.status:
             if self.status == MISSION_STATUS.PLAYING:
                 self.ended(info)
             elif status == MISSION_STATUS.PLAYING:
                 self.began(info)
-        self.status, self.mission = status, mission
+        self.status, self.current_mission_path = status, current_mission_path
 
     def began(self, info=None):
         """
@@ -731,7 +731,7 @@ class MissionsService(MutedMissionsService):
 
     def stopService(self):
 
-        def callback(_):
+        def callback(unused):
             MutedMissionsService.stopService(self)
 
         return self.log_watcher.stopService().addBoth(callback)

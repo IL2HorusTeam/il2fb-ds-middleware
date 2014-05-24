@@ -23,8 +23,8 @@ class PilotsService(service.MutedPilotsService):
 
 class MissionsService(service.MutedMissionsService):
 
-    def __init__(self, mission, duration):
-        self.mission = mission
+    def __init__(self, mission_path, duration):
+        self.current_mission_path = mission_path
         self.duration = duration
         self.time_checker = TimerService(1, self.check_time)
         self.time_left = 0
@@ -39,8 +39,8 @@ class MissionsService(service.MutedMissionsService):
 
     def on_destroyed(self, unused):
         self.cl_client.chat_all(
-            "Loading mission \"{0}\".".format(self.mission))
-        d = self.cl_client.mission_load(self.mission)
+            "Loading mission \"{0}\".".format(self.current_mission_path))
+        d = self.cl_client.mission_load(self.current_mission_path)
         return d.addCallback(self.on_loaded)
 
     def on_loaded(self, unused):
@@ -48,7 +48,7 @@ class MissionsService(service.MutedMissionsService):
 
     def on_playing(self, unused):
         self.cl_client.chat_all(
-            "Mission \"{0}\" is playing.".format(self.mission))
+            "Mission \"{0}\" is playing.".format(self.current_mission_path))
         self.time_left = self.duration
         self.time_to_notification == 0
         self.time_checker.startService()

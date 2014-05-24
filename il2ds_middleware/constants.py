@@ -45,8 +45,13 @@ class MISSION_STATUS(Names):
     """
     Constants representing various mission status codes.
     """
-    NOT_LOADED = NamedConstant()
+    LOADING = NamedConstant()
     LOADED = NamedConstant()
+
+    STOPPING = NamedConstant()
+    NOT_LOADED = NamedConstant()
+
+    STARTING = NamedConstant()
     PLAYING = NamedConstant()
 
 

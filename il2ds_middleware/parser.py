@@ -102,15 +102,22 @@ class ConsoleParser(object):
         return lines
 
     def _mission_status(self, line):
+
+        def _mission_path():
+            return line.split()[1]
+
         info = None
+
         if line == "Mission NOT loaded":
             info = (MISSION_STATUS.NOT_LOADED, None, )
         elif line.endswith("is Loaded"):
-            info = (MISSION_STATUS.LOADED, line.split()[1], )
+            info = (MISSION_STATUS.LOADED, _mission_path(), )
         elif line.endswith("is Playing"):
-            info = (MISSION_STATUS.PLAYING, line.split()[1], )
+            info = (MISSION_STATUS.PLAYING, _mission_path(), )
+
         if info:
             self.mission_service.on_status_info(info)
+
         return info
 
     def user_joined(self, line):

@@ -174,15 +174,15 @@ class ObjectsService(service.MutedObjectsService):
 
 class MissionsService(service.MissionsService):
 
-    def began(self, (status, mission)):
-        self.cl_client.chat_all(
-            wrap_time("Mission \"{0}\" is playing.".format(mission)))
-        service.MissionsService.began(self, (status, mission))
+    def began(self, (status, current_mission_path)):
+        self.cl_client.chat_all(wrap_time(
+            "Mission \"{0}\" is playing.".format(current_mission_path)))
+        service.MissionsService.began(self, (status, current_mission_path))
 
-    def ended(self, (status, mission)):
-        service.MissionsService.ended(self, (status, mission))
-        self.cl_client.chat_all(
-            wrap_time("Mission \"{0}\" has ended.".format(mission)))
+    def ended(self, (status, current_mission_path)):
+        service.MissionsService.ended(self, (status, current_mission_path))
+        self.cl_client.chat_all(wrap_time(
+            "Mission \"{0}\" has ended.".format(current_mission_path)))
 
     def was_won(self, info):
         line = "Mission was won by {0} army.".format(info['army'])
