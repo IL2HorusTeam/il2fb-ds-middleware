@@ -7,8 +7,9 @@ import il2ds_log_parser.content_processor as lpcp
 import il2ds_log_parser.parser as lp
 import il2ds_log_parser.regex as lpre
 from il2ds_middleware.constants import MISSION_STATUS, PILOT_LEAVE_REASON
-from il2ds_middleware.interface.parser import (ILineParser, IConsoleParser,
-    IDeviceLinkParser, )
+from il2ds_middleware.interface.parser import (
+    ILineParser, IConsoleParser, IDeviceLinkParser,
+)
 from il2ds_middleware.regex import *
 
 

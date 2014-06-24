@@ -6,26 +6,35 @@ from collections import namedtuple, deque
 
 from twisted.internet import defer
 from twisted.internet.error import ConnectionDone
-from twisted.internet.protocol import (ClientFactory,
-    ReconnectingClientFactory, DatagramProtocol, )
+from twisted.internet.protocol import (
+    ClientFactory, ReconnectingClientFactory, DatagramProtocol,
+)
 from twisted.protocols.basic import LineOnlyReceiver
 
-from il2ds_middleware.constants import (DEVICE_LINK_OPCODE as DL_OPCODE,
-    DEVICE_LINK_PREFIXES, DEVICE_LINK_CMD_SEPARATOR as DL_CMD_SEP,
+from il2ds_middleware.constants import (
+    DEVICE_LINK_OPCODE as DL_OPCODE, DEVICE_LINK_PREFIXES,
+    DEVICE_LINK_CMD_SEPARATOR as DL_CMD_SEP,
     DEVICE_LINK_ARGS_SEPARATOR as DL_ARGS_SEP, DEVICE_LINK_CMD_GROUP_MAX_SIZE,
-    REQUEST_TIMEOUT, REQUEST_MISSION_LOAD_TIMEOUT, CHAT_MAX_LENGTH, )
-from il2ds_middleware.parser import (ConsolePassthroughParser,
-    DeviceLinkPassthroughParser, )
+    REQUEST_TIMEOUT, REQUEST_MISSION_LOAD_TIMEOUT, CHAT_MAX_LENGTH,
+)
+from il2ds_middleware.parser import (
+    ConsolePassthroughParser, DeviceLinkPassthroughParser,
+)
 from il2ds_middleware.requests import *
+from il2ds_middleware.utils import get_failure_message
 
 
 LOG = tx_logging.getLogger(__name__)
 
 
-ConsoleRequest = namedtuple('ConsoleRequest', field_names=[
-                            'rid', 'results', 'deferred', 'watchdog'])
-DeviceLinkRequest = namedtuple('DeviceLinkRequest', field_names=[
-                               'opcode', 'deferred', 'watchdog'])
+ConsoleRequest = namedtuple(
+    typename='ConsoleRequest',
+    field_names=['rid', 'results', 'deferred', 'watchdog', ],
+)
+DeviceLinkRequest = namedtuple(
+    typename='DeviceLinkRequest',
+    field_names=['opcode', 'deferred', 'watchdog', ],
+)
 
 
 class ConsoleClient(LineOnlyReceiver):
@@ -230,7 +239,7 @@ class ConsoleClient(LineOnlyReceiver):
         Get count users of connected users. Returns deferred.
         """
         strings = yield self._request_users_common_info(timeout)
-        defer.returnValue(len(strings) - 1) # '1' is for user table's header
+        defer.returnValue(len(strings) - 1)  # '1' is for user table's header
 
     @defer.inlineCallbacks
     def users_common_info(self, timeout=None):
@@ -320,11 +329,14 @@ class ConsoleClientFactory(ClientFactory):
         return client
 
     def clientConnectionMade(self, client):
+        LOG.debug("Connection successfully established")
         if self.on_connecting is not None:
             d, self.on_connecting = self.on_connecting, None
             d.callback(client)
 
     def clientConnectionFailed(self, connector, reason):
+        LOG.error("Failed to connect to server: {0}".format(
+                  get_failure_message(reason)))
         if self.on_connecting is not None:
             d, self.on_connecting = self.on_connecting, None
             d.errback(reason)
@@ -333,8 +345,11 @@ class ConsoleClientFactory(ClientFactory):
         if self.on_connection_lost is not None:
             d, self.on_connection_lost = self.on_connection_lost, None
             if isinstance(reason.value, ConnectionDone):
+                LOG.debug("Connection with server was closed.")
                 d.callback(None)
             else:
+                LOG.error("Connection with server is lost: {0}".format(
+                          get_failure_message(reason)))
                 d.errback(reason)
 
 
@@ -344,10 +359,10 @@ class ReconnectingConsoleClientFactory(ReconnectingClientFactory):
     reconnection to server in case of loosing connection.
     """
 
-    # Client's protocol class.
+    #: Client's protocol class.
     protocol = ConsoleClient
 
-    # Client's protocol instance placeholder.
+    #: Client's protocol instance placeholder.
     client = None
 
     def __init__(self, parser=None, timeout=None):
@@ -382,7 +397,7 @@ class ReconnectingConsoleClientFactory(ReconnectingClientFactory):
         Overrides base method and logs connection failure.
         """
         LOG.error("Failed to connect to server: {0}".format(
-                  unicode(reason.value)))
+                  get_failure_message(reason)))
         if self.continueTrying:
             ReconnectingClientFactory.clientConnectionFailed(
                 self, connector, reason)
@@ -395,7 +410,7 @@ class ReconnectingConsoleClientFactory(ReconnectingClientFactory):
 
         def log_error():
             LOG.error("Connection with server is lost: {0}".format(
-                      unicode(reason.value)))
+                      get_failure_message(reason)))
         if self.continueTrying:
             log_error()
             self._update_deferreds()
@@ -500,8 +515,8 @@ class DeviceLinkClient(DeviceLinkProtocol):
     Default Device Link client protocol.
     """
 
-    # Max number of consequent commands. We need to split large groups of
-    # commands into smaller ones due to the limit of server's buffer size.
+    #: Max number of consequent commands. We need to split large groups of
+    #: commands into smaller ones due to the limit of server's buffer size.
     cmd_group_max_size = DEVICE_LINK_CMD_GROUP_MAX_SIZE
 
     def __init__(self, address, parser=None, timeout=REQUEST_TIMEOUT):

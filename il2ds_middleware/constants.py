@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 from collections import namedtuple
 
-from twisted.python.constants import (ValueConstant, Values, NamedConstant,
-    Names, )
+from twisted.python.constants import (
+    ValueConstant, Values, NamedConstant, Names,
+)
 
 
 DEVICE_LINK_PREFIXES = {
@@ -20,8 +21,10 @@ REQUEST_MISSION_LOAD_TIMEOUT = 30
 CHAT_MAX_LENGTH = 80
 
 
-DeviceLinkCommand = namedtuple('DeviceLinkCommand', field_names=[
-                               'opcode', 'arg'])
+DeviceLinkCommand = namedtuple(
+    typename='DeviceLinkCommand',
+    field_names=['opcode', 'arg', ],
+)
 
 
 class DeviceLinkValueConstant(ValueConstant):
