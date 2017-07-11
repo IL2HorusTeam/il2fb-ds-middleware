@@ -1,11 +1,15 @@
+os:
+  - 'linux'
+sudo: false
 language: python
 python:
-    - "2.7"
+  - '3.5'
+  - '3.6'
 install:
-    - pip install -e . --use-mirrors
-    - pip install coverage coveralls --use-mirrors
+  - pip install -r ./requirements/ci.txt
+  - pip install -e .
 script:
-    - coverage run `which trial` -e il2ds_middleware
-    - coverage report -m
+  - py.test
 after_success:
-    - coveralls
+  - codecov
+  - ocular --data-file ".coverage" --config-file ".coveragerc"

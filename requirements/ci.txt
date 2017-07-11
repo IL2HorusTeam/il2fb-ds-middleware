@@ -1,0 +1,5 @@
+-r dist.txt
+-r test.txt
+
+codecov
+scrutinizer-ocular

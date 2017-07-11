@@ -1,9 +1,12 @@
 [run]
-source = il2ds_middleware
-omit = */tests/*
+source = il2ds.middleware
+omit =
+    */tests/*
+    */profiling/*
 
 [report]
 exclude_lines =
     pragma: no cover
     raise NotImplementedError
     pass
+    NOQA

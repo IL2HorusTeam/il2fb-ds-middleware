@@ -1,23 +1,65 @@
-from setuptools import setup, find_packages
+# coding: utf-8
+
+import os
+
+from setuptools import setup
+
+
+__here__ = os.path.abspath(os.path.dirname(__file__))
+
+
+def split_requirements(lines):
+    requirements, dependencies = [], []
+
+    for line in lines:
+        if line.startswith('-e'):
+            line = line.split(' ', 1)[1]
+            dependencies.append(line)
+            line = line.split('#egg=', 1)[1]
+
+        requirements.append(line)
+
+    return requirements, dependencies
+
+
+with open(os.path.join(__here__, 'requirements', 'dist.txt')) as f:
+    REQUIREMENTS = [x.strip() for x in f]
+    REQUIREMENTS = [x for x in REQUIREMENTS if x and not x.startswith('#')]
+    REQUIREMENTS, DEPENDENCIES = split_requirements(REQUIREMENTS)
+
+
+README = open(os.path.join(__here__, 'README.rst')).read()
+
 
 setup(
     name='il2ds-middleware',
-    version='0.10.3',
-    description='High-level access to IL-2 FB Dedicated Server.',
+    version='1.0.0',
+    description="High-level access to IL-2 FB Dedicated Server",
     license='GPLv2',
     url='https://github.com/IL2HorusTeam/il2ds-middleware',
     author='Alexander Oblovatniy',
     author_email='oblovatniy@gmail.com',
-    packages=find_packages(exclude=["examples", ]),
-    install_requires=[i.strip() for i in open("requirements.pip").readlines()],
+    packages=[
+        'il2fb.middleware',
+    ],
+    namespace_packages=[
+        'il2fb',
+    ],
+    include_package_data=True,
+    install_requires=REQUIREMENTS,
+    dependency_links=DEPENDENCIES,
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'License :: Free for non-commercial use',
-        'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
+        'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',
         'Natural Language :: English',
         'Operating System :: OS Independent',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Topic :: Software Development :: Libraries',
+    ],
+    platforms=[
+        'any',
     ],
 )
