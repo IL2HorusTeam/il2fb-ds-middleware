@@ -39,3 +39,5 @@ nosetests.xml
 _trial_temp
 *.log
 *.pid
+
+tests/ds/

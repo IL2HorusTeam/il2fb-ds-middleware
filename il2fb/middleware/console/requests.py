@@ -18,6 +18,7 @@ LOG = logging.getLogger(__name__)
 
 
 class ConsoleRequest:
+    __slots__ = ['body', '_future', ]
 
     def __init__(self, future: asyncio.Future, body: str) -> None:
         self.body = body

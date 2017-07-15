@@ -49,14 +49,13 @@ class ConsoleClient(asyncio.Protocol):
             try:
                 await self._dispatch_single_request()
             except Exception:
-                LOG.exception("failed to dispatch a single request")
+                LOG.exception("failed to dispatch a single console request")
 
     async def _dispatch_single_request(self) -> None:
         self._request = await self._requests.get()
         LOG.debug(f"req <-- {repr(self._request)}")
 
-        data = f"{str(self._request)}{MESSAGE_DELIMITER}"
-        data = data.encode('utf-8')
+        data = f"{str(self._request)}{MESSAGE_DELIMITER}".encode()
 
         timeout_future = asyncio.Future()
         self._request.add_done_callback(functools.partial(
@@ -154,11 +153,11 @@ class ConsoleClient(asyncio.Protocol):
         try:
             self._request.set_result(messages)
         except Exception as e:
-            LOG.exception("failed to set result to request")
+            LOG.exception("failed to set result of request")
             try:
                 self._request.set_exception(e)
             except Exception:
-                LOG.exception("failed to set exception to request")
+                LOG.exception("failed to set exception of request")
 
     def _on_message(self, message: str) -> None:
         LOG.debug("msg <-- {!r}".format(message))
