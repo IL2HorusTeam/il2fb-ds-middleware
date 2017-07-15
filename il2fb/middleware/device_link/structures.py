@@ -1,6 +1,7 @@
 # coding: utf-8
 
 from collections import namedtuple
+from typing import Optional
 
 from il2fb.commons.spatial import Point2D, Point3D
 from il2fb.commons.structures import BaseStructure
@@ -20,15 +21,21 @@ class ActorPosition(BaseStructure):
 
 
 class AircraftPosition(ActorPosition):
-    __slots__ = ['index', 'id', 'pos', 'is_human', ]
+    __slots__ = ['index', 'id', 'pos', 'is_human', 'member_index', ]
 
     def __init__(
-        self, index: int, id: str, is_human: bool, pos: Point3D,
+        self,
+        index: int,
+        id: str,
+        is_human: bool,
+        member_index: Optional[int],
+        pos: Point3D,
     ):
         self.index = index
         self.id = id
         self.pos = pos
         self.is_human = is_human
+        self.member_index = member_index
 
 
 class GroundUnitPosition(ActorPosition):

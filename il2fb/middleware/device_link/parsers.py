@@ -24,10 +24,18 @@ def parse_aircraft_position(
     normalized_id = normalize_aircraft_id(id)
     is_human = (normalized_id != id)
     pos = Point3D(float(x), float(y), float(z))
+
+    if is_human:
+        member_index = None
+    else:
+        id, member_index = id[:-1], id[-1:]
+        member_index = int(member_index)
+
     return structures.AircraftPosition(
         index=item.index,
         id=normalized_id,
         is_human=is_human,
+        member_index=member_index,
         pos=pos,
     )
 
