@@ -28,7 +28,7 @@ def parse_aircraft_position(
     if is_human:
         member_index = None
     else:
-        id, member_index = id[:-1], id[-1:]
+        normalized_id, member_index = normalized_id[:-1], normalized_id[-1:]
         member_index = int(member_index)
 
     return structures.AircraftPosition(
