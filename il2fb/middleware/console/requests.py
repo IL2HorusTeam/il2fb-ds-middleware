@@ -20,7 +20,7 @@ LOG = logging.getLogger(__name__)
 class ConsoleRequest:
     __slots__ = ['body', '_future', ]
 
-    def __init__(self, future: asyncio.Future, body: str) -> None:
+    def __init__(self, future: asyncio.Future, body: str):
         self.body = body
         self._future = future
 
@@ -54,7 +54,7 @@ class ConsoleRequest:
 
 class ServerInfoRequest(ConsoleRequest):
 
-    def __init__(self, future: asyncio.Future) -> None:
+    def __init__(self, future: asyncio.Future):
         super().__init__(future=future, body="server")
 
     def set_result(self, messages: List[str]) -> None:
@@ -72,7 +72,7 @@ class ServerInfoRequest(ConsoleRequest):
 
 class UserListRequest(ConsoleRequest):
 
-    def __init__(self, future: asyncio.Future) -> None:
+    def __init__(self, future: asyncio.Future):
         super().__init__(future=future, body="user")
 
     def set_result(self, messages: List[str]) -> None:
@@ -113,7 +113,7 @@ class UserListRequest(ConsoleRequest):
 
 class UserStatisticsRequest(ConsoleRequest):
 
-    def __init__(self, future: asyncio.Future) -> None:
+    def __init__(self, future: asyncio.Future):
         super().__init__(future=future, body="user STAT")
 
     def set_result(self, messages: List[str]) -> None:
@@ -140,7 +140,7 @@ class UserStatisticsRequest(ConsoleRequest):
 
 class KickByCallsignRequest(ConsoleRequest):
 
-    def __init__(self, future: asyncio.Future, callsign: str) -> None:
+    def __init__(self, future: asyncio.Future, callsign: str):
         super().__init__(
             body=f"kick {callsign}",
             future=future,
@@ -152,7 +152,7 @@ class KickByCallsignRequest(ConsoleRequest):
 
 class KickByNumberRequest(ConsoleRequest):
 
-    def __init__(self, future: asyncio.Future, number: int) -> None:
+    def __init__(self, future: asyncio.Future, number: int):
         super().__init__(
             body=f"kick# {number}",
             future=future,
@@ -164,12 +164,7 @@ class KickByNumberRequest(ConsoleRequest):
 
 class ChatRequest(ConsoleRequest):
 
-    def __init__(
-        self,
-        future: asyncio.Future,
-        message: str,
-        target: str,
-    ) -> None:
+    def __init__(self, future: asyncio.Future, message: str, target: str):
         super().__init__(
             body=f"chat {message} {target}",
             future=future,
@@ -181,7 +176,7 @@ class ChatRequest(ConsoleRequest):
 
 class MissionStatusRequest(ConsoleRequest):
 
-    def __init__(self, future: asyncio.Future) -> None:
+    def __init__(self, future: asyncio.Future):
         super().__init__(future=future, body="mission")
 
     def set_result(self, messages: List[str]) -> None:
@@ -209,7 +204,7 @@ class MissionStatusRequest(ConsoleRequest):
 
 class MissionControlRequestBase(ConsoleRequest):
 
-    def set_result(self, messages: List[str]) -> None:
+    def set_result(self, messages: List[str]):
         for message in messages:
             if message.startswith('ERROR mission'):
                 message = message.split(':', 1)[1].strip()
@@ -221,23 +216,23 @@ class MissionControlRequestBase(ConsoleRequest):
 
 class MissionLoadRequest(MissionControlRequestBase):
 
-    def __init__(self, future: asyncio.Future, file_path: str) -> None:
+    def __init__(self, future: asyncio.Future, file_path: str):
         super().__init__(future=future, body=f"mission LOAD {file_path}")
 
 
 class MissionBeginRequest(MissionControlRequestBase):
 
-    def __init__(self, future: asyncio.Future) -> None:
+    def __init__(self, future: asyncio.Future):
         super().__init__(future=future, body="mission BEGIN")
 
 
 class MissionEndRequest(MissionControlRequestBase):
 
-    def __init__(self, future: asyncio.Future) -> None:
+    def __init__(self, future: asyncio.Future):
         super().__init__(future=future, body="mission END")
 
 
 class MissionDestroyRequest(MissionControlRequestBase):
 
-    def __init__(self, future: asyncio.Future) -> None:
+    def __init__(self, future: asyncio.Future):
         super().__init__(future=future, body="mission DESTROY")

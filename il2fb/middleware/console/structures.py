@@ -13,11 +13,7 @@ from .constants import CHAT_SENDER_SERVER
 class ChatMessage(BaseStructure):
     __slots__ = ['body', 'sender', 'from_user', 'from_server', 'from_system', ]
 
-    def __init__(
-        self,
-        body: str,
-        sender: Optional[str],
-    ) -> None:
+    def __init__(self, body: str, sender: Optional[str]):
         self.body = body
 
         self.from_system = sender is None
@@ -33,12 +29,7 @@ class ChatMessage(BaseStructure):
 class UserIsJoining(BaseStructure):
     __slots__ = ['channel', 'ip', 'port', ]
 
-    def __init__(
-        self,
-        channel: int,
-        ip: str,
-        port: int,
-    ) -> None:
+    def __init__(self, channel: int, ip: str, port: int):
         self.channel = channel
         self.ip = ip
         self.port = port
@@ -47,13 +38,7 @@ class UserIsJoining(BaseStructure):
 class UserHasJoined(BaseStructure):
     __slots__ = ['channel', 'ip', 'port', 'callsign', ]
 
-    def __init__(
-        self,
-        channel: int,
-        ip: str,
-        port: int,
-        callsign: str,
-    ) -> None:
+    def __init__(self, channel: int, ip: str, port: int, callsign: str):
         self.channel = channel
         self.ip = ip
         self.port = port
@@ -69,7 +54,7 @@ class UserHasLeft(BaseStructure):
         ip: str,
         port: int,
         reason: Optional[str],
-    ) -> None:
+    ):
         self.channel = int(channel)
         self.ip = ip
         self.port = int(port)
@@ -79,7 +64,7 @@ class UserHasLeft(BaseStructure):
 class ServerInfo(BaseStructure):
     __slots__ = ['type', 'name', 'description', ]
 
-    def __init__(self, type: str, name: str, description: str) -> None:
+    def __init__(self, type: str, name: str, description: str):
         self.type = type
         self.name = name
         self.description = description
@@ -88,7 +73,7 @@ class ServerInfo(BaseStructure):
 class Aircraft(BaseStructure):
     __slots__ = ['designation', 'type', ]
 
-    def __init__(self, designation: str, type: str) -> None:
+    def __init__(self, designation: str, type: str):
         self.designation = designation
         self.type = type
 
@@ -103,7 +88,7 @@ class User(BaseStructure):
         score: int,
         belligerent: Optional[Belligerent],
         aircraft: Optional[Aircraft],
-    ) -> None:
+    ):
         self.callsign = callsign
         self.ping = ping
         self.score = score
@@ -173,7 +158,7 @@ class UserStatistics(BaseStructure):
         rockets_hit: int,
         bombs_dropped: int,
         bombs_hit: int,
-    ) -> None:
+    ):
         self.callsign = callsign
         self.score = score
         self.state = state
@@ -207,10 +192,6 @@ class UserStatistics(BaseStructure):
 class MissionInfo(BaseStructure):
     __slots__ = ['status', 'file_path', ]
 
-    def __init__(
-        self,
-        status: MissionStatus,
-        file_path: Optional[str],
-    ) -> None:
+    def __init__(self, status: MissionStatus, file_path: Optional[str]):
         self.status = status
         self.file_path = file_path

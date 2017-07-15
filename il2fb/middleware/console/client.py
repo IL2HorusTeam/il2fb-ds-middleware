@@ -5,7 +5,7 @@ import concurrent
 import functools
 import logging
 
-from typing import List
+from typing import List, Awaitable
 
 from il2fb.commons.organization import Belligerent
 
@@ -25,7 +25,7 @@ LOG = logging.getLogger(__name__)
 
 class ConsoleClient(asyncio.Protocol):
 
-    def __init__(self, request_timeout=20.0) -> None:
+    def __init__(self, request_timeout=20.0):
         self._request_timeout = request_timeout
         self._requests = asyncio.Queue()
         self._request = None
@@ -241,44 +241,44 @@ class ConsoleClient(asyncio.Protocol):
     def on_user_has_left(self, message: structures.UserHasLeft) -> None:
         LOG.info(f"left({message.to_primitive()})")
 
-    def server_info(self) -> asyncio.Future:
+    def server_info(self) -> Awaitable[structures.ServerInfo]:
         f = asyncio.Future()
         r = requests.ServerInfoRequest(f)
         self._requests.put_nowait(r)
         return f
 
-    def user_list(self) -> asyncio.Future:
+    def user_list(self) -> Awaitable[List[structures.User]]:
         f = asyncio.Future()
         r = requests.UserListRequest(f)
         self._requests.put_nowait(r)
         return f
 
-    def user_stats(self) -> asyncio.Future:
+    def user_stats(self) -> Awaitable[List[structures.UserStatistics]]:
         f = asyncio.Future()
         r = requests.UserStatisticsRequest(f)
         self._requests.put_nowait(r)
         return f
 
-    async def user_count(self) -> int:
+    async def user_count(self) -> Awaitable[int]:
         users = await self.user_list()
         return len(users)
 
-    def kick_by_callsign(self, callsign: str) -> asyncio.Future:
+    def kick_by_callsign(self, callsign: str) -> Awaitable[None]:
         f = asyncio.Future()
         r = requests.KickByCallsignRequest(f, callsign)
         self._requests.put_nowait(r)
         return f
 
-    def kick_by_number(self, number: int) -> asyncio.Future:
+    def kick_by_number(self, number: int) -> Awaitable[None]:
         f = asyncio.Future()
         r = requests.KickByNumberRequest(f, number)
         self._requests.put_nowait(r)
         return f
 
-    def kick_first(self) -> asyncio.Future:
+    def kick_first(self) -> Awaitable[None]:
         return self.kick_by_number(1)
 
-    async def kick_all(self) -> int:
+    async def kick_all(self) -> Awaitable[int]:
         count = await self.user_count()
 
         for i in range(count):
@@ -286,20 +286,20 @@ class ConsoleClient(asyncio.Protocol):
 
         return count
 
-    def chat_all(self, message: str) -> asyncio.Future:
+    def chat_all(self, message: str) -> Awaitable[None]:
         return self._chat(message, "ALL")
 
-    def chat_user(self, message: str, callsign: str) -> asyncio.Future:
+    def chat_user(self, message: str, callsign: str) -> Awaitable[None]:
         return self._chat(message, f"TO {callsign}")
 
     def chat_belligerent(
         self,
         message: str,
         belligerent: Belligerent,
-    ) -> asyncio.Future:
+    ) -> Awaitable[None]:
         return self._chat(message, f"ARMY {belligerent.value}")
 
-    async def _chat(self, message: str, target: str) -> None:
+    async def _chat(self, message: str, target: str) -> Awaitable[None]:
         last = 0
         total = len(message)
 
@@ -315,31 +315,31 @@ class ConsoleClient(asyncio.Protocol):
 
             last += step
 
-    def mission_status(self) -> asyncio.Future:
+    def mission_status(self) -> Awaitable[structures.MissionInfo]:
         f = asyncio.Future()
         r = requests.MissionStatusRequest(f)
         self._requests.put_nowait(r)
         return f
 
-    def mission_load(self, file_path) -> asyncio.Future:
+    def mission_load(self, file_path) -> Awaitable[None]:
         f = asyncio.Future()
         r = requests.MissionLoadRequest(f, file_path)
         self._requests.put_nowait(r)
         return f
 
-    def mission_begin(self) -> asyncio.Future:
+    def mission_begin(self) -> Awaitable[None]:
         f = asyncio.Future()
         r = requests.MissionBeginRequest(f)
         self._requests.put_nowait(r)
         return f
 
-    def mission_end(self) -> asyncio.Future:
+    def mission_end(self) -> Awaitable[None]:
         f = asyncio.Future()
         r = requests.MissionEndRequest(f)
         self._requests.put_nowait(r)
         return f
 
-    def mission_destroy(self) -> asyncio.Future:
+    def mission_destroy(self) -> Awaitable[None]:
         f = asyncio.Future()
         r = requests.MissionDestroyRequest(f)
         self._requests.put_nowait(r)
