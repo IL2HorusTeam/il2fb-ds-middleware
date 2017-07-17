@@ -36,14 +36,15 @@ setup(
     version='1.0.0',
     description="High-level access to IL-2 FB Dedicated Server",
     license='GPLv2',
-    url='https://github.com/IL2HorusTeam/il2ds-middleware',
+    url='https://github.com/IL2HorusTeam/il2fb-ds-middleware',
     author='Alexander Oblovatniy',
     author_email='oblovatniy@gmail.com',
     packages=[
-        'il2fb.middleware',
+        'il2fb.ds.middleware',
     ],
     namespace_packages=[
         'il2fb',
+        'il2fb.ds',
     ],
     include_package_data=True,
     install_requires=REQUIREMENTS,

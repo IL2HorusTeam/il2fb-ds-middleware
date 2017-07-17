@@ -1,4 +1,4 @@
-# https://ci.appveyor.com/project/oblalex/il2fb-middleware
+# https://ci.appveyor.com/project/oblalex/il2fb-ds-middleware
 
 build: false # Not a C# project, build stuff at the test step instead.
 environment:

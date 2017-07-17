@@ -1,5 +1,5 @@
 [run]
-source = il2ds.middleware
+source = il2fb.ds.middleware
 omit =
     */tests/*
     */profiling/*
