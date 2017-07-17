@@ -32,7 +32,7 @@ README = open(os.path.join(__here__, 'README.rst')).read()
 
 
 setup(
-    name='il2ds-middleware',
+    name='il2fb-ds-middleware',
     version='1.0.0',
     description="High-level access to IL-2 FB Dedicated Server",
     license='GPLv2',
