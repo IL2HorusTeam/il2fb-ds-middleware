@@ -37,7 +37,9 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         asyncio.async(self._dispatch_all_requests())
 
     async def _dispatch_all_requests(self) -> None:
-        LOG.info("dispatching requests for {self._remote_address} has started")
+        LOG.info(
+            f"dispatching requests for {self._remote_address} has started"
+        )
 
         while True:
             try:
