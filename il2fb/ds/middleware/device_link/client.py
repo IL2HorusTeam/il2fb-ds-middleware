@@ -29,22 +29,41 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
 
         self._transport = None
         self._messages = []
+        self._do_close = False
+        self._close_ack = None
 
     def connection_made(self, transport) -> None:
         self._transport = transport
-        asyncio.async(self._dispatch_requests())
+        asyncio.async(self._dispatch_all_requests())
 
-    async def _dispatch_requests(self) -> None:
+    async def _dispatch_all_requests(self) -> None:
+        LOG.info("dispatching requests for {self._remote_address} has started")
+
         while True:
             try:
-                await self._dispatch_single_request()
+                await self._dispatch_request()
+            except StopAsyncIteration:
+                break
             except Exception:
                 LOG.exception(
                     "failed to dispatch a single device link request"
                 )
 
-    async def _dispatch_single_request(self) -> None:
+        LOG.info(
+            f"dispatching of requests for {self._remote_address} has stopped"
+        )
+        self._transport.close()
+        self._close_ack.set_result(None)
+
+    async def _dispatch_request(self) -> None:
         self._request = await self._requests.get()
+
+        if not self._request:
+            LOG.info(
+                f"got request to stop dispatching for {self._remote_address}"
+            )
+            raise StopAsyncIteration
+
         LOG.debug(f"req <-- {repr(self._request)}")
 
         messages = self._request.messages
@@ -146,8 +165,25 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
     ) -> Awaitable[Any]:
         f = asyncio.Future()
         r = requests.DeviceLinkRequest(f, messages, timeout)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
+
+    def enqueue_request(self, request: requests.DeviceLinkRequest) -> None:
+        if self._do_close:
+            raise ConnectionAbortedError(
+                "client is closed and does not accept requests"
+            )
+
+        self._requests.put_nowait(request)
+
+    def close(self) -> None:
+        if not self._close_ack:
+            self._do_close = True
+            self._requests.put_nowait(None)
+            self._close_ack = asyncio.Future()
+
+    def wait_closed(self) -> Awaitable[None]:
+        return self._close_ack
 
     def refresh_radar(self) -> Awaitable[None]:
         m = msg.RefreshRadarRequestMessage()
@@ -156,7 +192,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
     def aircrafts_count(self) -> Awaitable[int]:
         f = asyncio.Future()
         r = requests.AircraftsCountRequest(f, self._request_timeout)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
 
     def aircraft_position(
@@ -169,7 +205,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             indices=[index, ],
             timeout=self._request_timeout,
         )
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
 
     async def all_aircrafts_positions(
@@ -187,14 +223,14 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             indices=indices,
             timeout=self._request_timeout,
         )
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
 
         return await f
 
     def ground_units_count(self) -> Awaitable[int]:
         f = asyncio.Future()
         r = requests.GroundUnitsCountRequest(f, self._request_timeout)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
 
     def ground_unit_position(
@@ -219,14 +255,14 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             indices=indices,
             timeout=self._request_timeout,
         )
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
 
         return await f
 
     def ships_count(self) -> Awaitable[int]:
         f = asyncio.Future()
         r = requests.ShipsCountRequest(f, self._request_timeout)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
 
     def ship_position(self, index: int) -> Awaitable[structures.ShipPosition]:
@@ -248,14 +284,14 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             indices=indices,
             timeout=self._request_timeout,
         )
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
 
         return await f
 
     def stationary_objects_count(self) -> Awaitable[int]:
         f = asyncio.Future()
         r = requests.StationaryObjectsCountRequest(f, self._request_timeout)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
 
     def stationary_object_position(
@@ -280,14 +316,14 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             indices=indices,
             timeout=self._request_timeout,
         )
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
 
         return await f
 
     def houses_count(self) -> Awaitable[int]:
         f = asyncio.Future()
         r = requests.HousesCountRequest(f, self._request_timeout)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
 
     def house_position(
@@ -312,6 +348,6 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             indices=indices,
             timeout=self._request_timeout,
         )
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
 
         return await f
