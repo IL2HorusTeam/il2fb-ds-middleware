@@ -127,11 +127,10 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
                 except Exception:
                     LOG.exception("failed to set exception of request")
 
-    def error_received(self, exc) -> None:
-        print('Error received:', exc)
-
-    def connection_lost(self, exc) -> None:
-        print("Socket closed")
+    def error_received(self, e) -> None:
+        LOG.error(f"err <-- {e}")
+        if self._request:
+            self._request.set_exception(e)
 
     def send_message(
         self,
