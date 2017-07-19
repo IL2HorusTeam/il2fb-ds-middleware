@@ -34,25 +34,54 @@ class ConsoleClient(asyncio.Protocol):
         self._messages = []
         self._messages_buffer = []
 
+        self._do_close = False
+        self._close_ack = asyncio.Future()
+
     def connection_made(self, transport) -> None:
         self._transport = transport
-        asyncio.async(self._dispatch_requests())
+        asyncio.async(self._dispatch_all_requests())
 
-    def connection_lost(
-        self,
-        exc: Exception,
-    ) -> None:
-        pass
+    def connection_lost(self, e: Exception) -> None:
+        if not self._do_close:
+            enlog = LOG.error
+            self.close()
+        else:
+            enlog = LOG.info
 
-    async def _dispatch_requests(self) -> None:
+        enlog(f"console connection was lost, details: {e or 'N/A'}")
+
+    def close(self) -> None:
+        if not self._do_close:
+            self._do_close = True
+            self._requests.put_nowait(None)
+
+    def wait_closed(self) -> Awaitable[None]:
+        return self._close_ack
+
+    async def _dispatch_all_requests(self) -> None:
+        LOG.info("dispatching of console requests has started")
+
         while True:
             try:
-                await self._dispatch_single_request()
+                await self._dispatch_request()
+            except StopAsyncIteration:
+                break
             except Exception:
                 LOG.exception("failed to dispatch a single console request")
 
-    async def _dispatch_single_request(self) -> None:
+        LOG.info("dispatching of console requests has stopped")
+        self._transport.close()
+        self._close_ack.set_result(None)
+
+    async def _dispatch_request(self) -> None:
+        if self._do_close:
+            self._stop()
+
         self._request = await self._requests.get()
+
+        if not self._request or self._do_close:
+            self._stop()
+
         LOG.debug(f"req <-- {repr(self._request)}")
 
         data = f"{str(self._request)}{MESSAGE_DELIMITER}".encode()
@@ -70,6 +99,10 @@ class ConsoleClient(asyncio.Protocol):
             self._request.set_exception(e)
         finally:
             self._request = None
+
+    def _stop(self) -> None:
+        LOG.info("got request to stop dispatching console requests")
+        raise StopAsyncIteration
 
     @staticmethod
     def _on_wrapped_future_done(
@@ -241,22 +274,30 @@ class ConsoleClient(asyncio.Protocol):
     def on_user_has_left(self, message: structures.UserHasLeft) -> None:
         LOG.info(f"left({message.to_primitive()})")
 
+    def enqueue_request(self, request: requests.ConsoleRequest) -> None:
+        if self._do_close:
+            raise ConnectionAbortedError(
+                "client is closed and does not accept requests"
+            )
+
+        self._requests.put_nowait(request)
+
     def server_info(self) -> Awaitable[structures.ServerInfo]:
         f = asyncio.Future()
         r = requests.ServerInfoRequest(f)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
 
     def user_list(self) -> Awaitable[List[structures.User]]:
         f = asyncio.Future()
         r = requests.UserListRequest(f)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
 
     def user_stats(self) -> Awaitable[List[structures.UserStatistics]]:
         f = asyncio.Future()
         r = requests.UserStatisticsRequest(f)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
 
     async def user_count(self) -> Awaitable[int]:
@@ -266,13 +307,13 @@ class ConsoleClient(asyncio.Protocol):
     def kick_by_callsign(self, callsign: str) -> Awaitable[None]:
         f = asyncio.Future()
         r = requests.KickByCallsignRequest(f, callsign)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
 
     def kick_by_number(self, number: int) -> Awaitable[None]:
         f = asyncio.Future()
         r = requests.KickByNumberRequest(f, number)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
 
     def kick_first(self) -> Awaitable[None]:
@@ -310,7 +351,7 @@ class ConsoleClient(asyncio.Protocol):
 
             f = asyncio.Future()
             r = requests.ChatRequest(f, chunk, target)
-            self._requests.put_nowait(r)
+            self.enqueue_request(r)
             await f
 
             last += step
@@ -318,29 +359,29 @@ class ConsoleClient(asyncio.Protocol):
     def mission_status(self) -> Awaitable[structures.MissionInfo]:
         f = asyncio.Future()
         r = requests.MissionStatusRequest(f)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
 
     def mission_load(self, file_path) -> Awaitable[None]:
         f = asyncio.Future()
         r = requests.MissionLoadRequest(f, file_path)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
 
     def mission_begin(self) -> Awaitable[None]:
         f = asyncio.Future()
         r = requests.MissionBeginRequest(f)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
 
     def mission_end(self) -> Awaitable[None]:
         f = asyncio.Future()
         r = requests.MissionEndRequest(f)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
 
     def mission_destroy(self) -> Awaitable[None]:
         f = asyncio.Future()
         r = requests.MissionDestroyRequest(f)
-        self._requests.put_nowait(r)
+        self.enqueue_request(r)
         return f
