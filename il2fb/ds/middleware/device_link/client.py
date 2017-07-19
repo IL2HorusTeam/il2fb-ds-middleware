@@ -29,17 +29,16 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
 
         self._transport = None
         self._messages = []
+
         self._do_close = False
-        self._close_ack = None
+        self._close_ack = asyncio.Future()
 
     def connection_made(self, transport) -> None:
         self._transport = transport
         asyncio.async(self._dispatch_all_requests())
 
     async def _dispatch_all_requests(self) -> None:
-        LOG.info(
-            f"dispatching requests for {self._remote_address} has started"
-        )
+        LOG.info("dispatching of device link requests has started")
 
         while True:
             try:
@@ -51,19 +50,15 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
                     "failed to dispatch a single device link request"
                 )
 
-        LOG.info(
-            f"dispatching of requests for {self._remote_address} has stopped"
-        )
+        LOG.info("dispatching of device link requests has stopped")
         self._transport.close()
         self._close_ack.set_result(None)
 
     async def _dispatch_request(self) -> None:
         self._request = await self._requests.get()
 
-        if not self._request:
-            LOG.info(
-                f"got request to stop dispatching for {self._remote_address}"
-            )
+        if not self._request or self._do_close:
+            LOG.info("got request to stop dispatching device link requests")
             raise StopAsyncIteration
 
         LOG.debug(f"req <-- {repr(self._request)}")
@@ -179,10 +174,8 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self._requests.put_nowait(request)
 
     def close(self) -> None:
-        if not self._close_ack:
-            self._do_close = True
-            self._requests.put_nowait(None)
-            self._close_ack = asyncio.Future()
+        self._do_close = True
+        self._requests.put_nowait(None)
 
     def wait_closed(self) -> Awaitable[None]:
         return self._close_ack
