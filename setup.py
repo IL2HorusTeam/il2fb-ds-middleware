@@ -45,6 +45,7 @@ setup(
     namespace_packages=[
         'il2fb',
         'il2fb.ds',
+        'il2fb.ds.middleware',
     ],
     include_package_data=True,
     install_requires=REQUIREMENTS,
