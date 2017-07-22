@@ -41,11 +41,12 @@ setup(
     author_email='oblovatniy@gmail.com',
     packages=[
         'il2fb.ds.middleware',
+        'il2fb.ds.middleware.console',
+        'il2fb.ds.middleware.device_link',
     ],
     namespace_packages=[
         'il2fb',
         'il2fb.ds',
-        'il2fb.ds.middleware',
     ],
     include_package_data=True,
     install_requires=REQUIREMENTS,
