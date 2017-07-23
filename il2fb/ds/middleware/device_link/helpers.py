@@ -16,19 +16,22 @@ def compose_request(messages: List[DeviceLinkMessage]) -> str:
 
 
 def decompose_response(response: str) -> List[DeviceLinkMessage]:
-    payload = response[2:]
+    response = response[2:]
 
-    results = []
+    if '\\/' in response:
+        responses = re.findall('(\d+\\\\\d+:.+?(?:;\d+)+)', response)
+    else:
+        responses = response.split(MESSAGE_SEPARATOR)
 
-    for chunk in payload.split(MESSAGE_SEPARATOR):
-        command = chunk.split(VALUE_SEPARATOR)
-        opcode = int(command[0])
-        arg = command[1:]
-        arg = arg[0] if arg else None
-        message = DeviceLinkMessage(opcode, arg)
-        results.append(message)
+    return list(map(response_to_message, responses))
 
-    return results
+
+def response_to_message(response):
+    command = response.split(VALUE_SEPARATOR, 1)
+    opcode = int(command[0])
+    arg = command[1:]
+    arg = arg[0].replace('\\/', '/').replace('\\\\', '\\') if arg else None
+    return DeviceLinkMessage(opcode, arg)
 
 
 def normalize_aircraft_id(s: str) -> str:
