@@ -196,8 +196,9 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self._requests.put_nowait(request)
 
     def close(self) -> None:
-        self._do_close = True
-        self._requests.put_nowait(None)
+        if not self._do_close:
+            self._do_close = True
+            self._requests.put_nowait(None)
 
     def wait_closed(self) -> Awaitable[None]:
         return self._closed_ack
