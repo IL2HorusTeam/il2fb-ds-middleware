@@ -56,8 +56,11 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
                 )
 
         LOG.info("dispatching of device link requests has stopped")
+
         self._transport.close()
-        self._closed_ack.set_result(None)
+
+        if not self._closed_ack.done():
+            self._closed_ack.set_result(None)
 
     async def _dispatch_request(self) -> None:
         self._request = await self._requests.get()

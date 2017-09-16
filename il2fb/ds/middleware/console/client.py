@@ -75,8 +75,11 @@ class ConsoleClient(asyncio.Protocol):
                 LOG.exception("failed to dispatch a single console request")
 
         LOG.info("dispatching of console requests has stopped")
+
         self._transport.close()
-        self._closed_ack.set_result(None)
+
+        if not self._closed_ack.done():
+            self._closed_ack.set_result(None)
 
     async def _dispatch_request(self) -> None:
         if self._do_close:
