@@ -5,7 +5,7 @@ import concurrent
 import functools
 import logging
 
-from typing import List, Awaitable
+from typing import List, Awaitable, Callable
 
 from il2fb.commons.organization import Belligerent
 
@@ -25,10 +25,16 @@ LOG = logging.getLogger(__name__)
 
 class ConsoleClient(asyncio.Protocol):
 
-    def __init__(self, request_timeout: float=20.0):
+    def __init__(
+        self,
+        request_timeout: float=20.0,
+        on_data_received: Callable[[bytes], bool]=None,
+    ):
         self._request_timeout = request_timeout
         self._requests = asyncio.Queue()
         self._request = None
+
+        self._on_data_received = on_data_received
 
         self._transport = None
         self._messages = []
@@ -125,6 +131,11 @@ class ConsoleClient(asyncio.Protocol):
 
     def data_received(self, data: bytes) -> None:
         LOG.debug(f"dat <-- {repr(data)}")
+
+        if self._on_data_received:
+            is_trapped = self._on_data_received(data)
+            if is_trapped:
+                return
 
         message = data.decode().strip(MESSAGE_DELIMITER)
 

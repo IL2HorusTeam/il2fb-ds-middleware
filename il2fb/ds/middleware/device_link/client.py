@@ -5,7 +5,7 @@ import concurrent
 import functools
 import logging
 
-from typing import List, Tuple, Awaitable, Any
+from typing import List, Tuple, Awaitable, Callable, Any
 
 from . import messages as msg, structures, requests
 from .constants import TYPE_ANSWER, MESSAGE_GROUP_MAX_SIZE
@@ -14,18 +14,23 @@ from .helpers import compose_request, decompose_response
 
 LOG = logging.getLogger(__name__)
 
+Address = Tuple[str, int]
+
 
 class DeviceLinkClient(asyncio.DatagramProtocol):
 
     def __init__(
         self,
-        remote_address: Tuple[str, int],
+        remote_address: Address,
         request_timeout: float=20.0,
+        on_data_received: Callable[[bytes], bool]=None,
     ):
         self._remote_address = remote_address
         self._request_timeout = request_timeout
         self._requests = asyncio.Queue()
         self._request = None
+
+        self._on_data_received = on_data_received
 
         self._transport = None
         self._messages = []
@@ -115,12 +120,18 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         if not timeout_future.done():
             timeout_future.set_result(None)
 
-    def datagram_received(self, data, addr) -> None:
+    def datagram_received(self, data: bytes, addr: Address) -> None:
         if addr != self._remote_address:
             LOG.warning(f"dat <-? unknown sender {addr}, skip")
             return
 
         LOG.debug(f"dat <-- {repr(data)}")
+
+        if self._on_data_received:
+            is_trapped = self._on_data_received(data)
+            if is_trapped:
+                return
+
         if not self._request:
             LOG.warning(f"req N/A, skip")
             return
