@@ -31,11 +31,16 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self._messages = []
 
         self._do_close = False
+        self._connected_ack = asyncio.Future()
         self._closed_ack = asyncio.Future()
 
     def connection_made(self, transport) -> None:
         self._transport = transport
         asyncio.async(self._dispatch_all_requests())
+        self._connected_ack.set_result(None)
+
+    def wait_connected(self) -> Awaitable[None]:
+        return self._connected_ack
 
     async def _dispatch_all_requests(self) -> None:
         LOG.info("dispatching of device link requests has started")

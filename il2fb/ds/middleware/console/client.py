@@ -35,11 +35,16 @@ class ConsoleClient(asyncio.Protocol):
         self._messages_buffer = []
 
         self._do_close = False
+        self._connected_ack = asyncio.Future()
         self._closed_ack = asyncio.Future()
 
     def connection_made(self, transport) -> None:
         self._transport = transport
         asyncio.async(self._dispatch_all_requests())
+        self._connected_ack.set_result(None)
+
+    def wait_connected(self) -> Awaitable[None]:
+        return self._connected_ack
 
     def connection_lost(self, e: Exception) -> None:
         if not self._do_close:
