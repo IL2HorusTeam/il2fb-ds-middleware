@@ -25,7 +25,7 @@ LOG = logging.getLogger(__name__)
 
 class ConsoleClient(asyncio.Protocol):
 
-    def __init__(self, request_timeout=20.0):
+    def __init__(self, request_timeout: float=20.0):
         self._request_timeout = request_timeout
         self._requests = asyncio.Queue()
         self._request = None

@@ -20,7 +20,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
     def __init__(
         self,
         remote_address: Tuple[str, int],
-        request_timeout=20.0,
+        request_timeout: float=20.0,
     ):
         self._remote_address = remote_address
         self._request_timeout = request_timeout
