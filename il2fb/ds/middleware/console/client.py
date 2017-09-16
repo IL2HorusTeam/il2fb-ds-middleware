@@ -35,7 +35,7 @@ class ConsoleClient(asyncio.Protocol):
         self._messages_buffer = []
 
         self._do_close = False
-        self._close_ack = asyncio.Future()
+        self._closed_ack = asyncio.Future()
 
     def connection_made(self, transport) -> None:
         self._transport = transport
@@ -56,7 +56,7 @@ class ConsoleClient(asyncio.Protocol):
             self._requests.put_nowait(None)
 
     def wait_closed(self) -> Awaitable[None]:
-        return self._close_ack
+        return self._closed_ack
 
     async def _dispatch_all_requests(self) -> None:
         LOG.info("dispatching of console requests has started")
@@ -71,7 +71,7 @@ class ConsoleClient(asyncio.Protocol):
 
         LOG.info("dispatching of console requests has stopped")
         self._transport.close()
-        self._close_ack.set_result(None)
+        self._closed_ack.set_result(None)
 
     async def _dispatch_request(self) -> None:
         if self._do_close:

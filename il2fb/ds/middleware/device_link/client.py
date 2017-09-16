@@ -31,7 +31,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self._messages = []
 
         self._do_close = False
-        self._close_ack = asyncio.Future()
+        self._closed_ack = asyncio.Future()
 
     def connection_made(self, transport) -> None:
         self._transport = transport
@@ -52,7 +52,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
 
         LOG.info("dispatching of device link requests has stopped")
         self._transport.close()
-        self._close_ack.set_result(None)
+        self._closed_ack.set_result(None)
 
     async def _dispatch_request(self) -> None:
         self._request = await self._requests.get()
@@ -178,7 +178,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self._requests.put_nowait(None)
 
     def wait_closed(self) -> Awaitable[None]:
-        return self._close_ack
+        return self._closed_ack
 
     def refresh_radar(self) -> Awaitable[None]:
         m = msg.RefreshRadarRequestMessage()
