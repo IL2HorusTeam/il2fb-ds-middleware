@@ -63,6 +63,10 @@ class ConsoleClient(asyncio.Protocol):
     def wait_closed(self) -> Awaitable[None]:
         return self._closed_ack
 
+    def write_bytes(self, data: bytes) -> None:
+        self._transport.write(data)
+        LOG.debug(f"dat --> {repr(data)}")
+
     async def _dispatch_all_requests(self) -> None:
         LOG.info("dispatching of console requests has started")
 
@@ -98,8 +102,7 @@ class ConsoleClient(asyncio.Protocol):
         self._request.add_done_callback(functools.partial(
             self._on_wrapped_future_done, timeout_future,
         ))
-        self._transport.write(data)
-        LOG.debug(f"dat --> {repr(data)}")
+        self.write_bytes(data)
 
         try:
             await asyncio.wait_for(timeout_future, self._request_timeout)

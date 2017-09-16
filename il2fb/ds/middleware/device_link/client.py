@@ -42,6 +42,10 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
     def wait_connected(self) -> Awaitable[None]:
         return self._connected_ack
 
+    def write_bytes(self, data: bytes) -> None:
+        self._transport.sendto(data)
+        LOG.debug(f"dat --> {repr(data)}")
+
     async def _dispatch_all_requests(self) -> None:
         LOG.info("dispatching of device link requests has started")
 
@@ -79,8 +83,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             start = i * step
             group = messages[start:start + min((count - start), step)]
             data = compose_request(group).encode()
-            self._transport.sendto(data)
-            LOG.debug(f"dat --> {repr(data)}")
+            self.write_bytes(data)
 
         try:
             if self._request.timeout is None:
