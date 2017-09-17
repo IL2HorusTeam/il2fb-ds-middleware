@@ -5,7 +5,7 @@ import concurrent
 import functools
 import logging
 
-from typing import List, Tuple, Awaitable, Callable, Any
+from typing import List, Tuple, Awaitable, Any
 
 from . import messages as msg, structures, requests
 from .constants import TYPE_ANSWER, MESSAGE_GROUP_MAX_SIZE
@@ -23,7 +23,6 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self,
         remote_address: Address,
         request_timeout: float=20.0,
-        on_data_received: Callable[[bytes], bool]=None,
         loop: asyncio.AbstractEventLoop=None,
     ):
         self._loop = loop
@@ -32,8 +31,6 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self._request_timeout = request_timeout
         self._requests = asyncio.Queue(loop=self._loop)
         self._request = None
-
-        self._on_data_received = on_data_received
 
         self._transport = None
         self._messages = []
@@ -133,15 +130,6 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             return
 
         LOG.debug(f"dat <-- {repr(data)}")
-
-        if self._on_data_received:
-            try:
-                is_trapped = self._on_data_received(data)
-            except Exception:
-                LOG.exception("failed to run device link data callback")
-            else:
-                if is_trapped:
-                    return
 
         if not self._request:
             LOG.warning(f"req N/A, skip")
