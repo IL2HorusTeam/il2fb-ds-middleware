@@ -135,10 +135,13 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         LOG.debug(f"dat <-- {repr(data)}")
 
         if self._on_data_received:
-            # TODO: try
-            is_trapped = self._on_data_received(data)
-            if is_trapped:
-                return
+            try:
+                is_trapped = self._on_data_received(data)
+            except Exception:
+                LOG.exception("failed to run device link data callback")
+            else:
+                if is_trapped:
+                    return
 
         if not self._request:
             LOG.warning(f"req N/A, skip")

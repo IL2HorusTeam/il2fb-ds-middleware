@@ -140,10 +140,13 @@ class ConsoleClient(asyncio.Protocol):
         LOG.debug(f"dat <-- {repr(data)}")
 
         if self._on_data_received:
-            # TODO: try
-            is_trapped = self._on_data_received(data)
-            if is_trapped:
-                return
+            try:
+                is_trapped = self._on_data_received(data)
+            except Exception:
+                LOG.exception("failed to run console data callback")
+            else:
+                if is_trapped:
+                    return
 
         message = data.decode().strip(MESSAGE_DELIMITER)
 
