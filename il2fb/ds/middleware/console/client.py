@@ -28,7 +28,6 @@ class ConsoleClient(asyncio.Protocol):
     def __init__(
         self,
         request_timeout: float=20.0,
-        on_data_received: Callable[[bytes], bool]=None,
         loop: asyncio.AbstractEventLoop=None,
     ):
         self._loop = loop
@@ -37,8 +36,6 @@ class ConsoleClient(asyncio.Protocol):
         self._requests = asyncio.Queue(loop=self._loop)
         self._request = None
 
-        self._on_data_received = on_data_received
-
         self._transport = None
         self._messages = []
         self._messages_buffer = []
@@ -46,6 +43,20 @@ class ConsoleClient(asyncio.Protocol):
         self._do_close = False
         self._connected_ack = asyncio.Future(loop=self._loop)
         self._closed_ack = asyncio.Future(loop=self._loop)
+
+        self._data_listeners = []
+
+    def register_data_listener(
+        self,
+        listener: Callable[[bytes], bool],
+    ) -> None:
+        self._data_listeners.append(listener)
+
+    def unregister_data_listener(
+        self,
+        listener: Callable[[bytes], bool],
+    ) -> None:
+        self._data_listeners.remove(listener)
 
     def connection_made(self, transport) -> None:
         self._transport = transport
@@ -139,11 +150,11 @@ class ConsoleClient(asyncio.Protocol):
     def data_received(self, data: bytes) -> None:
         LOG.debug(f"dat <-- {repr(data)}")
 
-        if self._on_data_received:
+        for listener in self._data_listeners:
             try:
-                is_trapped = self._on_data_received(data)
+                is_trapped = listener(data)
             except Exception:
-                LOG.exception("failed to run console data callback")
+                LOG.exception(f"failed to feed data to listener {listener}")
             else:
                 if is_trapped:
                     return
