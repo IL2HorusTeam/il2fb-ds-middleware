@@ -29,9 +29,12 @@ class ConsoleClient(asyncio.Protocol):
         self,
         request_timeout: float=20.0,
         on_data_received: Callable[[bytes], bool]=None,
+        loop: asyncio.AbstractEventLoop=None,
     ):
+        self._loop = loop
+
         self._request_timeout = request_timeout
-        self._requests = asyncio.Queue()
+        self._requests = asyncio.Queue(loop=self._loop)
         self._request = None
 
         self._on_data_received = on_data_received
@@ -41,12 +44,12 @@ class ConsoleClient(asyncio.Protocol):
         self._messages_buffer = []
 
         self._do_close = False
-        self._connected_ack = asyncio.Future()
-        self._closed_ack = asyncio.Future()
+        self._connected_ack = asyncio.Future(loop=self._loop)
+        self._closed_ack = asyncio.Future(loop=self._loop)
 
     def connection_made(self, transport) -> None:
         self._transport = transport
-        asyncio.async(self._dispatch_all_requests())
+        asyncio.async(self._dispatch_all_requests(), loop=self._loop)
         self._connected_ack.set_result(None)
 
     def wait_connected(self) -> Awaitable[None]:
@@ -104,14 +107,18 @@ class ConsoleClient(asyncio.Protocol):
 
         data = f"{str(self._request)}{MESSAGE_DELIMITER}".encode()
 
-        timeout_future = asyncio.Future()
+        timeout_future = asyncio.Future(loop=self._loop)
         self._request.add_done_callback(functools.partial(
             self._on_wrapped_future_done, timeout_future,
         ))
         self.write_bytes(data)
 
         try:
-            await asyncio.wait_for(timeout_future, self._request_timeout)
+            await asyncio.wait_for(
+                timeout_future,
+                self._request_timeout,
+                loop=self._loop,
+            )
         except concurrent.futures.TimeoutError as e:
             self._request.set_exception(e)
         finally:
@@ -133,6 +140,7 @@ class ConsoleClient(asyncio.Protocol):
         LOG.debug(f"dat <-- {repr(data)}")
 
         if self._on_data_received:
+            # TODO: try
             is_trapped = self._on_data_received(data)
             if is_trapped:
                 return
@@ -305,19 +313,19 @@ class ConsoleClient(asyncio.Protocol):
         self._requests.put_nowait(request)
 
     def server_info(self) -> Awaitable[structures.ServerInfo]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.ServerInfoRequest(f)
         self.enqueue_request(r)
         return f
 
     def user_list(self) -> Awaitable[List[structures.User]]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.UserListRequest(f)
         self.enqueue_request(r)
         return f
 
     def user_stats(self) -> Awaitable[List[structures.UserStatistics]]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.UserStatisticsRequest(f)
         self.enqueue_request(r)
         return f
@@ -327,13 +335,13 @@ class ConsoleClient(asyncio.Protocol):
         return len(users)
 
     def kick_by_callsign(self, callsign: str) -> Awaitable[None]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.KickByCallsignRequest(f, callsign)
         self.enqueue_request(r)
         return f
 
     def kick_by_number(self, number: int) -> Awaitable[None]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.KickByNumberRequest(f, number)
         self.enqueue_request(r)
         return f
@@ -371,7 +379,7 @@ class ConsoleClient(asyncio.Protocol):
             chunk = message[last:last + step]
             chunk = chunk.encode('unicode-escape').decode()
 
-            f = asyncio.Future()
+            f = asyncio.Future(loop=self._loop)
             r = requests.ChatRequest(f, chunk, target)
             self.enqueue_request(r)
             await f
@@ -379,31 +387,31 @@ class ConsoleClient(asyncio.Protocol):
             last += step
 
     def mission_status(self) -> Awaitable[structures.MissionInfo]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.MissionStatusRequest(f)
         self.enqueue_request(r)
         return f
 
     def mission_load(self, file_path) -> Awaitable[None]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.MissionLoadRequest(f, file_path)
         self.enqueue_request(r)
         return f
 
     def mission_begin(self) -> Awaitable[None]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.MissionBeginRequest(f)
         self.enqueue_request(r)
         return f
 
     def mission_end(self) -> Awaitable[None]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.MissionEndRequest(f)
         self.enqueue_request(r)
         return f
 
     def mission_destroy(self) -> Awaitable[None]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.MissionDestroyRequest(f)
         self.enqueue_request(r)
         return f

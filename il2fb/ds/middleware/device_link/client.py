@@ -24,10 +24,13 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         remote_address: Address,
         request_timeout: float=20.0,
         on_data_received: Callable[[bytes], bool]=None,
+        loop: asyncio.AbstractEventLoop=None,
     ):
+        self._loop = loop
+
         self._remote_address = remote_address
         self._request_timeout = request_timeout
-        self._requests = asyncio.Queue()
+        self._requests = asyncio.Queue(loop=self._loop)
         self._request = None
 
         self._on_data_received = on_data_received
@@ -36,12 +39,12 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self._messages = []
 
         self._do_close = False
-        self._connected_ack = asyncio.Future()
-        self._closed_ack = asyncio.Future()
+        self._connected_ack = asyncio.Future(loop=self._loop)
+        self._closed_ack = asyncio.Future(loop=self._loop)
 
     def connection_made(self, transport) -> None:
         self._transport = transport
-        asyncio.async(self._dispatch_all_requests())
+        asyncio.async(self._dispatch_all_requests(), loop=self._loop)
         self._connected_ack.set_result(None)
 
     def wait_connected(self) -> Awaitable[None]:
@@ -102,13 +105,17 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             self._request = None
 
     async def _wait_for_response(self) -> Awaitable[None]:
-        timeout_future = asyncio.Future()
+        timeout_future = asyncio.Future(loop=self._loop)
         self._request.add_done_callback(functools.partial(
             self._on_wrapped_future_done, timeout_future,
         ))
 
         try:
-            await asyncio.wait_for(timeout_future, self._request.timeout)
+            await asyncio.wait_for(
+                timeout_future,
+                self._request.timeout,
+                loop=self._loop,
+            )
         except concurrent.futures.TimeoutError as e:
             self._request.set_exception(e)
 
@@ -128,6 +135,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         LOG.debug(f"dat <-- {repr(data)}")
 
         if self._on_data_received:
+            # TODO: try
             is_trapped = self._on_data_received(data)
             if is_trapped:
                 return
@@ -182,7 +190,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         messages: List[msg.DeviceLinkMessage],
         timeout: float,
     ) -> Awaitable[Any]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.DeviceLinkRequest(f, messages, timeout)
         self.enqueue_request(r)
         return f
@@ -208,7 +216,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         return self.send_message(message=m, timeout=None)
 
     def aircrafts_count(self) -> Awaitable[int]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.AircraftsCountRequest(f, self._request_timeout)
         self.enqueue_request(r)
         return f
@@ -217,7 +225,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self,
         index: int,
     ) -> Awaitable[structures.AircraftPosition]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.AircraftsPositionsRequest(
             future=f,
             indices=[index, ],
@@ -234,7 +242,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         if not count:
             return []
 
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         indices = range(count)
         r = requests.AircraftsPositionsRequest(
             future=f,
@@ -246,7 +254,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         return await f
 
     def ground_units_count(self) -> Awaitable[int]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.GroundUnitsCountRequest(f, self._request_timeout)
         self.enqueue_request(r)
         return f
@@ -266,7 +274,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         if not count:
             return []
 
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         indices = range(count)
         r = requests.GroundUnitsPositionsRequest(
             future=f,
@@ -278,7 +286,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         return await f
 
     def ships_count(self) -> Awaitable[int]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.ShipsCountRequest(f, self._request_timeout)
         self.enqueue_request(r)
         return f
@@ -295,7 +303,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         if not count:
             return []
 
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         indices = range(count)
         r = requests.ShipsPositionsRequest(
             future=f,
@@ -307,7 +315,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         return await f
 
     def stationary_objects_count(self) -> Awaitable[int]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.StationaryObjectsCountRequest(f, self._request_timeout)
         self.enqueue_request(r)
         return f
@@ -327,7 +335,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         if not count:
             return []
 
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         indices = range(count)
         r = requests.StationaryObjectsPositionsRequest(
             future=f,
@@ -339,7 +347,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         return await f
 
     def houses_count(self) -> Awaitable[int]:
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         r = requests.HousesCountRequest(f, self._request_timeout)
         self.enqueue_request(r)
         return f
@@ -359,7 +367,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         if not count:
             return []
 
-        f = asyncio.Future()
+        f = asyncio.Future(loop=self._loop)
         indices = range(count)
         r = requests.HousesPositionsRequest(
             future=f,
