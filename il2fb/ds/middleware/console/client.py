@@ -76,6 +76,7 @@ class ConsoleClient(asyncio.Protocol):
         enlog(f"console connection was lost, details: {e or 'N/A'}")
 
     def close(self) -> None:
+        LOG.debug("ask dispatching of console requests to stop")
         if not self._do_close:
             self._do_close = True
             self._requests.put_nowait(None)

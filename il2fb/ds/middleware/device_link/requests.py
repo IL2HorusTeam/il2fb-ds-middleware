@@ -1,113 +1,192 @@
 # coding: utf-8
 
-import abc
 import asyncio
+import concurrent
+import functools
 import logging
 import operator
 
-from typing import List, Callable, Any, Optional, Iterable
+from typing import List, Awaitable, Callable, Any, Optional, Iterable
 
 from . import messages as msg, parsers
+from .constants import MESSAGE_GROUP_MAX_SIZE
 from .filters import actor_index_is_valid, actor_status_is_valid
-from .helpers import compose_request
+from .helpers import compose_request, decompose_data
 
 
 LOG = logging.getLogger(__name__)
 
 
 class DeviceLinkRequest:
-    __slots__ = ['messages', 'timeout', '_future', ]
 
     def __init__(
         self,
-        future: asyncio.Future,
-        messages: List[msg.DeviceLinkMessage],
-        timeout: Optional[float],
+        messages: List[msg.DeviceLinkRequestMessage],
+        loop: asyncio.AbstractEventLoop=None,
+        timeout: float=None,
     ):
-        self._future = future
-        self.messages = messages
-        self.timeout = timeout
+        self._loop = loop
+        self._request_messages = messages
+        self._timeout = timeout
+        self._response_messages = []
+        self._future = asyncio.Future(loop=loop)
 
-    def set_result(self, result: Any) -> None:
-        try:
-            self._future.set_result(result)
-        except asyncio.futures.InvalidStateError:
-            LOG.error(
-                f"failed to set request result "
-                f"(request={self}, future={self.future}, result={result})"
-            )
+    def wait(self) -> Awaitable[Any]:
+        return self._future
 
-    def set_exception(self, e: Exception) -> None:
+    def execute(self, writer: Callable[[bytes], None]) -> Awaitable[Any]:
+        messages = self._request_messages
+
+        for group in self._group_messages(messages):
+            data = compose_request(group)
+            writer(data)
+
+        future = self._future
+        requires_response = any(msg.requires_response for msg in messages)
+
+        if requires_response and self._timeout:
+            future = self._execute_with_timeout(future, timeout=self._timeout)
+        else:
+            future.set_result(None)
+
+        return future
+
+    async def _execute_with_timeout(
+        self,
+        future: asyncio.Future,
+        timeout: float,
+    ) -> asyncio.Future:
+
+        timeout_future = asyncio.Future(loop=self._loop)
+        future.add_done_callback(functools.partial(
+            self._on_future_done, timeout_future,
+        ))
+
         try:
+            await asyncio.wait_for(timeout_future, timeout, loop=self._loop)
+        except concurrent.futures.TimeoutError as e:
             self._future.set_exception(e)
-        except asyncio.futures.InvalidStateError:
-            LOG.error(
-                f"failed to set request exception "
-                f"(request={self}, future={self.future}, e={e})"
-            )
 
-    def add_done_callback(self, cb: Callable[[asyncio.Future], None]) -> None:
-        self._future.add_done_callback(cb)
+    @staticmethod
+    def _on_future_done(
+        timeout_future: asyncio.Future,
+        wrapped_future: asyncio.Future,
+    ) -> None:
+
+        if not timeout_future.done():
+            timeout_future.set_result(None)
+
+    def _group_messages(self, messages, group_size=MESSAGE_GROUP_MAX_SIZE):
+        count = len(messages)
+
+        for i in range((count // group_size) + 1):
+            start = i * group_size
+            yield messages[start:start + min((count - start), group_size)]
+
+    def data_received(self, data: bytes) -> None:
+        try:
+            messages = decompose_data(data)
+        except Exception:
+            LOG.exception(f"failed to decompose data {repr(data)}")
+        else:
+            LOG.debug(f"msg <<< {messages}")
+
+        self._response_messages.extend(messages)
+        LOG.debug(f"msg === {self._response_messages}")
+
+        if len(self._response_messages) == len(self._request_messages):
+            try:
+                result = self._extract_result(self._response_messages)
+            except Exception as e:
+                LOG.exception("failed to get request result")
+                self._future.set_exception(result)
+            else:
+                self._future.set_result(result)
+
+    def set_exception(self, e: Exception=None) -> None:
+        if not self._future.done():
+            self._future.set_exception(e)
+
+    def _extract_result(self, messages: List[msg.DeviceLinkMessage]) -> Any:
+        return messages
 
     def __str__(self) -> str:
-        return compose_request(self.messages)
+        return compose_request(self._request_messages).decode()
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}('{str(self)}')>"
 
 
-class CountingRequestMixin(metaclass=abc.ABCMeta):
+class CountingRequestMixin:
 
     @property
-    @abc.abstractmethod
     def request_message_class(self):
-        pass
+        raise NotImplementedError
 
     def __init__(
         self,
-        future: asyncio.Future,
-        timeout: Optional[float],
-    ):
-        messages = [self.request_message_class(), ]
-        super().__init__(future, messages, timeout)
-
-    def set_result(self, messages: List[msg.DeviceLinkMessage]) -> None:
-        message = messages[0]
-        value = int(message.value)
-        super().set_result(value)
-
-
-class PositionsRequestMixin(metaclass=abc.ABCMeta):
-
-    @property
-    @abc.abstractmethod
-    def request_message_class(self):
-        pass
-
-    @property
-    @abc.abstractmethod
-    def item_parser(self):
-        pass
-
-    def __init__(
-        self,
-        future: asyncio.Future,
-        indices: Iterable[int],
-        timeout: Optional[float],
+        loop: asyncio.AbstractEventLoop=None,
+        timeout: Optional[float]=None,
     ):
         messages = [
-            self.request_message_class(i) for i in indices
+            self.request_message_class(),
         ]
-        super().__init__(future, messages, timeout)
+        super().__init__(
+            loop=loop,
+            messages=messages,
+            timeout=timeout,
+        )
 
-    def set_result(self, messages: List[msg.DeviceLinkMessage]) -> None:
+    def _extract_result(self, messages: List[msg.DeviceLinkMessage]) -> None:
+        message = messages[0]
+        return int(message.value)
+
+
+class PositionsRequestMixin:
+
+    @property
+    def request_message_class(self):
+        raise NotImplementedError
+
+    @property
+    def item_parser(self):
+        raise NotImplementedError
+
+    def __init__(
+        self,
+        indices: Iterable[int],
+        loop: asyncio.AbstractEventLoop=None,
+        timeout: Optional[float]=None,
+    ):
+        messages = [
+            self.request_message_class(value=i) for i in indices
+        ]
+        super().__init__(
+            loop=loop,
+            messages=messages,
+            timeout=timeout,
+        )
+
+    def _extract_result(self, messages: List[msg.DeviceLinkMessage]) -> None:
         items = map(operator.attrgetter('value'), messages)
         items = map(parsers.preparse_actor_position, items)
         items = filter(actor_index_is_valid, items)
         items = filter(actor_status_is_valid, items)
         items = map(self.__class__.item_parser, items)
-        items = list(items)
-        super().set_result(items)
+        return list(items)
+
+
+class RefreshRadarRequest(DeviceLinkRequest):
+
+    def __init__(self, loop: asyncio.AbstractEventLoop=None):
+        messages = [
+            msg.RefreshRadarRequestMessage(),
+        ]
+        super().__init__(
+            loop=loop,
+            messages=messages,
+            timeout=None,
+        )
 
 
 class AircraftsCountRequest(CountingRequestMixin, DeviceLinkRequest):

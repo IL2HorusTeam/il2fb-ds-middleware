@@ -2,36 +2,55 @@
 
 import re
 
-from typing import List
+from typing import List, Tuple, Optional
 
-from .messages import DeviceLinkMessage
 from .constants import (
-    MESSAGE_SEPARATOR, TYPE_REQUEST, TYPE_SEPARATOR, VALUE_SEPARATOR,
+    REQUEST_PREFIX, ANSWER_PREFIX, MESSAGE_SEPARATOR, VALUE_SEPARATOR,
 )
+from .exceptions import DeviceLinkValueError
+from .messages import DeviceLinkMessage, make_message
 
 
-def compose_request(messages: List[DeviceLinkMessage]) -> str:
-    body = MESSAGE_SEPARATOR.join([str(m) for m in messages])
-    return f"{TYPE_REQUEST}{TYPE_SEPARATOR}{body}"
+def decompose_data(data: bytes) -> List[DeviceLinkMessage]:
+    if not (data.startswith(REQUEST_PREFIX) or data.startswith(ANSWER_PREFIX)):
+        raise DeviceLinkValueError(f"malformed device link data {data}")
 
+    data = data[2:]  # strip prefix
 
-def decompose_response(response: str) -> List[DeviceLinkMessage]:
-    response = response[2:]
-
-    if '\\/' in response:
-        responses = re.findall('(\d+\\\\\d+:.+?(?:;\d+)+)', response)
+    if b'\\/' in data:
+        chunks = re.findall(b'(\d+\\\\\d+:.+?(?:;\d+)+)', data)
     else:
-        responses = response.split(MESSAGE_SEPARATOR)
+        chunks = data.split(MESSAGE_SEPARATOR)
 
-    return list(map(response_to_message, responses))
+    args_list = map(parse_data, chunks)
+
+    return [
+        make_message(*args)
+        for args in args_list
+    ]
 
 
-def response_to_message(response):
-    command = response.split(VALUE_SEPARATOR, 1)
-    opcode = int(command[0])
-    arg = command[1:]
-    arg = arg[0].replace('\\/', '/').replace('\\\\', '\\') if arg else None
-    return DeviceLinkMessage(opcode, arg)
+def parse_data(data: bytes) -> Tuple[int, Optional[str]]:
+    if VALUE_SEPARATOR in data:
+        opcode, value = data.split(VALUE_SEPARATOR, 1)
+        value = value.decode().replace('\\/', '/').replace('\\\\', '\\')
+    else:
+        opcode, value = data, None
+
+    opcode = int(opcode)
+    return (opcode, value)
+
+
+def compose_body(messages: List[DeviceLinkMessage]) -> bytes:
+    return MESSAGE_SEPARATOR.join([msg.to_bytes() for msg in messages])
+
+
+def compose_request(messages: List[DeviceLinkMessage]) -> bytes:
+    return REQUEST_PREFIX + compose_body(messages)
+
+
+def compose_answer(messages: List[DeviceLinkMessage]) -> bytes:
+    return ANSWER_PREFIX + compose_body(messages)
 
 
 def normalize_aircraft_id(s: str) -> str:

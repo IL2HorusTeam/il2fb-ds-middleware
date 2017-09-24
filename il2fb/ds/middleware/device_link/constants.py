@@ -8,18 +8,18 @@ class HouseStatus(ValueConstant):
 
 
 class HouseStatuses(with_constant_class(HouseStatus), Values):
-    alive = HouseStatus("A")
-    dead = HouseStatus("D")
+    alive = HouseStatus(b"A")
+    dead = HouseStatus(b"D")
 
 
-TYPE_REQUEST = 'R'
-TYPE_ANSWER = 'A'
-TYPE_SEPARATOR = '/'
-
-MESSAGE_SEPARATOR = '/'
+MESSAGE_TYPE_SEPARATOR = b'/'
+MESSAGE_SEPARATOR = b'/'
 MESSAGE_GROUP_MAX_SIZE = 40
 
-VALUE_SEPARATOR = '\\'
+REQUEST_PREFIX = b'R' + MESSAGE_TYPE_SEPARATOR
+ANSWER_PREFIX = b'A' + MESSAGE_TYPE_SEPARATOR
+
+VALUE_SEPARATOR = b'\\'
 
 ACTOR_INDEX_SEPARATOR = ':'
 ACTOR_INDEX_ERROR = 'BADINDEX'

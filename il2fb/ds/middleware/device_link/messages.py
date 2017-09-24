@@ -1,89 +1,116 @@
 # coding: utf-8
 
-from typing import Optional
+from typing import Optional, Any, TypeVar
 
 from .constants import VALUE_SEPARATOR
 
 
-class DeviceLinkMessage:
-    __slots__ = ['opcode', 'value', ]
+_OPCODE_TO_MESSAGE_CLASS = {}
 
-    def __init__(self, opcode: int, value: Optional[int]=None):
-        self.opcode = opcode
+
+class DeviceLinkMessageMeta(type):
+
+    def __init__(cls, name, bases, nmspc):
+        super(DeviceLinkMessageMeta, cls).__init__(name, bases, nmspc)
+
+        if hasattr(cls, 'opcode') and cls.opcode is not None:
+            _OPCODE_TO_MESSAGE_CLASS[cls.opcode] = cls
+
+
+class DeviceLinkMessage(metaclass=DeviceLinkMessageMeta):
+    opcode = None
+
+    def __init__(self, opcode: Optional[int]=None, value: Optional[Any]=None):
+        self.opcode = (
+            opcode
+            if opcode is not None
+            else self.opcode
+        )
         self.value = value
 
-    def __str__(self) -> str:
-        return (
-            f"{self.opcode}{VALUE_SEPARATOR}{self.value}"
-            if self.value is not None
-            else str(self.opcode)
-        )
+    def to_bytes(self) -> bytes:
+        data = str(self.opcode).encode()
+
+        if self.value is not None:
+            data += VALUE_SEPARATOR + str(self.value).encode()
+
+        return data
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}('{str(self)}')>"
+        return (
+            f"<"
+            f"{self.__class__.__name__}"
+            f"(opcode={self.opcode}, value={self.value})"
+            f">"
+        )
 
 
-class RefreshRadarRequestMessage(DeviceLinkMessage):
-
-    def __init__(self):
-        super().__init__(opcode=1001)
-
-
-class AircraftsCountRequestMessage(DeviceLinkMessage):
-
-    def __init__(self):
-        super().__init__(opcode=1002)
+def get_message_class_by_opcode(
+    opcode: int
+) -> Optional[TypeVar(DeviceLinkMessage)]:
+    return _OPCODE_TO_MESSAGE_CLASS.get(opcode)
 
 
-class AircraftPositionRequestMessage(DeviceLinkMessage):
+def make_message(opcode: int, value: Optional[Any]=None) -> DeviceLinkMessage:
+    cls = get_message_class_by_opcode(opcode)
 
-    def __init__(self, index: int):
-        super().__init__(opcode=1004, value=index)
+    if cls is not None:
+        return cls(value=value)
 
-
-class GroundUnitsCountRequestMessage(DeviceLinkMessage):
-
-    def __init__(self):
-        super().__init__(opcode=1006)
+    return DeviceLinkMessage(opcode=opcode, value=value)
 
 
-class GroundUnitPositionRequestMessage(DeviceLinkMessage):
+class DeviceLinkRequestMessage(DeviceLinkMessage):
 
-    def __init__(self, index: int):
-        super().__init__(opcode=1008, value=index)
-
-
-class ShipsCountRequestMessage(DeviceLinkMessage):
-
-    def __init__(self):
-        super().__init__(opcode=1010)
+    @property
+    def requires_response(self) -> bool:
+        raise NotImplementedError
 
 
-class ShipPositionRequestMessage(DeviceLinkMessage):
-
-    def __init__(self, index: int):
-        super().__init__(opcode=1012, value=index)
-
-
-class StationaryObjectsCountRequestMessage(DeviceLinkMessage):
-
-    def __init__(self):
-        super().__init__(opcode=1014)
+class RefreshRadarRequestMessage(DeviceLinkRequestMessage):
+    opcode = 1001
+    requires_response = False
 
 
-class StationaryObjectPositionRequestMessage(DeviceLinkMessage):
-
-    def __init__(self, index: int):
-        super().__init__(opcode=1016, value=index)
+class DeviceLinkGetterRequestMessage(DeviceLinkRequestMessage):
+    requires_response = True
 
 
-class HousesCountRequestMessage(DeviceLinkMessage):
-
-    def __init__(self):
-        super().__init__(opcode=1018)
+class AircraftsCountRequestMessage(DeviceLinkGetterRequestMessage):
+    opcode = 1002
 
 
-class HousePositionRequestMessage(DeviceLinkMessage):
+class AircraftPositionRequestMessage(DeviceLinkGetterRequestMessage):
+    opcode = 1004
 
-    def __init__(self, index: int):
-        super().__init__(opcode=1020, value=index)
+
+class GroundUnitsCountRequestMessage(DeviceLinkGetterRequestMessage):
+    opcode = 1006
+
+
+class GroundUnitPositionRequestMessage(DeviceLinkGetterRequestMessage):
+    opcode = 1008
+
+
+class ShipsCountRequestMessage(DeviceLinkGetterRequestMessage):
+    opcode = 1010
+
+
+class ShipPositionRequestMessage(DeviceLinkGetterRequestMessage):
+    opcode = 1012
+
+
+class StationaryObjectsCountRequestMessage(DeviceLinkGetterRequestMessage):
+    opcode = 1014
+
+
+class StationaryObjectPositionRequestMessage(DeviceLinkGetterRequestMessage):
+    opcode = 1016
+
+
+class HousesCountRequestMessage(DeviceLinkGetterRequestMessage):
+    opcode = 1018
+
+
+class HousePositionRequestMessage(DeviceLinkGetterRequestMessage):
+    opcode = 1020
