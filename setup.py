@@ -57,12 +57,10 @@ setup(
         'License :: Free for non-commercial use',
         'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',
         'Natural Language :: English',
-        'Operating System :: OS Independent',
+        "Operating System :: Unix",
+        "Operating System :: Microsoft :: Windows",
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Topic :: Software Development :: Libraries',
-    ],
-    platforms=[
-        'any',
     ],
 )
