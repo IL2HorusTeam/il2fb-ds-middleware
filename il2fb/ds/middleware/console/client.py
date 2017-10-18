@@ -45,6 +45,7 @@ class ConsoleClient(asyncio.Protocol):
         self._closed_ack = asyncio.Future(loop=self._loop)
 
         self._data_subscribers = []
+        self._chat_subscribers = []
 
     def subscribe_to_data(
         self,
@@ -65,6 +66,26 @@ class ConsoleClient(asyncio.Protocol):
 
         """
         self._data_subscribers.remove(subscriber)
+
+    def subscribe_to_chat(
+        self,
+        subscriber: Callable[[structures.ChatMessage], None],
+    ) -> None:
+        """
+        Not thread-safe.
+
+        """
+        self._chat_subscribers.append(subscriber)
+
+    def unsubscribe_from_chat(
+        self,
+        subscriber: Callable[[structures.ChatMessage], None],
+    ) -> None:
+        """
+        Not thread-safe.
+
+        """
+        self._chat_subscribers.remove(subscriber)
 
     def connection_made(self, transport) -> None:
         self._transport = transport
@@ -316,7 +337,13 @@ class ConsoleClient(asyncio.Protocol):
         return False
 
     def _handle_chat_message(self, message) -> None:
-        LOG.info(f"chat({message.to_primitive()})")
+        for subscriber in self._chat_subscribers:
+            try:
+                subscriber(message)
+            except Exception:
+                LOG.exception(
+                    f"failed to send chat message to subscriber {subscriber}"
+                )
 
     def _handle_user_connection(self, message) -> None:
         LOG.info(f"user_connection({message.to_primitive()})")
