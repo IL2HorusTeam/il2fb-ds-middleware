@@ -268,22 +268,22 @@ class ConsoleClient(asyncio.Protocol):
         except Exception:
             LOG.exception("failed to process chat message")
 
-    def _try_parse_message(self, message):
+    def _try_parse_message(self, message: str) -> bool:
         for parser, structure, handler in (
             (
                 parsers.parse_user_is_joining,
                 structures.UserIsJoining,
-                self.on_user_is_joining,
+                self._handle_user_connection,
             ),
             (
                 parsers.parse_user_has_joined,
                 structures.UserHasJoined,
-                self.on_user_has_joined,
+                self._handle_user_connection,
             ),
             (
                 parsers.parse_user_has_left,
                 structures.UserHasLeft,
-                self.on_user_has_left,
+                self._handle_user_connection,
             ),
         ):
             try:
@@ -314,14 +314,8 @@ class ConsoleClient(asyncio.Protocol):
     def _handle_chat_message(self, message) -> None:
         LOG.info(f"chat({message.to_primitive()})")
 
-    def on_user_is_joining(self, message: structures.UserIsJoining) -> None:
-        LOG.info(f"joining({message.to_primitive()})")
-
-    def on_user_has_joined(self, message: structures.UserHasJoined) -> None:
-        LOG.info(f"joined({message.to_primitive()})")
-
-    def on_user_has_left(self, message: structures.UserHasLeft) -> None:
-        LOG.info(f"left({message.to_primitive()})")
+    def _handle_user_connection(self, message) -> None:
+        LOG.info(f"user_connection({message.to_primitive()})")
 
     def enqueue_request(self, request: requests.ConsoleRequest) -> None:
         if self._do_close:
