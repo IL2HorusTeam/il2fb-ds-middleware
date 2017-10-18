@@ -44,19 +44,19 @@ class ConsoleClient(asyncio.Protocol):
         self._connected_ack = asyncio.Future(loop=self._loop)
         self._closed_ack = asyncio.Future(loop=self._loop)
 
-        self._data_listeners = []
+        self._data_subscribers = []
 
-    def register_data_listener(
+    def subscribe_to_data(
         self,
-        listener: Callable[[bytes], bool],
+        subscriber: Callable[[bytes], bool],
     ) -> None:
-        self._data_listeners.append(listener)
+        self._data_subscribers.append(subscriber)
 
-    def unregister_data_listener(
+    def unsubscribe_from_data(
         self,
-        listener: Callable[[bytes], bool],
+        subscriber: Callable[[bytes], bool],
     ) -> None:
-        self._data_listeners.remove(listener)
+        self._data_subscribers.remove(subscriber)
 
     def connection_made(self, transport) -> None:
         self._transport = transport
@@ -151,11 +151,11 @@ class ConsoleClient(asyncio.Protocol):
     def data_received(self, data: bytes) -> None:
         LOG.debug(f"dat <-- {repr(data)}")
 
-        for listener in self._data_listeners:
+        for subscriber in self._data_subscribers:
             try:
-                is_trapped = listener(data)
+                is_trapped = subscriber(data)
             except Exception:
-                LOG.exception(f"failed to feed data to listener {listener}")
+                LOG.exception(f"failed to send data to subscriber {subscriber}")
             else:
                 if is_trapped:
                     return
