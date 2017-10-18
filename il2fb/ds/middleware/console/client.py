@@ -46,6 +46,7 @@ class ConsoleClient(asyncio.Protocol):
 
         self._data_subscribers = []
         self._chat_subscribers = []
+        self._user_connection_subscribers = []
 
     def subscribe_to_data(
         self,
@@ -86,6 +87,20 @@ class ConsoleClient(asyncio.Protocol):
 
         """
         self._chat_subscribers.remove(subscriber)
+
+    def subscribe_to_user_connection(self, subscriber) -> None:
+        """
+        Not thread-safe.
+
+        """
+        self._user_connection_subscribers.append(subscriber)
+
+    def unsubscribe_from_user_connection(self, subscriber) -> None:
+        """
+        Not thread-safe.
+
+        """
+        self._user_connection_subscribers.remove(subscriber)
 
     def connection_made(self, transport) -> None:
         self._transport = transport
@@ -346,7 +361,14 @@ class ConsoleClient(asyncio.Protocol):
                 )
 
     def _handle_user_connection(self, message) -> None:
-        LOG.info(f"user_connection({message.to_primitive()})")
+        for subscriber in self._user_connection_subscribers:
+            try:
+                subscriber(message)
+            except Exception:
+                LOG.exception(
+                    f"failed to send user connection to subscriber "
+                    f"{subscriber}"
+                )
 
     def enqueue_request(self, request: requests.ConsoleRequest) -> None:
         if self._do_close:
