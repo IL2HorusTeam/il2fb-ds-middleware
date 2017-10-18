@@ -50,12 +50,20 @@ class ConsoleClient(asyncio.Protocol):
         self,
         subscriber: Callable[[bytes], bool],
     ) -> None:
+        """
+        Not thread-safe.
+
+        """
         self._data_subscribers.append(subscriber)
 
     def unsubscribe_from_data(
         self,
         subscriber: Callable[[bytes], bool],
     ) -> None:
+        """
+        Not thread-safe.
+
+        """
         self._data_subscribers.remove(subscriber)
 
     def connection_made(self, transport) -> None:
