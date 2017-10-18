@@ -9,7 +9,7 @@ from typing import List, Awaitable, Callable
 
 from il2fb.commons.organization import Belligerent
 
-from . import requests, parsers, structures
+from . import events, requests, parsers, structures
 from .constants import (
     MESSAGE_DELIMITER, LINE_DELIMITER, LINE_DELIMITER_LENGTH,
     CHAT_MESSAGE_MAX_LENGTH,
@@ -70,7 +70,7 @@ class ConsoleClient(asyncio.Protocol):
 
     def subscribe_to_chat(
         self,
-        subscriber: Callable[[structures.ChatMessage], None],
+        subscriber: Callable[[events.ChatMessageWasReceived], None],
     ) -> None:
         """
         Not thread-safe.
@@ -80,7 +80,7 @@ class ConsoleClient(asyncio.Protocol):
 
     def unsubscribe_from_chat(
         self,
-        subscriber: Callable[[structures.ChatMessage], None],
+        subscriber: Callable[[events.ChatMessageWasReceived], None],
     ) -> None:
         """
         Not thread-safe.
@@ -287,28 +287,34 @@ class ConsoleClient(asyncio.Protocol):
         if not message:
             LOG.debug("empty, skip")
         elif is_chat_message(message):
-            self._try_parse_chat_message(message)
-        elif self._try_parse_message(message):
+            self._try_to_handle_chat_message(message)
+        elif self._try_to_parse_message(message):
             return
         elif self._request is None:
             LOG.warning("req N/A, skip")
         else:
             self._messages.append(message)
 
-    def _try_parse_chat_message(self, message: str) -> None:
+    def _try_to_handle_chat_message(self, message: str) -> None:
         try:
-            data = parsers.parse_chat_message(message)
-            message = structures.ChatMessage(**data)
+            event = events.ChatMessageWasReceived.from_s(message)
         except Exception:
-            LOG.exception("failed to parse chat message")
+            LOG.exception(f"failed to parse chat message {repr(message)}")
+            return
+
+        if not event:
+            LOG.error(
+                f"message {repr(message)} was expected to be a chat event, "
+                f"but event was not extracted"
+            )
             return
 
         try:
-            self._handle_chat_message(message)
+            self._handle_chat_event(event)
         except Exception:
-            LOG.exception("failed to process chat message")
+            LOG.exception(f"failed to handle chat event {repr(event)}")
 
-    def _try_parse_message(self, message: str) -> bool:
+    def _try_to_parse_message(self, message: str) -> bool:
         for parser, structure, handler in (
             (
                 parsers.parse_user_is_joining,
@@ -351,13 +357,13 @@ class ConsoleClient(asyncio.Protocol):
 
         return False
 
-    def _handle_chat_message(self, message) -> None:
+    def _handle_chat_event(self, event: events.ChatMessageWasReceived) -> None:
         for subscriber in self._chat_subscribers:
             try:
-                subscriber(message)
+                subscriber(event)
             except Exception:
                 LOG.exception(
-                    f"failed to send chat message to subscriber {subscriber}"
+                    f"failed to send chat event to subscriber {subscriber}"
                 )
 
     def _handle_user_connection(self, message) -> None:

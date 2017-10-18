@@ -2,28 +2,9 @@
 
 from typing import Optional
 
-
 from il2fb.commons import MissionStatus
 from il2fb.commons.organization import Belligerent
 from il2fb.commons.structures import BaseStructure
-
-from .constants import CHAT_SENDER_SERVER
-
-
-class ChatMessage(BaseStructure):
-    __slots__ = ['body', 'sender', 'from_user', 'from_server', 'from_system', ]
-
-    def __init__(self, body: str, sender: Optional[str]):
-        self.body = body
-
-        self.from_system = sender is None
-        self.from_server = (
-            (not self.from_system) and
-            (sender == CHAT_SENDER_SERVER)
-        )
-        self.from_user = not (self.from_server or self.from_system)
-
-        self.sender = sender if self.from_user else None
 
 
 class UserIsJoining(BaseStructure):
