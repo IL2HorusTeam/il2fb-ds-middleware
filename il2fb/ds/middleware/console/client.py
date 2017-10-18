@@ -247,7 +247,7 @@ class ConsoleClient(asyncio.Protocol):
         if not message:
             LOG.debug("empty, skip")
         elif is_chat_message(message):
-            self._on_chat_message(message)
+            self._try_parse_chat_message(message)
         elif self._try_parse_message(message):
             return
         elif self._request is None:
@@ -255,7 +255,7 @@ class ConsoleClient(asyncio.Protocol):
         else:
             self._messages.append(message)
 
-    def _on_chat_message(self, message: str) -> None:
+    def _try_parse_chat_message(self, message: str) -> None:
         try:
             data = parsers.parse_chat_message(message)
             message = structures.ChatMessage(**data)
@@ -264,7 +264,7 @@ class ConsoleClient(asyncio.Protocol):
             return
 
         try:
-            self.on_chat_message(message)
+            self._handle_chat_message(message)
         except Exception:
             LOG.exception("failed to process chat message")
 
@@ -311,7 +311,7 @@ class ConsoleClient(asyncio.Protocol):
 
         return False
 
-    def on_chat_message(self, message: structures.ChatMessage) -> None:
+    def _handle_chat_message(self, message) -> None:
         LOG.info(f"chat({message.to_primitive()})")
 
     def on_user_is_joining(self, message: structures.UserIsJoining) -> None:
