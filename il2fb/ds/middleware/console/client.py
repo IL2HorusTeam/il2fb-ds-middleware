@@ -45,18 +45,21 @@ class ConsoleClient(asyncio.Protocol):
         self._closed_ack = asyncio.Future(loop=self._loop)
 
         self._data_listeners = []
+        self._data_listeners_lock = asyncio.Lock()
 
     def register_data_listener(
         self,
         listener: Callable[[bytes], bool],
     ) -> None:
-        self._data_listeners.append(listener)
+        with await self._data_listeners_lock:
+            self._data_listeners.append(listener)
 
     def unregister_data_listener(
         self,
         listener: Callable[[bytes], bool],
     ) -> None:
-        self._data_listeners.remove(listener)
+        with await self._data_listeners_lock:
+            self._data_listeners.remove(listener)
 
     def connection_made(self, transport) -> None:
         self._transport = transport
@@ -151,14 +154,15 @@ class ConsoleClient(asyncio.Protocol):
     def data_received(self, data: bytes) -> None:
         LOG.debug(f"dat <-- {repr(data)}")
 
-        for listener in self._data_listeners:
-            try:
-                is_trapped = listener(data)
-            except Exception:
-                LOG.exception(f"failed to feed data to listener {listener}")
-            else:
-                if is_trapped:
-                    return
+        with await self._data_listeners_lock:
+            for listener in self._data_listeners:
+                try:
+                    is_trapped = listener(data)
+                except Exception:
+                    LOG.exception(f"failed to feed data to listener {listener}")
+                else:
+                    if is_trapped:
+                        return
 
         message = data.decode().strip(MESSAGE_DELIMITER)
 
