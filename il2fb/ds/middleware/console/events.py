@@ -4,11 +4,15 @@ from typing import Optional
 
 from il2fb.commons.events import ParsableEvent
 from il2fb.commons.regex import (
-    ANYTHING, WHITESPACE, START_OF_STRING, END_OF_STRING,
+    ANYTHING, WHITESPACE, DIGIT, NUMBER, START_OF_STRING, END_OF_STRING,
     make_matcher, choices, group, named_group,
 )
+from il2fb.commons.transformers import get_int_transformer
 
 from .constants import CHAT_SENDER_SERVER, CHAT_SENDER_SYSTEM
+
+
+IP_REGEX = "({d}{{1,3}}.){{3}}{d}{{1,3}}".format(d=DIGIT)
 
 
 def transform_chat_body(data):
@@ -29,7 +33,7 @@ class ChatMessageWasReceived(ParsableEvent):
 
     verbose_name = "Chat message was received"
     matcher = make_matcher(
-        r"{start}Chat:{s}{sender_with_separator}{body}{end}"
+        "{start}Chat:{s}{sender_with_separator}{body}{end}"
         .format(
             start=START_OF_STRING,
             s=WHITESPACE,
@@ -75,3 +79,30 @@ class ChatMessageWasReceived(ParsableEvent):
             from_server=from_server,
             from_system=from_system,
         )
+
+
+class UserIsJoining(ParsableEvent):
+    """
+    Example:
+
+        "socket channel '3' start creating: 127.0.0.1:1234"
+
+    """
+    __slots__ = ['channel', 'ip', 'port', ]
+
+    verbose_name = "User is joining"
+    matcher = make_matcher(
+        "{start}socket{s}channel{s}'{channel}'{s}start{s}creating:{s}{ip}:{port}{end}"
+        .format(
+            start=START_OF_STRING,
+            s=WHITESPACE,
+            channel=named_group('channel', NUMBER),
+            ip=named_group('ip', IP_REGEX),
+            port=named_group('port', NUMBER),
+            end=END_OF_STRING,
+        )
+    )
+    transformers = (
+        get_int_transformer('channel'),
+        get_int_transformer('port'),
+    )
