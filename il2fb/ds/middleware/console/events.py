@@ -91,7 +91,7 @@ class ChatMessageWasReceived(ParsableEvent):
         )
 
 
-class UserIsJoining(ParsableEvent):
+class HumanHasStartedConnection(ParsableEvent):
     """
     Example:
 
@@ -100,7 +100,7 @@ class UserIsJoining(ParsableEvent):
     """
     __slots__ = ['channel', 'ip', 'port', ]
 
-    verbose_name = "User is joining"
+    verbose_name = "Human has started connection"
     matcher = make_matcher(
         "{start}socket{s}channel{s}'{channel}'{s}start{s}creating:{s}{ip}:{port}{end}"
         .format(
@@ -118,16 +118,21 @@ class UserIsJoining(ParsableEvent):
     )
 
 
-class UserHasJoined(ParsableEvent):
+def transform_connection_callsign(data):
+    callsign = data.pop('callsign')
+    data['actor'] = actors.Human(callsign=callsign)
+
+
+class HumanHasConnected(ParsableEvent):
     """
     Example:
 
         "socket channel '3', ip 127.0.0.1:1234, john.doe, is complete created"
 
     """
-    __slots__ = ['channel', 'ip', 'port', 'callsign', ]
+    __slots__ = ['channel', 'ip', 'port', 'actor', ]
 
-    verbose_name = "User has joined"
+    verbose_name = "Human has connected"
     matcher = make_matcher(
         "{start}socket{s}channel{s}'{channel}',{s}ip{s}{ip}:{port},{s}"
         "{callsign},{s}is{s}complete{s}created{end}"
@@ -144,6 +149,7 @@ class UserHasJoined(ParsableEvent):
     transformers = (
         get_int_transformer('channel'),
         get_int_transformer('port'),
+        transform_connection_callsign,
     )
 
 
@@ -154,7 +160,7 @@ def transform_disconnection_reason(data):
         data['reason'] = None
 
 
-class UserHasLeft(ParsableEvent):
+class HumanHasDisconnected(ParsableEvent):
     """
     Example:
 
@@ -164,7 +170,7 @@ class UserHasLeft(ParsableEvent):
     """
     __slots__ = ['channel', 'ip', 'port', 'reason', ]
 
-    verbose_name = "User has left"
+    verbose_name = "Human has disconnected"
     matcher = make_matcher(
         "{start}socketConnection{s}with{s}{ip}:{port}{s}on{s}channel{s}"
         "{channel}{s}lost.{s}{s}Reason:{s}{reason}{end}"
