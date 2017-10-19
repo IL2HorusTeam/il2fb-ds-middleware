@@ -114,3 +114,32 @@ class UserIsJoining(ParsableEvent):
         get_int_transformer('channel'),
         get_int_transformer('port'),
     )
+
+
+class UserHasJoined(ParsableEvent):
+    """
+    Example:
+
+        "socket channel '3', ip 127.0.0.1:1234, john.doe, is complete created"
+
+    """
+    __slots__ = ['channel', 'ip', 'port', 'callsign', ]
+
+    verbose_name = "User has joined"
+    matcher = make_matcher(
+        "{start}socket{s}channel{s}'{channel}',{s}ip{s}{ip}:{port},{s}"
+        "{callsign},{s}is{s}complete{s}created{end}"
+        .format(
+            start=START_OF_STRING,
+            s=WHITESPACE,
+            channel=named_group('channel', NUMBER),
+            ip=named_group('ip', IP_REGEX),
+            port=named_group('port', NUMBER),
+            callsign=named_group('callsign', ANYTHING),
+            end=END_OF_STRING,
+        )
+    )
+    transformers = (
+        get_int_transformer('channel'),
+        get_int_transformer('port'),
+    )
