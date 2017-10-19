@@ -9,7 +9,7 @@ from typing import List, Awaitable, Callable
 
 from il2fb.commons.organization import Belligerent
 
-from . import events, requests, parsers, structures
+from . import events, requests, structures
 from .constants import (
     MESSAGE_DELIMITER, LINE_DELIMITER, LINE_DELIMITER_LENGTH,
     CHAT_MESSAGE_MAX_LENGTH,
@@ -46,7 +46,7 @@ class ConsoleClient(asyncio.Protocol):
 
         self._data_subscribers = []
         self._chat_subscribers = []
-        self._user_connection_subscribers = []
+        self._human_connection_subscribers = []
 
     def subscribe_to_data(
         self,
@@ -88,19 +88,25 @@ class ConsoleClient(asyncio.Protocol):
         """
         self._chat_subscribers.remove(subscriber)
 
-    def subscribe_to_user_connection(self, subscriber) -> None:
+    def subscribe_to_human_connection(
+        self,
+        subscriber: Callable[[events.HumanConnectionEvent], None],
+    ) -> None:
         """
         Not thread-safe.
 
         """
-        self._user_connection_subscribers.append(subscriber)
+        self._human_connection_subscribers.append(subscriber)
 
-    def unsubscribe_from_user_connection(self, subscriber) -> None:
+    def unsubscribe_from_human_connection(
+        self,
+        subscriber: Callable[[events.HumanConnectionEvent], None],
+    ) -> None:
         """
         Not thread-safe.
 
         """
-        self._user_connection_subscribers.remove(subscriber)
+        self._human_connection_subscribers.remove(subscriber)
 
     def connection_made(self, transport) -> None:
         self._transport = transport
@@ -315,43 +321,36 @@ class ConsoleClient(asyncio.Protocol):
             LOG.exception(f"failed to handle chat event {repr(event)}")
 
     def _try_to_parse_message(self, message: str) -> bool:
-        for parser, structure, handler in (
+        for event_class, handler in (
             (
-                parsers.parse_user_is_joining,
-                structures.UserIsJoining,
-                self._handle_user_connection,
+                events.HumanHasStartedConnection,
+                self._handle_human_connection_event,
             ),
             (
-                parsers.parse_user_has_joined,
-                structures.UserHasJoined,
-                self._handle_user_connection,
+                events.HumanHasConnected,
+                self._handle_human_connection_event,
             ),
             (
-                parsers.parse_user_has_left,
-                structures.UserHasLeft,
-                self._handle_user_connection,
+                events.HumanHasDisconnected,
+                self._handle_human_connection_event,
             ),
         ):
             try:
-                data = parser(message)
+                event = event_class.from_s(message)
             except Exception:
                 LOG.exception(
-                    f"failed to parse message "
-                    f"(message={repr(message)}, parser={repr(parser)})"
+                    f"failed to create event {event_class} from message "
+                    f"{repr(message)}"
                 )
                 continue
 
-            if not data:
+            if not event:
                 continue
 
             try:
-                message = structure(**data)
-                handler(message)
+                handler(event)
             except Exception:
-                LOG.exception(
-                    f"failed to process message "
-                    f"(message={repr(message)}, parser={repr(parser)})"
-                )
+                LOG.exception(f"failed to handle event {event}")
             finally:
                 return True
 
@@ -363,17 +362,21 @@ class ConsoleClient(asyncio.Protocol):
                 subscriber(event)
             except Exception:
                 LOG.exception(
-                    f"failed to send chat event to subscriber {subscriber}"
+                    f"failed to send chat event {event} to "
+                    f"subscriber {subscriber}"
                 )
 
-    def _handle_user_connection(self, message) -> None:
-        for subscriber in self._user_connection_subscribers:
+    def _handle_human_connection_event(
+        self,
+        event: events.HumanConnectionEvent,
+    ) -> None:
+        for subscriber in self._human_connection_subscribers:
             try:
-                subscriber(message)
+                subscriber(event)
             except Exception:
                 LOG.exception(
-                    f"failed to send user connection to subscriber "
-                    f"{subscriber}"
+                    f"failed to send human connection event {event} to "
+                    f"subscriber {subscriber}"
                 )
 
     def enqueue_request(self, request: requests.ConsoleRequest) -> None:

@@ -7,41 +7,6 @@ from il2fb.commons.organization import Belligerent
 from il2fb.commons.structures import BaseStructure
 
 
-class UserIsJoining(BaseStructure):
-    __slots__ = ['channel', 'ip', 'port', ]
-
-    def __init__(self, channel: int, ip: str, port: int):
-        self.channel = channel
-        self.ip = ip
-        self.port = port
-
-
-class UserHasJoined(BaseStructure):
-    __slots__ = ['channel', 'ip', 'port', 'callsign', ]
-
-    def __init__(self, channel: int, ip: str, port: int, callsign: str):
-        self.channel = channel
-        self.ip = ip
-        self.port = port
-        self.callsign = callsign
-
-
-class UserHasLeft(BaseStructure):
-    __slots__ = ['channel', 'ip', 'port', 'reason', ]
-
-    def __init__(
-        self,
-        channel: int,
-        ip: str,
-        port: int,
-        reason: Optional[str],
-    ):
-        self.channel = int(channel)
-        self.ip = ip
-        self.port = int(port)
-        self.reason = reason
-
-
 class ServerInfo(BaseStructure):
     __slots__ = ['type', 'name', 'description', ]
 
