@@ -2,6 +2,7 @@
 
 from typing import Optional
 
+from il2fb.commons import actors
 from il2fb.commons.events import ParsableEvent
 from il2fb.commons.regex import (
     ANYTHING, WHITESPACE, DIGIT, NUMBER, START_OF_STRING, END_OF_STRING,
@@ -37,7 +38,9 @@ class ChatMessageWasReceived(ParsableEvent):
         "Chat: john.doe: \thello everyone"
 
     """
-    __slots__ = ['body', 'sender', 'from_user', 'from_server', 'from_system', ]
+    __slots__ = [
+        'body', 'actor', 'from_human', 'from_server', 'from_system',
+    ]
 
     verbose_name = "Chat message was received"
     matcher = make_matcher(
@@ -76,14 +79,13 @@ class ChatMessageWasReceived(ParsableEvent):
             (not from_system) and
             (sender == CHAT_SENDER_SERVER)
         )
-        from_user = not (from_server or from_system)
-
-        sender = (sender if from_user else None)
+        from_human = not (from_server or from_system)
+        actor = actors.Human(callsign=sender) if from_human else None
 
         super().__init__(
             body=body,
-            sender=sender,
-            from_user=from_user,
+            actor=actor,
+            from_human=from_human,
             from_server=from_server,
             from_system=from_system,
         )
