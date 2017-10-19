@@ -28,7 +28,3 @@ def is_command_prompt(s: str) -> bool:
 
 def is_command_prompt_continuation(s: str) -> bool:
     return re.match(r"^\d+>$", s) is not None
-
-
-def is_chat_message(s: str) -> bool:
-    return s.startswith("Chat:")
