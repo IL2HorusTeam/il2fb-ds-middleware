@@ -29,6 +29,14 @@ def transform_chat_sender(data):
 
 
 class ChatMessageWasReceived(ParsableEvent):
+    """
+    Examples:
+
+        "Chat: --- hello everyone"
+        "Chat: Server: \thello everyone"
+        "Chat: john.doe: \thello everyone"
+
+    """
     __slots__ = ['body', 'sender', 'from_user', 'from_server', 'from_system', ]
 
     verbose_name = "Chat message was received"
