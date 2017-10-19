@@ -16,11 +16,11 @@ from .constants import CHAT_SENDER_SERVER, CHAT_SENDER_SYSTEM
 IP_REGEX = "({d}{{1,3}}.){{3}}{d}{{1,3}}".format(d=DIGIT)
 
 
-def transform_chat_body(data):
+def transform_chat_body(data: dict) -> None:
     data['body'] = data['body'].encode().decode('unicode-escape')
 
 
-def transform_chat_sender(data):
+def transform_chat_sender(data: dict) -> None:
     sender = data.get('sender')
 
     if sender:
@@ -121,7 +121,7 @@ class HumanHasStartedConnection(HumanConnectionEvent):
     )
 
 
-def transform_connection_callsign(data):
+def transform_connection_callsign(data: dict) -> None:
     callsign = data.pop('callsign')
     data['actor'] = actors.Human(callsign=callsign)
 
@@ -154,7 +154,7 @@ class HumanHasConnected(HumanConnectionEvent):
     )
 
 
-def transform_disconnection_reason(data):
+def transform_disconnection_reason(data: dict) -> None:
     reason = data['reason']
 
     if not reason:
