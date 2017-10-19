@@ -91,15 +91,22 @@ class ChatMessageWasReceived(ParsableEvent):
         )
 
 
-class HumanHasStartedConnection(ParsableEvent):
+class HumanConnectionEvent(ParsableEvent):
+    __slots__ = ['channel', 'ip', 'port', ]
+
+    transformers = (
+        get_int_transformer('channel'),
+        get_int_transformer('port'),
+    )
+
+
+class HumanHasStartedConnection(HumanConnectionEvent):
     """
     Example:
 
         "socket channel '3' start creating: 127.0.0.1:1234"
 
     """
-    __slots__ = ['channel', 'ip', 'port', ]
-
     verbose_name = "Human has started connection"
     matcher = make_matcher(
         "{start}socket{s}channel{s}'{channel}'{s}start{s}creating:{s}{ip}:{port}{end}"
@@ -112,10 +119,6 @@ class HumanHasStartedConnection(ParsableEvent):
             end=END_OF_STRING,
         )
     )
-    transformers = (
-        get_int_transformer('channel'),
-        get_int_transformer('port'),
-    )
 
 
 def transform_connection_callsign(data):
@@ -123,14 +126,14 @@ def transform_connection_callsign(data):
     data['actor'] = actors.Human(callsign=callsign)
 
 
-class HumanHasConnected(ParsableEvent):
+class HumanHasConnected(HumanConnectionEvent):
     """
     Example:
 
         "socket channel '3', ip 127.0.0.1:1234, john.doe, is complete created"
 
     """
-    __slots__ = ['channel', 'ip', 'port', 'actor', ]
+    __slots__ = HumanConnectionEvent.__slots__ + ['actor', ]
 
     verbose_name = "Human has connected"
     matcher = make_matcher(
@@ -146,9 +149,7 @@ class HumanHasConnected(ParsableEvent):
             end=END_OF_STRING,
         )
     )
-    transformers = (
-        get_int_transformer('channel'),
-        get_int_transformer('port'),
+    transformers = HumanConnectionEvent.transformers + (
         transform_connection_callsign,
     )
 
@@ -160,7 +161,7 @@ def transform_disconnection_reason(data):
         data['reason'] = None
 
 
-class HumanHasDisconnected(ParsableEvent):
+class HumanHasDisconnected(HumanConnectionEvent):
     """
     Example:
 
@@ -168,7 +169,7 @@ class HumanHasDisconnected(ParsableEvent):
         "socketConnection with 127.0.0.1:4567 on channel 5 lost.  Reason: Timeout"
 
     """
-    __slots__ = ['channel', 'ip', 'port', 'reason', ]
+    __slots__ = HumanConnectionEvent.__slots__ + ['reason', ]
 
     verbose_name = "Human has disconnected"
     matcher = make_matcher(
@@ -184,8 +185,6 @@ class HumanHasDisconnected(ParsableEvent):
             end=END_OF_STRING,
         )
     )
-    transformers = (
-        get_int_transformer('channel'),
-        get_int_transformer('port'),
+    transformers = HumanConnectionEvent.transformers + (
         transform_disconnection_reason,
     )
