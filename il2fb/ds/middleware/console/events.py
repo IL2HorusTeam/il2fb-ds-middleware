@@ -143,3 +143,41 @@ class UserHasJoined(ParsableEvent):
         get_int_transformer('channel'),
         get_int_transformer('port'),
     )
+
+
+def transform_disconnection_reason(data):
+    reason = data['reason']
+
+    if not reason:
+        data['reason'] = None
+
+
+class UserHasLeft(ParsableEvent):
+    """
+    Example:
+
+        "socketConnection with 127.0.0.1:1234 on channel 3 lost.  Reason: "
+        "socketConnection with 127.0.0.1:4567 on channel 5 lost.  Reason: Timeout"
+
+    """
+    __slots__ = ['channel', 'ip', 'port', 'reason', ]
+
+    verbose_name = "User has left"
+    matcher = make_matcher(
+        "{start}socketConnection{s}with{s}{ip}:{port}{s}on{s}channel{s}"
+        "{channel}{s}lost.{s}{s}Reason:{s}{reason}{end}"
+        .format(
+            start=START_OF_STRING,
+            s=WHITESPACE,
+            ip=named_group('ip', IP_REGEX),
+            port=named_group('port', NUMBER),
+            channel=named_group('channel', NUMBER),
+            reason=named_group('reason', ".*"),
+            end=END_OF_STRING,
+        )
+    )
+    transformers = (
+        get_int_transformer('channel'),
+        get_int_transformer('port'),
+        transform_disconnection_reason,
+    )
