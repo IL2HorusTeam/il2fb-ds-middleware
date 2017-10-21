@@ -122,7 +122,7 @@ class ConsoleClient(asyncio.Protocol):
                     f"subscriber {subscriber}"
                 )
 
-    def subscribe_to_human_connection(
+    def subscribe_to_human_connection_events(
         self,
         subscriber: Callable[[events.HumanConnectionEvent], None],
     ) -> None:
@@ -132,7 +132,7 @@ class ConsoleClient(asyncio.Protocol):
         """
         self._human_connection_subscribers.append(subscriber)
 
-    def unsubscribe_from_human_connection(
+    def unsubscribe_from_human_connection_events(
         self,
         subscriber: Callable[[events.HumanConnectionEvent], None],
     ) -> None:
