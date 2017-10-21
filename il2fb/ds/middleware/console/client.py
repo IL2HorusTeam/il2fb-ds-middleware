@@ -190,7 +190,7 @@ class ConsoleClient(asyncio.Protocol):
         LOG.debug(f"dat --> {repr(data)}")
 
     async def _dispatch_all_requests(self) -> None:
-        LOG.info("dispatching of console requests has started")
+        LOG.info("dispatching of console requests was started")
 
         while True:
             try:
@@ -200,7 +200,7 @@ class ConsoleClient(asyncio.Protocol):
             except Exception:
                 LOG.exception("failed to dispatch a single console request")
 
-        LOG.info("dispatching of console requests has stopped")
+        LOG.info("dispatching of console requests was stopped")
 
         self._transport.close()
 

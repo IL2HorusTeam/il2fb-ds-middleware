@@ -57,7 +57,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             self._requests.put_nowait(None)
 
     async def _dispatch_all_requests(self) -> None:
-        LOG.info("dispatching of device link requests has started")
+        LOG.info("dispatching of device link requests was started")
 
         while True:
             try:
@@ -69,7 +69,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
                     "failed to dispatch a single device link request"
                 )
 
-        LOG.info("dispatching of device link requests has stopped")
+        LOG.info("dispatching of device link requests was stopped")
         self._transport.close()
 
     async def _dispatch_request(self) -> None:
