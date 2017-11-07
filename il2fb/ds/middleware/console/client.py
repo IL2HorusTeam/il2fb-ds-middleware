@@ -161,7 +161,7 @@ class ConsoleClient(asyncio.Protocol):
 
     def connection_made(self, transport) -> None:
         self._transport = transport
-        asyncio.async(self._dispatch_all_requests(), loop=self._loop)
+        asyncio.ensure_future(self._dispatch_all_requests(), loop=self._loop)
         self._connected_ack.set_result(None)
 
     def wait_connected(self) -> Awaitable[None]:
