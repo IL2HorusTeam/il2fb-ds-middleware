@@ -36,6 +36,10 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self._connected_ack = asyncio.Future(loop=self._loop)
         self._closed_ack = asyncio.Future(loop=self._loop)
 
+    @property
+    def remote_address(self):
+        return self._remote_address
+
     def connection_made(self, transport) -> None:
         self._transport = transport
         asyncio.ensure_future(self._dispatch_all_requests(), loop=self._loop)
