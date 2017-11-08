@@ -5,7 +5,9 @@ import logging
 
 from typing import Tuple, Awaitable, List
 
-from . import requests, messages as msg, structures
+from il2fb.ds.middleware.device_link import requests
+from il2fb.ds.middleware.device_link import messages as msg
+from il2fb.ds.middleware.device_link import structures
 
 
 LOG = logging.getLogger(__name__)
@@ -20,9 +22,11 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self,
         remote_address: Address,
         request_timeout: float=20.0,
+        trace: bool=False,
         loop: asyncio.AbstractEventLoop=None,
     ):
         self._loop = loop
+        self._trace = trace
 
         self._remote_address = remote_address
         self._request_timeout = request_timeout
@@ -40,7 +44,15 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
     def remote_address(self):
         return self._remote_address
 
+    def _prefix_log(self, s: str) -> str:
+        addr, port = self._remote_address
+        return f"[device link@{addr}:{port}] {s}"
+
     def connection_made(self, transport) -> None:
+        LOG.debug(self._prefix_log(
+            "transport was opened"
+        ))
+
         self._transport = transport
         asyncio.ensure_future(self._dispatch_all_requests(), loop=self._loop)
         self._connected_ack.set_result(None)
@@ -54,14 +66,23 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
     def connection_lost(self, e: Exception=None) -> None:
         self._closed_ack.set_result(e)
 
+        LOG.debug(self._prefix_log(
+            f"transport was closed (details={e or 'N/A'})"
+        ))
+
     def close(self) -> None:
-        LOG.debug("ask dispatching of device link requests to stop")
+        LOG.debug(self._prefix_log(
+            "ask dispatching of requests to stop"
+        ))
+
         if not self._do_close:
             self._do_close = True
             self._requests.put_nowait(None)
 
     async def _dispatch_all_requests(self) -> None:
-        LOG.info("dispatching of device link requests was started")
+        LOG.info(self._prefix_log(
+            "dispatching of requests was started"
+        ))
 
         while True:
             try:
@@ -69,21 +90,29 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             except StopAsyncIteration:
                 break
             except Exception:
-                LOG.exception(
-                    "failed to dispatch a single device link request"
-                )
+                LOG.exception(self._prefix_log(
+                    "failed to dispatch a single request"
+                ))
 
-        LOG.info("dispatching of device link requests was stopped")
         self._transport.close()
+
+        LOG.info(self._prefix_log(
+            "dispatching of requests was stopped"
+        ))
 
     async def _dispatch_request(self) -> None:
         self._request = await self._requests.get()
 
         if not self._request or self._do_close:
-            LOG.info("got request to stop dispatching device link requests")
+            LOG.info(self._prefix_log(
+                "got request to stop dispatching of requests"
+            ))
             raise StopAsyncIteration
 
-        LOG.debug(f"req <-- {repr(self._request)}")
+        if self._trace:
+            LOG.debug(self._prefix_log(
+                f"req <-- {repr(self._request)}"
+            ))
 
         try:
             await self._request.execute(self._write_bytes)
@@ -92,26 +121,45 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
 
     def _write_bytes(self, data: bytes) -> None:
         self._transport.sendto(data)
-        LOG.debug(f"dat --> {repr(data)}")
+
+        if self._trace:
+            LOG.debug(self._prefix_log(
+                f"dat --> {repr(data)}"
+            ))
 
     def datagram_received(self, data: bytes, addr: Address) -> None:
         if addr != self._remote_address:
-            LOG.warning(f"dat <-? unknown sender {addr}, skip")
+            if self._trace:
+                LOG.warning(self._prefix_log(
+                    f"dat <-? unknown sender {addr}, skip"
+                ))
             return
 
-        LOG.debug(f"dat <-- {repr(data)}")
+        if self._trace:
+            LOG.debug(self._prefix_log(
+                f"dat <-- {repr(data)}"
+            ))
 
         if not self._request:
-            LOG.warning(f"req N/A, skip")
+            if self._trace:
+                LOG.warning(self._prefix_log(
+                    f"req N/A, skip"
+                ))
             return
 
         try:
             self._request.data_received(data)
         except Exception:
-            LOG.exception("failed to handle response")
+            LOG.exception(self._prefix_log(
+                "failed to handle response"
+            ))
 
     def error_received(self, e) -> None:
-        LOG.error(f"err <-- {e}")
+        if self._trace:
+            LOG.error(self._prefix_log(
+                f"err <-- {e}"
+            ))
+
         if self._request:
             self._request.set_exception(e)
 
