@@ -8,8 +8,8 @@ class HouseStatus(ValueConstant):
 
 
 class HouseStatuses(with_constant_class(HouseStatus), Values):
-    alive = HouseStatus(b"A")
-    dead = HouseStatus(b"D")
+    alive = HouseStatus("A")
+    dead = HouseStatus("D")
 
 
 MESSAGE_TYPE_SEPARATOR = b'/'
