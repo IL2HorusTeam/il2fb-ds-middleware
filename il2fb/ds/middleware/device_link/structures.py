@@ -20,7 +20,7 @@ class ActorPosition(BaseStructure):
         return f"{self.__class__.__name__}({self.to_primitive()})"
 
 
-class AircraftPosition(ActorPosition):
+class MovingAircraftPosition(ActorPosition):
     __slots__ = ['index', 'id', 'pos', 'is_human', 'member_index', ]
 
     def __init__(

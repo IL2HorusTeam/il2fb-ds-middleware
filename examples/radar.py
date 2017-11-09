@@ -84,16 +84,16 @@ def setup_logging(level):
     root.addHandler(ch)
 
 
-def _format_all_aircrafts(records):
+def _format_all_moving_aircrafts(records):
     data = [
         ['Index', 'Is Human', 'ID', 'Member Index', 'X', 'Y', 'Z'],
-        *map(_format_single_aircraft, records)
+        *map(_format_single_moving_aircraft, records)
     ]
     table = SingleTable(table_data=data, title='Air')
     return table.table
 
 
-def _format_single_aircraft(record):
+def _format_single_moving_aircraft(record):
     return [
         record.index,
         "Y" if record.is_human else "N",
@@ -219,13 +219,15 @@ class Radar:
         await self._dl_client.refresh_radar()
 
         try:
-            aircrafts = await self._dl_client.all_aircrafts_positions()
+            moving_aircrafts = (
+                await self._dl_client.all_moving_aircrafts_positions()
+            )
         except Exception as e:
             LOG.warning(
-                f"failed to get coordinates of aircrafts: "
+                f"failed to get coordinates of moving aircrafts: "
                 f"{str(e) or e.__class__.__name__}"
             )
-            aircrafts = []
+            moving_aircrafts = []
 
         try:
             moving_ground_units = (
@@ -250,7 +252,7 @@ class Radar:
             ships = [x for x in ships if not x.is_stationary]
 
         data = {
-            'aircrafts': aircrafts,
+            'moving_aircrafts': moving_aircrafts,
             'moving_ground_units': moving_ground_units,
             'ships': ships,
         }
@@ -292,7 +294,7 @@ class Radar:
     def _print_data(cls, data):
         s = "\n".join([
             "coordinates:",
-            _format_all_aircrafts(data['aircrafts']),
+            _format_all_moving_aircrafts(data['moving_aircrafts']),
             _format_all_moving_ground_units(data['moving_ground_units']),
             _format_all_ships(data['ships']),
         ])

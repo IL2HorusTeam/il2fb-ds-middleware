@@ -17,9 +17,9 @@ def preparse_actor_position(message: str) -> structures.PreparsedActorPosition:
     return structures.PreparsedActorPosition(index, data)
 
 
-def parse_aircraft_position(
+def parse_moving_aircraft_position(
     item: structures.PreparsedActorPosition,
-) -> structures.AircraftPosition:
+) -> structures.MovingAircraftPosition:
     id, x, y, z = item.data.split(ACTOR_DATA_SEPARATOR)
     normalized_id = normalize_aircraft_id(id)
     is_human = (normalized_id != id)
@@ -31,7 +31,7 @@ def parse_aircraft_position(
         normalized_id, member_index = normalized_id[:-1], normalized_id[-1:]
         member_index = int(member_index)
 
-    return structures.AircraftPosition(
+    return structures.MovingAircraftPosition(
         index=item.index,
         id=normalized_id,
         is_human=is_human,

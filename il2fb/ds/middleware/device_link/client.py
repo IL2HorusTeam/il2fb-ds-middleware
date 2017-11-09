@@ -197,19 +197,19 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return r.wait()
 
-    def aircrafts_count(self) -> Awaitable[int]:
-        r = requests.AircraftsCountRequest(
+    def moving_aircrafts_count(self) -> Awaitable[int]:
+        r = requests.MovingAircraftsCountRequest(
             loop=self._loop,
             timeout=self._request_timeout,
         )
         self.schedule_request(r)
         return r.wait()
 
-    def aircraft_position(
+    def moving_aircraft_position(
         self,
         index: int,
-    ) -> Awaitable[structures.AircraftPosition]:
-        r = requests.AircraftsPositionsRequest(
+    ) -> Awaitable[structures.MovingAircraftPosition]:
+        r = requests.MovingAircraftsPositionsRequest(
             loop=self._loop,
             indices=[index, ],
             timeout=self._request_timeout,
@@ -217,16 +217,16 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return r.wait()
 
-    async def all_aircrafts_positions(
+    async def all_moving_aircrafts_positions(
         self,
-    ) -> Awaitable[List[structures.AircraftPosition]]:
-        count = await self.aircrafts_count()
+    ) -> Awaitable[List[structures.MovingAircraftPosition]]:
+        count = await self.moving_aircrafts_count()
 
         if not count:
             return []
 
         indices = range(count)
-        r = requests.AircraftsPositionsRequest(
+        r = requests.MovingAircraftsPositionsRequest(
             loop=self._loop,
             indices=indices,
             timeout=self._request_timeout,

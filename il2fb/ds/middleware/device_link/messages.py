@@ -76,11 +76,11 @@ class DeviceLinkGetterRequestMessage(DeviceLinkRequestMessage):
     requires_response = True
 
 
-class AircraftsCountRequestMessage(DeviceLinkGetterRequestMessage):
+class MovingAircraftsCountRequestMessage(DeviceLinkGetterRequestMessage):
     opcode = 1002
 
 
-class AircraftPositionRequestMessage(DeviceLinkGetterRequestMessage):
+class MovingAircraftPositionRequestMessage(DeviceLinkGetterRequestMessage):
     opcode = 1004
 
 

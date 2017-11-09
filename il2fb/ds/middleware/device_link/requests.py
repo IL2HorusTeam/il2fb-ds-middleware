@@ -189,20 +189,26 @@ class RefreshRadarRequest(DeviceLinkRequest):
         )
 
 
-class AircraftsCountRequest(CountingRequestMixin, DeviceLinkRequest):
-    request_message_class = msg.AircraftsCountRequestMessage
+class MovingAircraftsCountRequest(CountingRequestMixin, DeviceLinkRequest):
+    request_message_class = msg.MovingAircraftsCountRequestMessage
 
 
-class AircraftsPositionsRequest(PositionsRequestMixin, DeviceLinkRequest):
-    request_message_class = msg.AircraftPositionRequestMessage
-    item_parser = parsers.parse_aircraft_position
+class MovingAircraftsPositionsRequest(
+    PositionsRequestMixin,
+    DeviceLinkRequest,
+):
+    request_message_class = msg.MovingAircraftPositionRequestMessage
+    item_parser = parsers.parse_moving_aircraft_position
 
 
 class MovingGroundUnitsCountRequest(CountingRequestMixin, DeviceLinkRequest):
     request_message_class = msg.MovingGroundUnitsCountRequestMessage
 
 
-class MovingGroundUnitsPositionsRequest(PositionsRequestMixin, DeviceLinkRequest):
+class MovingGroundUnitsPositionsRequest(
+    PositionsRequestMixin,
+    DeviceLinkRequest,
+):
     request_message_class = msg.MovingGroundUnitPositionRequestMessage
     item_parser = parsers.parse_moving_ground_unit_position
 
