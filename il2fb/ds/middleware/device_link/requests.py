@@ -198,13 +198,13 @@ class AircraftsPositionsRequest(PositionsRequestMixin, DeviceLinkRequest):
     item_parser = parsers.parse_aircraft_position
 
 
-class GroundUnitsCountRequest(CountingRequestMixin, DeviceLinkRequest):
-    request_message_class = msg.GroundUnitsCountRequestMessage
+class MovingGroundUnitsCountRequest(CountingRequestMixin, DeviceLinkRequest):
+    request_message_class = msg.MovingGroundUnitsCountRequestMessage
 
 
-class GroundUnitsPositionsRequest(PositionsRequestMixin, DeviceLinkRequest):
-    request_message_class = msg.GroundUnitPositionRequestMessage
-    item_parser = parsers.parse_ground_unit_position
+class MovingGroundUnitsPositionsRequest(PositionsRequestMixin, DeviceLinkRequest):
+    request_message_class = msg.MovingGroundUnitPositionRequestMessage
+    item_parser = parsers.parse_moving_ground_unit_position
 
 
 class ShipsCountRequest(CountingRequestMixin, DeviceLinkRequest):

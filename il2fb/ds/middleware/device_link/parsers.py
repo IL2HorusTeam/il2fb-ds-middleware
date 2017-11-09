@@ -40,14 +40,14 @@ def parse_aircraft_position(
     )
 
 
-def parse_ground_unit_position(
+def parse_moving_ground_unit_position(
     item: structures.PreparsedActorPosition,
-) -> structures.GroundUnitPosition:
+) -> structures.MovingGroundUnitPosition:
     id, x, y, z = item.data.split(ACTOR_DATA_SEPARATOR)
     id, member_index = re.match(r"(\d+_Chief)(\d+)", id).groups()
     member_index = int(member_index)
     pos = Point3D(float(x), float(y), float(z))
-    return structures.GroundUnitPosition(
+    return structures.MovingGroundUnitPosition(
         index=item.index,
         id=id,
         member_index=member_index,

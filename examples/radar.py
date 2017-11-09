@@ -105,16 +105,16 @@ def _format_single_aircraft(record):
     ]
 
 
-def _format_all_ground_units(records):
+def _format_all_moving_ground_units(records):
     data = [
         ['Index', 'ID', 'Member Index', 'X', 'Y', 'Z'],
-        *map(_format_single_ground_unit, records)
+        *map(_format_single_moving_ground_unit, records)
     ]
     table = SingleTable(table_data=data, title='Ground')
     return table.table
 
 
-def _format_single_ground_unit(record):
+def _format_single_moving_ground_unit(record):
     return [
         record.index,
         record.id,
@@ -228,13 +228,15 @@ class Radar:
             aircrafts = []
 
         try:
-            ground_units = await self._dl_client.all_ground_units_positions()
+            moving_ground_units = (
+                await self._dl_client.all_moving_ground_units_positions()
+            )
         except Exception as e:
             LOG.warning(
-                f"failed to get coordinates of ground units: "
+                f"failed to get coordinates of moving ground units: "
                 f"{str(e) or e.__class__.__name__}"
             )
-            ground_units = []
+            moving_ground_units = []
 
         try:
             ships = await self._dl_client.all_ships_positions()
@@ -249,7 +251,7 @@ class Radar:
 
         data = {
             'aircrafts': aircrafts,
-            'ground_units': ground_units,
+            'moving_ground_units': moving_ground_units,
             'ships': ships,
         }
 
@@ -291,7 +293,7 @@ class Radar:
         s = "\n".join([
             "coordinates:",
             _format_all_aircrafts(data['aircrafts']),
-            _format_all_ground_units(data['ground_units']),
+            _format_all_moving_ground_units(data['moving_ground_units']),
             _format_all_ships(data['ships']),
         ])
         LOG.info(s)

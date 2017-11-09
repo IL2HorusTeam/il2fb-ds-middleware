@@ -38,7 +38,7 @@ class AircraftPosition(ActorPosition):
         self.member_index = member_index
 
 
-class GroundUnitPosition(ActorPosition):
+class MovingGroundUnitPosition(ActorPosition):
     __slots__ = ['index', 'id', 'member_index', 'pos', ]
 
     def __init__(

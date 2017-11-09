@@ -84,11 +84,11 @@ class AircraftPositionRequestMessage(DeviceLinkGetterRequestMessage):
     opcode = 1004
 
 
-class GroundUnitsCountRequestMessage(DeviceLinkGetterRequestMessage):
+class MovingGroundUnitsCountRequestMessage(DeviceLinkGetterRequestMessage):
     opcode = 1006
 
 
-class GroundUnitPositionRequestMessage(DeviceLinkGetterRequestMessage):
+class MovingGroundUnitPositionRequestMessage(DeviceLinkGetterRequestMessage):
     opcode = 1008
 
 

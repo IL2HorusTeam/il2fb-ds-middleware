@@ -235,19 +235,19 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
 
         return (await r.wait())
 
-    def ground_units_count(self) -> Awaitable[int]:
-        r = requests.GroundUnitsCountRequest(
+    def moving_ground_units_count(self) -> Awaitable[int]:
+        r = requests.MovingGroundUnitsCountRequest(
             loop=self._loop,
             timeout=self._request_timeout,
         )
         self.schedule_request(r)
         return r.wait()
 
-    def ground_unit_position(
+    def moving_ground_unit_position(
         self,
         index: int,
-    ) -> Awaitable[structures.GroundUnitPosition]:
-        r = requests.GroundUnitsPositionsRequest(
+    ) -> Awaitable[structures.MovingGroundUnitPosition]:
+        r = requests.MovingGroundUnitsPositionsRequest(
             loop=self._loop,
             indices=[index, ],
             timeout=self._request_timeout,
@@ -255,16 +255,16 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return r.wait()
 
-    async def all_ground_units_positions(
+    async def all_moving_ground_units_positions(
         self,
-    ) -> Awaitable[List[structures.GroundUnitPosition]]:
-        count = await self.ground_units_count()
+    ) -> Awaitable[List[structures.MovingGroundUnitPosition]]:
+        count = await self.moving_ground_units_count()
 
         if not count:
             return []
 
         indices = range(count)
-        r = requests.GroundUnitsPositionsRequest(
+        r = requests.MovingGroundUnitsPositionsRequest(
             loop=self._loop,
             indices=indices,
             timeout=self._request_timeout,
