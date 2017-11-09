@@ -41,6 +41,8 @@ class ConsoleClient(asyncio.Protocol):
 
         self._transport = None
         self._remote_address = None
+        self._log_message_prefix_format = None
+
         self._messages = []
         self._messages_buffer = []
 
@@ -70,10 +72,6 @@ class ConsoleClient(asyncio.Protocol):
                 self._handle_human_connection_event,
             ),
         ])
-
-    def _prefix_log(self, s: str) -> str:
-        addr, port = self._remote_address
-        return f"[console@{addr}:{port}] {s}"
 
     def subscribe_to_data(
         self,
@@ -124,7 +122,7 @@ class ConsoleClient(asyncio.Protocol):
             try:
                 subscriber(event)
             except Exception:
-                LOG.exception(self._prefix_log(
+                LOG.exception(self._prefix_log_message(
                     f"failed to send chat event {event} to "
                     f"subscriber {subscriber}"
                 ))
@@ -161,21 +159,32 @@ class ConsoleClient(asyncio.Protocol):
             try:
                 subscriber(event)
             except Exception:
-                LOG.exception(self._prefix_log(
+                LOG.exception(self._prefix_log_message(
                     f"failed to send human connection event {event} to "
                     f"subscriber {subscriber}"
                 ))
 
     def connection_made(self, transport) -> None:
-        self._remote_address = transport.get_extra_info('peername')
         self._transport = transport
+        self._remote_address = transport.get_extra_info('peername')
+        self._log_message_prefix_format = self._make_log_message_prefix_format(
+            remote_address=self._remote_address,
+        )
 
-        LOG.debug(self._prefix_log(
+        LOG.debug(self._prefix_log_message(
             "connection was established"
         ))
 
         asyncio.ensure_future(self._dispatch_all_requests(), loop=self._loop)
         self._connected_ack.set_result(None)
+
+    @staticmethod
+    def _make_log_message_prefix_format(remote_address) -> str:
+        addr, port = remote_address
+        return f"[console@{addr}:{port}] {{}}"
+
+    def _prefix_log_message(self, s: str) -> str:
+        return self._log_message_prefix_format.format(s)
 
     def wait_connected(self) -> Awaitable[None]:
         return self._connected_ack
@@ -187,12 +196,12 @@ class ConsoleClient(asyncio.Protocol):
         else:
             enlog = LOG.info
 
-        enlog(self._prefix_log(
+        enlog(self._prefix_log_message(
             f"connection was lost (details={e or 'N/A'})"
         ))
 
     def close(self) -> None:
-        LOG.debug(self._prefix_log(
+        LOG.debug(self._prefix_log_message(
             "ask dispatching of requests to stop"
         ))
 
@@ -207,12 +216,12 @@ class ConsoleClient(asyncio.Protocol):
         self._transport.write(data)
 
         if self._trace:
-            LOG.debug(self._prefix_log(
+            LOG.debug(self._prefix_log_message(
                 f"dat --> {repr(data)}"
             ))
 
     async def _dispatch_all_requests(self) -> None:
-        LOG.info(self._prefix_log(
+        LOG.info(self._prefix_log_message(
             "dispatching of requests was started"
         ))
 
@@ -222,7 +231,7 @@ class ConsoleClient(asyncio.Protocol):
             except StopAsyncIteration:
                 break
             except Exception:
-                LOG.exception(self._prefix_log(
+                LOG.exception(self._prefix_log_message(
                     "failed to dispatch a single request"
                 ))
 
@@ -231,7 +240,7 @@ class ConsoleClient(asyncio.Protocol):
         if not self._closed_ack.done():
             self._closed_ack.set_result(None)
 
-        LOG.info(self._prefix_log(
+        LOG.info(self._prefix_log_message(
             "dispatching of requests was stopped"
         ))
 
@@ -245,7 +254,7 @@ class ConsoleClient(asyncio.Protocol):
             self._stop()
 
         if self._trace:
-            LOG.debug(self._prefix_log(
+            LOG.debug(self._prefix_log_message(
                 f"req <-- {repr(self._request)}"
             ))
 
@@ -269,7 +278,7 @@ class ConsoleClient(asyncio.Protocol):
             self._request = None
 
     def _stop(self) -> None:
-        LOG.info(self._prefix_log(
+        LOG.info(self._prefix_log_message(
             "got request to stop dispatching of requests"
         ))
         raise StopAsyncIteration
@@ -284,7 +293,7 @@ class ConsoleClient(asyncio.Protocol):
 
     def data_received(self, data: bytes) -> None:
         if self._trace:
-            LOG.debug(self._prefix_log(
+            LOG.debug(self._prefix_log_message(
                 f"dat <-- {repr(data)}"
             ))
 
@@ -292,7 +301,7 @@ class ConsoleClient(asyncio.Protocol):
             try:
                 is_trapped = subscriber(data)
             except Exception:
-                LOG.exception(self._prefix_log(
+                LOG.exception(self._prefix_log_message(
                     f"failed to send data to subscriber {subscriber}"
                 ))
             else:
@@ -309,7 +318,7 @@ class ConsoleClient(asyncio.Protocol):
         messages = self._concat_messages_with_buffer(messages)
 
         if self._trace:
-            LOG.debug(self._prefix_log(
+            LOG.debug(self._prefix_log_message(
                 f"msg <<< {messages}"
             ))
 
@@ -319,7 +328,7 @@ class ConsoleClient(asyncio.Protocol):
 
             elif is_command_prompt_continuation(message):
                 if self._trace:
-                    LOG.debug(self._prefix_log(
+                    LOG.debug(self._prefix_log_message(
                         "cmd continuation, skip"
                     ))
 
@@ -330,12 +339,12 @@ class ConsoleClient(asyncio.Protocol):
             else:
                 self._messages_buffer.append(message)
                 if self._trace:
-                    LOG.debug(self._prefix_log(
+                    LOG.debug(self._prefix_log_message(
                         f"buf <-- {repr(message)}"
                     ))
 
         if self._trace:
-            LOG.debug(self._prefix_log(
+            LOG.debug(self._prefix_log_message(
                 f"msg === {self._messages}"
             ))
 
@@ -343,7 +352,7 @@ class ConsoleClient(asyncio.Protocol):
         self._messages_buffer.append(chunk)
 
         if self._trace:
-            LOG.debug(self._prefix_log(
+            LOG.debug(self._prefix_log_message(
                 f"buf <-- {repr(chunk)}"
             ))
 
@@ -361,7 +370,7 @@ class ConsoleClient(asyncio.Protocol):
             self._messages_buffer = []
 
             if self._trace:
-                LOG.debug(self._prefix_log(
+                LOG.debug(self._prefix_log_message(
                     f"buf >>> {repr(message)}"
                 ))
 
@@ -369,13 +378,13 @@ class ConsoleClient(asyncio.Protocol):
 
     def _on_command_prompt(self) -> None:
         if self._trace:
-            LOG.debug(self._prefix_log(
+            LOG.debug(self._prefix_log_message(
                 "cmd <<<"
             ))
 
         if self._request is None:
             if self._trace:
-                LOG.warning(self._prefix_log(
+                LOG.warning(self._prefix_log_message(
                     "req N/A, skip"
                 ))
         else:
@@ -385,7 +394,7 @@ class ConsoleClient(asyncio.Protocol):
         messages, self._messages = self._messages, []
 
         if self._trace:
-            LOG.debug(self._prefix_log(
+            LOG.debug(self._prefix_log_message(
                 f"res {messages}"
             ))
 
@@ -393,7 +402,7 @@ class ConsoleClient(asyncio.Protocol):
             is_user_input(m) for m in messages
         ):
             if self._trace:
-                LOG.debug(self._prefix_log(
+                LOG.debug(self._prefix_log_message(
                     "usr, skip"
                 ))
             return
@@ -402,7 +411,7 @@ class ConsoleClient(asyncio.Protocol):
             is_server_input(m) for m in messages
         ):
             if self._trace:
-                LOG.debug(self._prefix_log(
+                LOG.debug(self._prefix_log_message(
                     "srv, skip"
                 ))
             return
@@ -410,25 +419,25 @@ class ConsoleClient(asyncio.Protocol):
         try:
             self._request.set_result(messages)
         except Exception as e:
-            LOG.exception(self._prefix_log(
+            LOG.exception(self._prefix_log_message(
                 "failed to set result of request"
             ))
             try:
                 self._request.set_exception(e)
             except Exception:
-                LOG.exception(self._prefix_log(
+                LOG.exception(self._prefix_log_message(
                     "failed to set exception of request"
                 ))
 
     def _on_message(self, message: str) -> None:
         if self._trace:
-            LOG.debug(self._prefix_log(
+            LOG.debug(self._prefix_log_message(
                 f"msg <-- {repr(message)}"
             ))
 
         if not message:
             if self._trace:
-                LOG.debug(self._prefix_log(
+                LOG.debug(self._prefix_log_message(
                     "empty, skip"
                 ))
 
@@ -437,7 +446,7 @@ class ConsoleClient(asyncio.Protocol):
 
         elif self._request is None:
             if self._trace:
-                LOG.warning(self._prefix_log(
+                LOG.warning(self._prefix_log_message(
                     "req N/A, skip"
                 ))
 
@@ -449,7 +458,7 @@ class ConsoleClient(asyncio.Protocol):
             try:
                 event = event_class.from_s(s)
             except Exception:
-                LOG.exception(self._prefix_log(
+                LOG.exception(self._prefix_log_message(
                     f"failed to create event {event_class} from string "
                     f"{repr(s)}"
                 ))
@@ -461,7 +470,7 @@ class ConsoleClient(asyncio.Protocol):
             try:
                 handler(event)
             except Exception:
-                LOG.exception(self._prefix_log(
+                LOG.exception(self._prefix_log_message(
                     f"failed to handle event {event}"
                 ))
             finally:

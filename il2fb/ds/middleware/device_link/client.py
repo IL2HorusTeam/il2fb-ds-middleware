@@ -34,6 +34,9 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self._request = None
 
         self._transport = None
+        self._log_message_prefix_format = self._make_log_message_prefix_format(
+            remote_address=remote_address,
+        )
         self._messages = []
 
         self._do_close = False
@@ -44,12 +47,16 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
     def remote_address(self):
         return self._remote_address
 
-    def _prefix_log(self, s: str) -> str:
-        addr, port = self._remote_address
-        return f"[device link@{addr}:{port}] {s}"
+    @staticmethod
+    def _make_log_message_prefix_format(remote_address) -> str:
+        addr, port = remote_address
+        return f"[device link@{addr}:{port}] {{}}"
+
+    def _prefix_log_message(self, s: str) -> str:
+        return self._log_message_prefix_format.format(s)
 
     def connection_made(self, transport) -> None:
-        LOG.debug(self._prefix_log(
+        LOG.debug(self._prefix_log_message(
             "transport was opened"
         ))
 
@@ -66,12 +73,12 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
     def connection_lost(self, e: Exception=None) -> None:
         self._closed_ack.set_result(e)
 
-        LOG.debug(self._prefix_log(
+        LOG.debug(self._prefix_log_message(
             f"transport was closed (details={e or 'N/A'})"
         ))
 
     def close(self) -> None:
-        LOG.debug(self._prefix_log(
+        LOG.debug(self._prefix_log_message(
             "ask dispatching of requests to stop"
         ))
 
@@ -80,7 +87,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             self._requests.put_nowait(None)
 
     async def _dispatch_all_requests(self) -> None:
-        LOG.info(self._prefix_log(
+        LOG.info(self._prefix_log_message(
             "dispatching of requests was started"
         ))
 
@@ -90,13 +97,13 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             except StopAsyncIteration:
                 break
             except Exception:
-                LOG.exception(self._prefix_log(
+                LOG.exception(self._prefix_log_message(
                     "failed to dispatch a single request"
                 ))
 
         self._transport.close()
 
-        LOG.info(self._prefix_log(
+        LOG.info(self._prefix_log_message(
             "dispatching of requests was stopped"
         ))
 
@@ -104,13 +111,13 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self._request = await self._requests.get()
 
         if not self._request or self._do_close:
-            LOG.info(self._prefix_log(
+            LOG.info(self._prefix_log_message(
                 "got request to stop dispatching of requests"
             ))
             raise StopAsyncIteration
 
         if self._trace:
-            LOG.debug(self._prefix_log(
+            LOG.debug(self._prefix_log_message(
                 f"req <-- {repr(self._request)}"
             ))
 
@@ -123,26 +130,26 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self._transport.sendto(data)
 
         if self._trace:
-            LOG.debug(self._prefix_log(
+            LOG.debug(self._prefix_log_message(
                 f"dat --> {repr(data)}"
             ))
 
     def datagram_received(self, data: bytes, addr: Address) -> None:
         if addr != self._remote_address:
             if self._trace:
-                LOG.warning(self._prefix_log(
+                LOG.warning(self._prefix_log_message(
                     f"dat <-? unknown sender {addr}, skip"
                 ))
             return
 
         if self._trace:
-            LOG.debug(self._prefix_log(
+            LOG.debug(self._prefix_log_message(
                 f"dat <-- {repr(data)}"
             ))
 
         if not self._request:
             if self._trace:
-                LOG.warning(self._prefix_log(
+                LOG.warning(self._prefix_log_message(
                     f"req N/A, skip"
                 ))
             return
@@ -150,13 +157,13 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         try:
             self._request.data_received(data)
         except Exception:
-            LOG.exception(self._prefix_log(
+            LOG.exception(self._prefix_log_message(
                 "failed to handle response"
             ))
 
     def error_received(self, e) -> None:
         if self._trace:
-            LOG.error(self._prefix_log(
+            LOG.error(self._prefix_log_message(
                 f"err <-- {e}"
             ))
 
