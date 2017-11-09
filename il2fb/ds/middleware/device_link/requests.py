@@ -1,10 +1,9 @@
 # coding: utf-8
 
 import asyncio
-import concurrent
-import functools
 import logging
 import operator
+import time
 
 from typing import List, Awaitable, Callable, Any, Optional, Iterable
 
@@ -26,57 +25,82 @@ class DeviceLinkRequest:
         timeout: float=None,
     ):
         self._loop = loop
-        self._request_messages = messages
         self._timeout = timeout
+        self._request_messages = messages
         self._response_messages = []
+        self._continue_event = asyncio.Event(loop=loop)
         self._future = asyncio.Future(loop=loop)
 
     def wait(self) -> Awaitable[Any]:
         return self._future
 
-    def execute(self, writer: Callable[[bytes], None]) -> Awaitable[Any]:
+    async def execute(
+        self,
+        writer: Callable[[bytes], None],
+    ) -> Awaitable[Any]:
+        try:
+            await self._execute(writer)
+        except Exception as e:
+            if self._future.done():
+                LOG.exception("failed to execute device link request")
+            else:
+                self._future.set_exception(e)
+
+    async def _execute(
+        self,
+        writer: Callable[[bytes], None],
+    ) -> Awaitable[Any]:
+        start_time = time.monotonic()
+
         messages = self._request_messages
+        messages_total_count = len(messages)
+        messages_sent_count = 0
+
+        request_requires_response = False
 
         for group in self._group_messages(messages):
             data = compose_request(group)
-            writer(data)
 
-        future = self._future
-        requires_response = any(msg.requires_response for msg in messages)
+            group_requires_response = any(
+                msg.requires_response for msg in group
+            )
+            request_requires_response = (
+                request_requires_response or
+                group_requires_response
+            )
 
-        if requires_response and self._timeout:
-            future = self._execute_with_timeout(future, timeout=self._timeout)
+            elapsed_time = time.monotonic() - start_time
+            if self._timeout is not None and elapsed_time >= self._timeout:
+                raise TimeoutError
+
+            if group_requires_response:
+                self._continue_event.clear()
+                writer(data)
+
+                future = self._continue_event.wait()
+
+                if self._timeout is not None:
+                    timeout = self._timeout - elapsed_time
+                    future = asyncio.wait_for(future, timeout, loop=self._loop)
+
+                await future
+            else:
+                writer(data)
+
+            messages_sent_count += len(group)
+            LOG.debug(
+                f"msg count: {messages_sent_count} out of "
+                f"{messages_total_count}"
+            )
+
+        if request_requires_response:
+            result = self._extract_result(self._response_messages)
+            self._future.set_result(result)
         else:
-            future.set_result(None)
-
-        return future
-
-    async def _execute_with_timeout(
-        self,
-        future: asyncio.Future,
-        timeout: float,
-    ) -> asyncio.Future:
-
-        timeout_future = asyncio.Future(loop=self._loop)
-        future.add_done_callback(functools.partial(
-            self._on_future_done, timeout_future,
-        ))
-
-        try:
-            await asyncio.wait_for(timeout_future, timeout, loop=self._loop)
-        except concurrent.futures.TimeoutError as e:
-            self._future.set_exception(e)
+            self._future.set_result(None)
 
     @staticmethod
-    def _on_future_done(
-        timeout_future: asyncio.Future,
-        wrapped_future: asyncio.Future,
-    ) -> None:
-
-        if not timeout_future.done():
-            timeout_future.set_result(None)
-
-    def _group_messages(self, messages, group_size=MESSAGE_GROUP_MAX_SIZE):
+    def _group_messages(messages, group_size=MESSAGE_GROUP_MAX_SIZE):
         count = len(messages)
 
         for i in range((count // group_size) + 1):
@@ -90,18 +114,9 @@ class DeviceLinkRequest:
             LOG.exception(f"failed to decompose data {repr(data)}")
         else:
             LOG.debug(f"msg <<< {messages}")
+            self._response_messages.extend(messages)
 
-        self._response_messages.extend(messages)
-        LOG.debug(f"msg === {self._response_messages}")
-
-        if len(self._response_messages) == len(self._request_messages):
-            try:
-                result = self._extract_result(self._response_messages)
-            except Exception as e:
-                LOG.exception("failed to get request result")
-                self._future.set_exception(result)
-            else:
-                self._future.set_result(result)
+        self._continue_event.set()
 
     def set_exception(self, e: Exception=None) -> None:
         if not self._future.done():
