@@ -572,6 +572,12 @@ class ConsoleClient(asyncio.Protocol):
         self.enqueue_request(r)
         return f
 
+    def mission_unload(self) -> Awaitable[None]:
+        f = asyncio.Future(loop=self._loop)
+        r = requests.MissionUnloadRequest(f)
+        self.enqueue_request(r)
+        return f
+
     def mission_begin(self) -> Awaitable[None]:
         f = asyncio.Future(loop=self._loop)
         r = requests.MissionBeginRequest(f)
@@ -581,11 +587,5 @@ class ConsoleClient(asyncio.Protocol):
     def mission_end(self) -> Awaitable[None]:
         f = asyncio.Future(loop=self._loop)
         r = requests.MissionEndRequest(f)
-        self.enqueue_request(r)
-        return f
-
-    def mission_destroy(self) -> Awaitable[None]:
-        f = asyncio.Future(loop=self._loop)
-        r = requests.MissionDestroyRequest(f)
         self.enqueue_request(r)
         return f

@@ -220,6 +220,12 @@ class MissionLoadRequest(MissionControlRequestBase):
         super().__init__(future=future, body=f"mission LOAD {file_path}")
 
 
+class MissionUnloadRequest(MissionControlRequestBase):
+
+    def __init__(self, future: asyncio.Future):
+        super().__init__(future=future, body="mission DESTROY")
+
+
 class MissionBeginRequest(MissionControlRequestBase):
 
     def __init__(self, future: asyncio.Future):
@@ -230,9 +236,3 @@ class MissionEndRequest(MissionControlRequestBase):
 
     def __init__(self, future: asyncio.Future):
         super().__init__(future=future, body="mission END")
-
-
-class MissionDestroyRequest(MissionControlRequestBase):
-
-    def __init__(self, future: asyncio.Future):
-        super().__init__(future=future, body="mission DESTROY")
