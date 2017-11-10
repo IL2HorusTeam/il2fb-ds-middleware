@@ -189,6 +189,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             messages=messages,
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
         self.schedule_request(r)
         return r.result()
@@ -196,6 +197,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
     def refresh_radar(self) -> Awaitable[None]:
         r = requests.RefreshRadarRequest(
             loop=self._loop,
+            trace=self._trace,
         )
         self.schedule_request(r)
         return r.result()
@@ -208,6 +210,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         r = requests.MovingAircraftsCountRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
         self.schedule_request(r)
         return r.result()
@@ -222,6 +225,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             loop=self._loop,
             indices=[index, ],
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
         self.schedule_request(r)
         return r.result()
@@ -240,6 +244,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             loop=self._loop,
             indices=indices,
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
 
         self.schedule_request(r)
@@ -253,6 +258,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         r = requests.MovingGroundUnitsCountRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
         self.schedule_request(r)
         return r.result()
@@ -266,6 +272,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             loop=self._loop,
             indices=[index, ],
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
         self.schedule_request(r)
         return r.result()
@@ -284,6 +291,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             loop=self._loop,
             indices=indices,
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
 
         self.schedule_request(r)
@@ -297,6 +305,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         r = requests.ShipsCountRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
         self.schedule_request(r)
         return r.result()
@@ -311,6 +320,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             loop=self._loop,
             indices=[index, ],
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
         self.schedule_request(r)
         return r.result()
@@ -329,6 +339,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             loop=self._loop,
             indices=indices,
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
 
         self.schedule_request(r)
@@ -342,6 +353,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         r = requests.StationaryObjectsCountRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
         self.schedule_request(r)
         return r.result()
@@ -356,6 +368,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             loop=self._loop,
             indices=[index, ],
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
         self.schedule_request(r)
         return r.result()
@@ -374,6 +387,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             loop=self._loop,
             indices=indices,
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
 
         self.schedule_request(r)
@@ -387,6 +401,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         r = requests.HousesCountRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
         self.schedule_request(r)
         return r.result()
@@ -401,6 +416,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             loop=self._loop,
             indices=[index, ],
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
         self.schedule_request(r)
         return r.result()
@@ -419,6 +435,7 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
             loop=self._loop,
             indices=indices,
             timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
         )
 
         self.schedule_request(r)

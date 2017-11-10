@@ -24,10 +24,12 @@ class DeviceLinkRequest:
     def __init__(
         self,
         messages: List[msg.DeviceLinkRequestMessage],
-        loop: asyncio.AbstractEventLoop=None,
         timeout: float=None,
+        trace: bool=False,
+        loop: asyncio.AbstractEventLoop=None,
     ):
         self._loop = loop
+        self._trace = trace
 
         self._request_messages = messages
         self._request_requires_response = self._messages_require_response(
@@ -105,13 +107,14 @@ class DeviceLinkRequest:
                 break
 
             messages_sent_count += len(group)
+
             LOG.debug(
                 f"msg count: {messages_sent_count} out of "
                 f"{messages_total_count}"
             )
 
         if self._future.done():
-            LOG.warning("device link request was aborted")
+            LOG.debug("device link request was aborted")
         elif self._request_requires_response:
             result = self._extract_result(self._response_messages)
             self._future.set_result(result)
@@ -154,8 +157,10 @@ class DeviceLinkRequest:
         except Exception:
             LOG.exception(f"failed to decompose data {repr(data)}")
         else:
-            LOG.debug(f"msg <<< {messages}")
             self._response_messages.extend(messages)
+
+            if self._trace:
+                LOG.debug(f"msg <<< {messages}")
 
         self._continue_event.set()
 
@@ -183,6 +188,7 @@ class CountingRequestMixin:
         self,
         loop: asyncio.AbstractEventLoop=None,
         timeout: Optional[float]=None,
+        trace: bool=False,
     ):
         messages = [
             self.request_message_class(),
@@ -191,6 +197,7 @@ class CountingRequestMixin:
             loop=loop,
             messages=messages,
             timeout=timeout,
+            trace=trace,
         )
 
     def _extract_result(self, messages: List[msg.DeviceLinkMessage]) -> None:
@@ -213,6 +220,7 @@ class PositionsRequestMixin:
         indices: Iterable[int],
         loop: asyncio.AbstractEventLoop=None,
         timeout: Optional[float]=None,
+        trace: bool=False,
     ):
         messages = [
             self.request_message_class(value=i) for i in indices
@@ -221,6 +229,7 @@ class PositionsRequestMixin:
             loop=loop,
             messages=messages,
             timeout=timeout,
+            trace=trace,
         )
 
     def _extract_result(self, messages: List[msg.DeviceLinkMessage]) -> None:
@@ -234,7 +243,11 @@ class PositionsRequestMixin:
 
 class RefreshRadarRequest(DeviceLinkRequest):
 
-    def __init__(self, loop: asyncio.AbstractEventLoop=None):
+    def __init__(
+        self,
+        loop: asyncio.AbstractEventLoop=None,
+        trace: bool=False,
+    ):
         messages = [
             msg.RefreshRadarRequestMessage(),
         ]
@@ -242,6 +255,7 @@ class RefreshRadarRequest(DeviceLinkRequest):
             loop=loop,
             messages=messages,
             timeout=None,
+            trace=trace,
         )
 
 
