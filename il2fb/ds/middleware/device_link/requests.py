@@ -14,6 +14,7 @@ from il2fb.ds.middleware.device_link.filters import actor_index_is_valid
 from il2fb.ds.middleware.device_link.filters import actor_status_is_valid
 from il2fb.ds.middleware.device_link.helpers import compose_request
 from il2fb.ds.middleware.device_link.helpers import decompose_data
+from il2fb.ds.middleware.text import plural_noun, truncate
 
 
 LOG = logging.getLogger(__name__)
@@ -160,7 +161,10 @@ class DeviceLinkRequest:
             self._response_messages.extend(messages)
 
             if self._trace:
-                LOG.debug(f"msg <<< {messages}")
+                s = truncate(str(messages), max_length=200)
+                count = len(messages)
+                message_noun = plural_noun("message", count)
+                LOG.debug(f"msg <<< {s}, {count} {message_noun}")
 
         self._continue_event.set()
 
@@ -172,10 +176,17 @@ class DeviceLinkRequest:
         return messages
 
     def __str__(self) -> str:
-        return compose_request(self._request_messages).decode()
+        s = compose_request(self._request_messages).decode()
+        return truncate(s, max_length=200)
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}('{str(self)}')>"
+        value = str(self)
+        count = len(self._request_messages)
+        message_noun = plural_noun("message", count)
+        return (
+            f"<{self.__class__.__name__} "
+            f"(data='{value}', {count} {message_noun})>"
+        )
 
 
 class CountingRequestMixin:
