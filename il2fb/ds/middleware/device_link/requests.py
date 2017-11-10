@@ -7,10 +7,13 @@ import time
 
 from typing import List, Awaitable, Callable, Any, Optional, Iterable
 
-from . import messages as msg, parsers
-from .constants import MESSAGE_GROUP_MAX_SIZE
-from .filters import actor_index_is_valid, actor_status_is_valid
-from .helpers import compose_request, decompose_data
+from il2fb.ds.middleware.device_link import messages as msg
+from il2fb.ds.middleware.device_link import parsers
+from il2fb.ds.middleware.device_link.constants import MESSAGE_GROUP_MAX_SIZE
+from il2fb.ds.middleware.device_link.filters import actor_index_is_valid
+from il2fb.ds.middleware.device_link.filters import actor_status_is_valid
+from il2fb.ds.middleware.device_link.helpers import compose_request
+from il2fb.ds.middleware.device_link.helpers import decompose_data
 
 
 LOG = logging.getLogger(__name__)
@@ -25,13 +28,22 @@ class DeviceLinkRequest:
         timeout: float=None,
     ):
         self._loop = loop
-        self._timeout = timeout
+
         self._request_messages = messages
+        self._request_requires_response = self._messages_require_response(
+            messages=messages,
+        )
+
         self._response_messages = []
-        self._continue_event = asyncio.Event(loop=loop)
         self._future = asyncio.Future(loop=loop)
 
-    def wait(self) -> Awaitable[Any]:
+        self._start_time = None
+        self._timeout = timeout
+
+        self._continue_event = asyncio.Event(loop=loop)
+        self._continue_event.set()
+
+    def result(self) -> Awaitable[Any]:
         return self._future
 
     async def execute(
@@ -39,53 +51,58 @@ class DeviceLinkRequest:
         writer: Callable[[bytes], None],
     ) -> Awaitable[Any]:
         try:
-            await self._execute(writer)
+            LOG.debug("device link request execution start")
+
+            future = self._execute(writer)
+
+            if self._timeout is not None and self._request_requires_response:
+                future = asyncio.wait_for(
+                    future,
+                    self._timeout,
+                    loop=self._loop,
+                )
+
+            await future
         except Exception as e:
             if self._future.done():
                 LOG.exception("failed to execute device link request")
             else:
                 self._future.set_exception(e)
+        finally:
+            execution_time = time.monotonic() - self._start_time
+            LOG.debug(
+                "device link request execution time: {:.6f} s"
+                .format(execution_time)
+            )
 
     async def _execute(
         self,
         writer: Callable[[bytes], None],
     ) -> Awaitable[Any]:
-        start_time = time.monotonic()
+        self._start_time = time.monotonic()
 
         messages = self._request_messages
         messages_total_count = len(messages)
         messages_sent_count = 0
 
-        request_requires_response = False
-
         for group in self._group_messages(messages):
             data = compose_request(group)
+            group_requires_response = self._messages_require_response(group)
 
-            group_requires_response = any(
-                msg.requires_response for msg in group
-            )
-            request_requires_response = (
-                request_requires_response or
-                group_requires_response
-            )
-
-            elapsed_time = time.monotonic() - start_time
-            if self._timeout is not None and elapsed_time >= self._timeout:
-                raise TimeoutError
+            future = self._continue_event.wait()
 
             if group_requires_response:
                 self._continue_event.clear()
                 writer(data)
-
-                future = self._continue_event.wait()
-
-                if self._timeout is not None:
-                    timeout = self._timeout - elapsed_time
-                    future = asyncio.wait_for(future, timeout, loop=self._loop)
-
-                await future
+                future = self._maybe_wrap_with_timeout(future)
             else:
                 writer(data)
+
+            # gives ability to switch context to other coroutines
+            await future
+
+            if self._future.done():
+                break
 
             messages_sent_count += len(group)
             LOG.debug(
@@ -93,11 +110,35 @@ class DeviceLinkRequest:
                 f"{messages_total_count}"
             )
 
-        if request_requires_response:
+        if self._future.done():
+            LOG.warning("device link request was aborted")
+        elif self._request_requires_response:
             result = self._extract_result(self._response_messages)
             self._future.set_result(result)
         else:
             self._future.set_result(None)
+
+    @staticmethod
+    def _messages_require_response(
+        messages: List[msg.DeviceLinkRequestMessage],
+    ) -> bool:
+        return any(msg.requires_response for msg in messages)
+
+    def _maybe_wrap_with_timeout(
+        self,
+        future: asyncio.Future,
+    ) -> asyncio.Future:
+
+        if self._timeout is not None:
+            elapsed_time = time.monotonic() - self._start_time
+
+            if elapsed_time >= self._timeout:
+                raise TimeoutError
+
+            timeout = self._timeout - elapsed_time
+            future = asyncio.wait_for(future, timeout, loop=self._loop)
+
+        return future
 
     @staticmethod
     def _group_messages(messages, group_size=MESSAGE_GROUP_MAX_SIZE):
