@@ -10,7 +10,8 @@ from il2fb.commons.regex import (
 )
 from il2fb.commons.transformers import get_int_transformer
 
-from .constants import CHAT_SENDER_SERVER, CHAT_SENDER_SYSTEM
+from il2fb.ds.middleware.console.constants import CHAT_SENDER_SERVER
+from il2fb.ds.middleware.console.constants import CHAT_SENDER_SYSTEM
 
 
 IP_REGEX = "({d}{{1,3}}.){{3}}{d}{{1,3}}".format(d=DIGIT)
@@ -34,8 +35,8 @@ class ChatMessageWasReceived(ParsableEvent):
     Examples:
 
         "Chat: --- hello everyone"
-        "Chat: Server: \thello everyone"
-        "Chat: john.doe: \thello everyone"
+        "Chat: Server: \\thello everyone"
+        "Chat: john.doe: \\thello everyone"
 
     """
     __slots__ = [
@@ -51,7 +52,7 @@ class ChatMessageWasReceived(ParsableEvent):
             end=END_OF_STRING,
             sender_with_separator=group(choices([
                 group(
-                    "{sender}:{s}\\t"
+                    "{sender}:{s}\\\\t"
                     .format(
                         sender=named_group('sender', ANYTHING),
                         s=WHITESPACE,
