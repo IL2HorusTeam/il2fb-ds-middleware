@@ -52,13 +52,14 @@ class DeviceLinkRequest:
     async def execute(
         self,
         writer: Callable[[bytes], None],
-    ) -> Awaitable[Any]:
-        try:
-            LOG.debug("device link request execution start")
+    ) -> Awaitable[None]:
 
+        LOG.debug("device link request execution start")
+
+        try:
             future = self._execute(writer)
 
-            if self._timeout is not None and self._request_requires_response:
+            if self._timeout and self._request_requires_response:
                 future = asyncio.wait_for(
                     future,
                     self._timeout,
@@ -81,7 +82,7 @@ class DeviceLinkRequest:
     async def _execute(
         self,
         writer: Callable[[bytes], None],
-    ) -> Awaitable[Any]:
+    ) -> Awaitable[None]:
         self._start_time = time.monotonic()
 
         messages = self._request_messages
@@ -133,7 +134,7 @@ class DeviceLinkRequest:
         future: asyncio.Future,
     ) -> asyncio.Future:
 
-        if self._timeout is not None:
+        if self._timeout:
             elapsed_time = time.monotonic() - self._start_time
 
             if elapsed_time >= self._timeout:
