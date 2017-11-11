@@ -1,24 +1,26 @@
 # coding: utf-8
 
 import asyncio
-import concurrent
-import functools
 import logging
+import time
 
 from collections import OrderedDict
-from typing import List, Awaitable, Callable
+from typing import List, Awaitable, Callable, Optional
 
 from il2fb.commons.organization import Belligerent
 
-from il2fb.ds.middleware.console import events, requests, structures
-from il2fb.ds.middleware.console.constants import (
-    MESSAGE_DELIMITER, LINE_DELIMITER, LINE_DELIMITER_LENGTH,
-    CHAT_MESSAGE_MAX_LENGTH,
-)
-from il2fb.ds.middleware.console.helpers import (
-    is_command_prompt, is_command_prompt_continuation, is_user_input,
-    is_server_input,
-)
+from il2fb.ds.middleware.console import events
+from il2fb.ds.middleware.console import requests
+from il2fb.ds.middleware.console import structures
+
+from il2fb.ds.middleware.console.constants import CHAT_MESSAGE_MAX_LENGTH
+from il2fb.ds.middleware.console.constants import DEFAULT_REQUEST_TIMEOUT
+from il2fb.ds.middleware.console.constants import LINE_DELIMITER
+from il2fb.ds.middleware.console.constants import LINE_DELIMITER_LENGTH
+from il2fb.ds.middleware.console.constants import MESSAGE_DELIMITER
+
+from il2fb.ds.middleware.console.helpers import is_command_prompt
+from il2fb.ds.middleware.console.helpers import is_command_prompt_continuation
 
 
 LOG = logging.getLogger(__name__)
@@ -28,14 +30,14 @@ class ConsoleClient(asyncio.Protocol):
 
     def __init__(
         self,
-        request_timeout: float=20.0,
+        default_request_timeout: float=DEFAULT_REQUEST_TIMEOUT,
         trace: bool=False,
         loop: asyncio.AbstractEventLoop=None,
     ):
         self._loop = loop
         self._trace = trace
 
-        self._request_timeout = request_timeout
+        self._default_timeout = default_request_timeout
         self._requests = asyncio.Queue(loop=self._loop)
         self._request = None
 
@@ -43,7 +45,6 @@ class ConsoleClient(asyncio.Protocol):
         self._remote_address = None
         self._log_message_prefix_format = None
 
-        self._messages = []
         self._messages_buffer = []
 
         self._do_close = False
@@ -258,22 +259,8 @@ class ConsoleClient(asyncio.Protocol):
                 f"req <-- {repr(self._request)}"
             ))
 
-        data = f"{str(self._request)}{MESSAGE_DELIMITER}".encode()
-
-        timeout_future = asyncio.Future(loop=self._loop)
-        self._request.add_done_callback(functools.partial(
-            self._on_wrapped_future_done, timeout_future,
-        ))
-        self.write_bytes(data)
-
         try:
-            await asyncio.wait_for(
-                timeout_future,
-                self._request_timeout,
-                loop=self._loop,
-            )
-        except concurrent.futures.TimeoutError as e:
-            self._request.set_exception(e)
+            await self._request.execute(self.write_bytes)
         finally:
             self._request = None
 
@@ -282,14 +269,6 @@ class ConsoleClient(asyncio.Protocol):
             "got request to stop dispatching of requests"
         ))
         raise StopAsyncIteration
-
-    @staticmethod
-    def _on_wrapped_future_done(
-        timeout_future: asyncio.Future,
-        wrapped_future: asyncio.Future,
-    ) -> None:
-        if not timeout_future.done():
-            timeout_future.set_result(None)
 
     def data_received(self, data: bytes) -> None:
         if self._trace:
@@ -343,11 +322,6 @@ class ConsoleClient(asyncio.Protocol):
                         f"buf <-- {repr(message)}"
                     ))
 
-        if self._trace:
-            LOG.debug(self._prefix_log_message(
-                f"msg === {self._messages}"
-            ))
-
     def _on_message_chunk(self, chunk: str) -> None:
         self._messages_buffer.append(chunk)
 
@@ -382,51 +356,12 @@ class ConsoleClient(asyncio.Protocol):
                 "cmd <<<"
             ))
 
-        if self._request is None:
+        if self._request:
+            self._request.message_received(None)
+        else:
             if self._trace:
                 LOG.warning(self._prefix_log_message(
                     "req N/A, skip"
-                ))
-        else:
-            self._finalize_request()
-
-    def _finalize_request(self) -> None:
-        messages, self._messages = self._messages, []
-
-        if self._trace:
-            LOG.debug(self._prefix_log_message(
-                f"res {messages}"
-            ))
-
-        if any(
-            is_user_input(m) for m in messages
-        ):
-            if self._trace:
-                LOG.debug(self._prefix_log_message(
-                    "usr, skip"
-                ))
-            return
-
-        if any(
-            is_server_input(m) for m in messages
-        ):
-            if self._trace:
-                LOG.debug(self._prefix_log_message(
-                    "srv, skip"
-                ))
-            return
-
-        try:
-            self._request.set_result(messages)
-        except Exception as e:
-            LOG.exception(self._prefix_log_message(
-                "failed to set result of request"
-            ))
-            try:
-                self._request.set_exception(e)
-            except Exception:
-                LOG.exception(self._prefix_log_message(
-                    "failed to set exception of request"
                 ))
 
     def _on_message(self, message: str) -> None:
@@ -451,7 +386,7 @@ class ConsoleClient(asyncio.Protocol):
                 ))
 
         else:
-            self._messages.append(message)
+            self._request.message_received(message)
 
     def _try_to_extract_and_handle_event_from_string(self, s: str) -> bool:
         for event_class, handler in self._events_to_handlers_map.items():
@@ -486,65 +421,178 @@ class ConsoleClient(asyncio.Protocol):
 
         self._requests.put_nowait(request)
 
-    def server_info(self) -> Awaitable[structures.ServerInfo]:
-        f = asyncio.Future(loop=self._loop)
-        r = requests.ServerInfoRequest(f)
-        self.enqueue_request(r)
-        return f
+    async def server_info(
+        self,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[structures.ServerInfo]:
 
-    def user_list(self) -> Awaitable[List[structures.User]]:
-        f = asyncio.Future(loop=self._loop)
-        r = requests.UserListRequest(f)
+        r = requests.ServerInfoRequest(
+            loop=self._loop,
+            timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
+        )
         self.enqueue_request(r)
-        return f
 
-    def user_stats(self) -> Awaitable[List[structures.UserStatistics]]:
-        f = asyncio.Future(loop=self._loop)
-        r = requests.UserStatisticsRequest(f)
+        return (await r.result())
+
+    async def user_list(
+        self,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[List[structures.User]]:
+
+        r = requests.UserListRequest(
+            loop=self._loop,
+            timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
+        )
         self.enqueue_request(r)
-        return f
 
-    async def user_count(self) -> Awaitable[int]:
-        users = await self.user_list()
+        return (await r.result())
+
+    async def user_count(
+        self,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[int]:
+
+        users = await self.user_list(timeout=timeout)
         return len(users)
 
-    def kick_by_callsign(self, callsign: str) -> Awaitable[None]:
-        f = asyncio.Future(loop=self._loop)
-        r = requests.KickByCallsignRequest(f, callsign)
+    async def user_stats(
+        self,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[List[structures.UserStatistics]]:
+
+        r = requests.UserStatisticsRequest(
+            loop=self._loop,
+            timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
+        )
         self.enqueue_request(r)
-        return f
 
-    def kick_by_number(self, number: int) -> Awaitable[None]:
-        f = asyncio.Future(loop=self._loop)
-        r = requests.KickByNumberRequest(f, number)
+        return (await r.result())
+
+    async def kick_by_callsign(
+        self,
+        callsign: str,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[None]:
+
+        r = requests.KickByCallsignRequest(
+            callsign=callsign,
+            loop=self._loop,
+            timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
+        )
         self.enqueue_request(r)
-        return f
+        await r.result()
 
-    def kick_first(self) -> Awaitable[None]:
-        return self.kick_by_number(1)
+    async def kick_by_number(
+        self,
+        number: int,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[None]:
 
-    async def kick_all(self) -> Awaitable[int]:
-        count = await self.user_count()
+        r = requests.KickByNumberRequest(
+            number=number,
+            loop=self._loop,
+            timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
+        )
+        self.enqueue_request(r)
+        await r.result()
 
-        for i in range(count):
-            await self.kick_first()
+    async def kick_first(
+        self,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[None]:
 
-        return count
+        await self.kick_by_number(
+            number=1,
+            timeout=timeout,
+        )
 
-    def chat_all(self, message: str) -> Awaitable[None]:
-        return self._chat(message, "ALL")
+    async def kick_all(
+        self,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[int]:
 
-    def chat_user(self, message: str, callsign: str) -> Awaitable[None]:
-        return self._chat(message, f"TO {callsign}")
+        timeout = self._default_timeout if timeout is None else timeout
+        start_time = time.monotonic()
 
-    def chat_belligerent(
+        kicked_count = 0
+
+        while True:
+            elapsed_time = time.monotonic() - start_time
+            if elapsed_time >= timeout:
+                raise TimeoutError
+
+            count = await self.user_count(
+                timeout=(timeout - elapsed_time)
+            )
+            kicked_count += count
+
+            if not count:
+                break
+
+            for i in range(count):
+                elapsed_time = time.monotonic() - start_time
+                if elapsed_time >= timeout:
+                    raise TimeoutError
+
+                await self.kick_first(
+                    timeout=(timeout - elapsed_time)
+                )
+
+        return kicked_count
+
+    async def chat_all(
+        self,
+        message: str,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[None]:
+
+        await self._chat(
+            message=message,
+            addressee="ALL",
+            timeout=timeout,
+        )
+
+    async def chat_user(
+        self,
+        message: str,
+        callsign: str,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[None]:
+
+        await self._chat(
+            message=message,
+            addressee=f"TO {callsign}",
+            timeout=timeout,
+        )
+
+    async def chat_belligerent(
         self,
         message: str,
         belligerent: Belligerent,
+        timeout: Optional[float]=None,
     ) -> Awaitable[None]:
-        return self._chat(message, f"ARMY {belligerent.value}")
 
-    async def _chat(self, message: str, target: str) -> Awaitable[None]:
+        await self._chat(
+            message=message,
+            addressee=f"ARMY {belligerent.value}",
+            timeout=timeout,
+        )
+
+    async def _chat(
+        self,
+        message: str,
+        addressee: str,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[None]:
+
+        timeout = self._default_timeout if timeout is None else timeout
+        start_time = time.monotonic()
+
         last = 0
         total = len(message)
 
@@ -553,39 +601,90 @@ class ConsoleClient(asyncio.Protocol):
             chunk = message[last:last + step]
             chunk = chunk.encode('unicode-escape').decode()
 
-            f = asyncio.Future(loop=self._loop)
-            r = requests.ChatRequest(f, chunk, target)
+            elapsed_time = time.monotonic() - start_time
+            if elapsed_time >= timeout:
+                raise TimeoutError
+
+            r = requests.ChatRequest(
+                message=chunk,
+                addressee=addressee,
+                loop=self._loop,
+                timeout=(timeout - elapsed_time),
+                trace=self._trace,
+            )
             self.enqueue_request(r)
-            await f
+            await r.result()
 
             last += step
 
-    def mission_status(self) -> Awaitable[structures.MissionInfo]:
-        f = asyncio.Future(loop=self._loop)
-        r = requests.MissionStatusRequest(f)
-        self.enqueue_request(r)
-        return f
+    async def mission_status(
+        self,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[structures.MissionInfo]:
 
-    def mission_load(self, file_path) -> Awaitable[None]:
-        f = asyncio.Future(loop=self._loop)
-        r = requests.MissionLoadRequest(f, file_path)
+        r = requests.MissionStatusRequest(
+            loop=self._loop,
+            timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
+        )
         self.enqueue_request(r)
-        return f
 
-    def mission_unload(self) -> Awaitable[None]:
-        f = asyncio.Future(loop=self._loop)
-        r = requests.MissionUnloadRequest(f)
-        self.enqueue_request(r)
-        return f
+        return (await r.result())
 
-    def mission_begin(self) -> Awaitable[None]:
-        f = asyncio.Future(loop=self._loop)
-        r = requests.MissionBeginRequest(f)
-        self.enqueue_request(r)
-        return f
+    async def mission_load(
+        self,
+        file_path: str,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[None]:
 
-    def mission_end(self) -> Awaitable[None]:
-        f = asyncio.Future(loop=self._loop)
-        r = requests.MissionEndRequest(f)
+        r = requests.MissionLoadRequest(
+            file_path=file_path,
+            loop=self._loop,
+            timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
+        )
         self.enqueue_request(r)
-        return f
+
+        await r.result()
+
+    async def mission_unload(
+        self,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[None]:
+
+        r = requests.MissionUnloadRequest(
+            loop=self._loop,
+            timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
+        )
+        self.enqueue_request(r)
+
+        await r.result()
+
+    async def mission_begin(
+        self,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[None]:
+
+        r = requests.MissionBeginRequest(
+            loop=self._loop,
+            timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
+        )
+        self.enqueue_request(r)
+
+        await r.result()
+
+    async def mission_end(
+        self,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[None]:
+
+        r = requests.MissionEndRequest(
+            loop=self._loop,
+            timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
+        )
+        self.enqueue_request(r)
+
+        await r.result()
