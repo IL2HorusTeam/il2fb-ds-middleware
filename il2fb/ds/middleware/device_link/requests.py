@@ -271,11 +271,11 @@ class RefreshRadarRequest(DeviceLinkRequest):
         )
 
 
-class MovingAircraftsCountRequest(CountingRequestMixin, DeviceLinkRequest):
+class GetMovingAircraftsCountRequest(CountingRequestMixin, DeviceLinkRequest):
     request_message_class = msg.MovingAircraftsCountRequestMessage
 
 
-class MovingAircraftsPositionsRequest(
+class GetMovingAircraftsPositionsRequest(
     PositionsRequestMixin,
     DeviceLinkRequest,
 ):
@@ -283,11 +283,14 @@ class MovingAircraftsPositionsRequest(
     item_parser = parsers.parse_moving_aircraft_position
 
 
-class MovingGroundUnitsCountRequest(CountingRequestMixin, DeviceLinkRequest):
+class GetMovingGroundUnitsCountRequest(
+    CountingRequestMixin,
+    DeviceLinkRequest,
+):
     request_message_class = msg.MovingGroundUnitsCountRequestMessage
 
 
-class MovingGroundUnitsPositionsRequest(
+class GetMovingGroundUnitsPositionsRequest(
     PositionsRequestMixin,
     DeviceLinkRequest,
 ):
@@ -295,20 +298,23 @@ class MovingGroundUnitsPositionsRequest(
     item_parser = parsers.parse_moving_ground_unit_position
 
 
-class ShipsCountRequest(CountingRequestMixin, DeviceLinkRequest):
+class GetShipsCountRequest(CountingRequestMixin, DeviceLinkRequest):
     request_message_class = msg.ShipsCountRequestMessage
 
 
-class ShipsPositionsRequest(PositionsRequestMixin, DeviceLinkRequest):
+class GetShipsPositionsRequest(PositionsRequestMixin, DeviceLinkRequest):
     request_message_class = msg.ShipPositionRequestMessage
     item_parser = parsers.parse_ship_position
 
 
-class StationaryObjectsCountRequest(CountingRequestMixin, DeviceLinkRequest):
+class GetStationaryObjectsCountRequest(
+    CountingRequestMixin,
+    DeviceLinkRequest,
+):
     request_message_class = msg.StationaryObjectsCountRequestMessage
 
 
-class StationaryObjectsPositionsRequest(
+class GetStationaryObjectsPositionsRequest(
     PositionsRequestMixin,
     DeviceLinkRequest,
 ):
@@ -316,10 +322,10 @@ class StationaryObjectsPositionsRequest(
     item_parser = parsers.parse_stationary_object_position
 
 
-class HousesCountRequest(CountingRequestMixin, DeviceLinkRequest):
+class GetHousesCountRequest(CountingRequestMixin, DeviceLinkRequest):
     request_message_class = msg.HousesCountRequestMessage
 
 
-class HousesPositionsRequest(PositionsRequestMixin, DeviceLinkRequest):
+class GetHousesPositionsRequest(PositionsRequestMixin, DeviceLinkRequest):
     request_message_class = msg.HousePositionRequestMessage
     item_parser = parsers.parse_house_position

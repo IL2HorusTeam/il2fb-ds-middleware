@@ -202,12 +202,12 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return r.result()
 
-    def moving_aircrafts_count(
+    def get_moving_aircrafts_count(
         self,
         timeout: float=None,
     ) -> Awaitable[int]:
 
-        r = requests.MovingAircraftsCountRequest(
+        r = requests.GetMovingAircraftsCountRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
             trace=self._trace,
@@ -215,13 +215,13 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return r.result()
 
-    def moving_aircraft_position(
+    def get_moving_aircraft_position(
         self,
         index: int,
         timeout: float=None,
     ) -> Awaitable[structures.MovingAircraftPosition]:
 
-        r = requests.MovingAircraftsPositionsRequest(
+        r = requests.GetMovingAircraftsPositionsRequest(
             loop=self._loop,
             indices=[index, ],
             timeout=self._default_timeout if timeout is None else timeout,
@@ -230,17 +230,17 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return r.result()
 
-    async def all_moving_aircrafts_positions(
+    async def get_all_moving_aircrafts_positions(
         self,
         timeout: float=None,
     ) -> Awaitable[List[structures.MovingAircraftPosition]]:
 
-        count = await self.moving_aircrafts_count()
+        count = await self.get_moving_aircrafts_count()
         if not count:
             return []
 
         indices = range(count)
-        r = requests.MovingAircraftsPositionsRequest(
+        r = requests.GetMovingAircraftsPositionsRequest(
             loop=self._loop,
             indices=indices,
             timeout=self._default_timeout if timeout is None else timeout,
@@ -250,12 +250,12 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return (await r.result())
 
-    def moving_ground_units_count(
+    def get_moving_ground_units_count(
         self,
         timeout: float=None,
     ) -> Awaitable[int]:
 
-        r = requests.MovingGroundUnitsCountRequest(
+        r = requests.GetMovingGroundUnitsCountRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
             trace=self._trace,
@@ -263,12 +263,13 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return r.result()
 
-    def moving_ground_unit_position(
+    def get_moving_ground_unit_position(
         self,
         index: int,
         timeout: float=None,
     ) -> Awaitable[structures.MovingGroundUnitPosition]:
-        r = requests.MovingGroundUnitsPositionsRequest(
+
+        r = requests.GetMovingGroundUnitsPositionsRequest(
             loop=self._loop,
             indices=[index, ],
             timeout=self._default_timeout if timeout is None else timeout,
@@ -277,17 +278,17 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return r.result()
 
-    async def all_moving_ground_units_positions(
+    async def get_all_moving_ground_units_positions(
         self,
         timeout: float=None,
     ) -> Awaitable[List[structures.MovingGroundUnitPosition]]:
 
-        count = await self.moving_ground_units_count()
+        count = await self.get_moving_ground_units_count()
         if not count:
             return []
 
         indices = range(count)
-        r = requests.MovingGroundUnitsPositionsRequest(
+        r = requests.GetMovingGroundUnitsPositionsRequest(
             loop=self._loop,
             indices=indices,
             timeout=self._default_timeout if timeout is None else timeout,
@@ -297,12 +298,12 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return (await r.result())
 
-    def ships_count(
+    def get_ships_count(
         self,
         timeout: float=None,
     ) -> Awaitable[int]:
 
-        r = requests.ShipsCountRequest(
+        r = requests.GetShipsCountRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
             trace=self._trace,
@@ -310,13 +311,13 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return r.result()
 
-    def ship_position(
+    def get_ship_position(
         self,
         index: int,
         timeout: float=None,
     ) -> Awaitable[structures.ShipPosition]:
 
-        r = requests.ShipsPositionsRequest(
+        r = requests.GetShipsPositionsRequest(
             loop=self._loop,
             indices=[index, ],
             timeout=self._default_timeout if timeout is None else timeout,
@@ -325,17 +326,17 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return r.result()
 
-    async def all_ships_positions(
+    async def get_all_ships_positions(
         self,
         timeout: float=None,
     ) -> Awaitable[List[structures.ShipPosition]]:
 
-        count = await self.ships_count()
+        count = await self.get_ships_count()
         if not count:
             return []
 
         indices = range(count)
-        r = requests.ShipsPositionsRequest(
+        r = requests.GetShipsPositionsRequest(
             loop=self._loop,
             indices=indices,
             timeout=self._default_timeout if timeout is None else timeout,
@@ -345,12 +346,12 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return (await r.result())
 
-    def stationary_objects_count(
+    def get_stationary_objects_count(
         self,
         timeout: float=None,
     ) -> Awaitable[int]:
 
-        r = requests.StationaryObjectsCountRequest(
+        r = requests.GetStationaryObjectsCountRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
             trace=self._trace,
@@ -358,13 +359,13 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return r.result()
 
-    def stationary_object_position(
+    def get_stationary_object_position(
         self,
         index: int,
         timeout: float=None,
     ) -> Awaitable[structures.StationaryObjectPosition]:
 
-        r = requests.StationaryObjectsPositionsRequest(
+        r = requests.GetStationaryObjectsPositionsRequest(
             loop=self._loop,
             indices=[index, ],
             timeout=self._default_timeout if timeout is None else timeout,
@@ -373,17 +374,17 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return r.result()
 
-    async def all_stationary_objects_positions(
+    async def get_all_stationary_objects_positions(
         self,
         timeout: float=None,
     ) -> Awaitable[List[structures.StationaryObjectPosition]]:
 
-        count = await self.stationary_objects_count()
+        count = await self.get_stationary_objects_count()
         if not count:
             return []
 
         indices = range(count)
-        r = requests.StationaryObjectsPositionsRequest(
+        r = requests.GetStationaryObjectsPositionsRequest(
             loop=self._loop,
             indices=indices,
             timeout=self._default_timeout if timeout is None else timeout,
@@ -393,12 +394,12 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return (await r.result())
 
-    def houses_count(
+    def get_houses_count(
         self,
         timeout: float=None,
     ) -> Awaitable[int]:
 
-        r = requests.HousesCountRequest(
+        r = requests.GetHousesCountRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
             trace=self._trace,
@@ -406,13 +407,13 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return r.result()
 
-    def house_position(
+    def get_house_position(
         self,
         index: int,
         timeout: float=None,
     ) -> Awaitable[structures.HousePosition]:
 
-        r = requests.HousesPositionsRequest(
+        r = requests.GetHousesPositionsRequest(
             loop=self._loop,
             indices=[index, ],
             timeout=self._default_timeout if timeout is None else timeout,
@@ -421,17 +422,17 @@ class DeviceLinkClient(asyncio.DatagramProtocol):
         self.schedule_request(r)
         return r.result()
 
-    async def all_houses_positions(
+    async def get_all_houses_positions(
         self,
         timeout: float=None,
     ) -> Awaitable[List[structures.HousePosition]]:
 
-        count = await self.houses_count()
+        count = await self.get_houses_count()
         if not count:
             return []
 
         indices = range(count)
-        r = requests.HousesPositionsRequest(
+        r = requests.GetHousesPositionsRequest(
             loop=self._loop,
             indices=indices,
             timeout=self._default_timeout if timeout is None else timeout,
