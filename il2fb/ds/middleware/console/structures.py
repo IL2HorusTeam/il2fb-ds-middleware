@@ -24,7 +24,7 @@ class Aircraft(BaseStructure):
         self.type = type
 
 
-class User(BaseStructure):
+class Human(BaseStructure):
     __slots__ = ['callsign', 'ping', 'score', 'belligerent', 'aircraft', ]
 
     def __init__(
@@ -42,11 +42,12 @@ class User(BaseStructure):
         self.aircraft = aircraft
 
 
-class UserStatistics(BaseStructure):
+class HumanStatistics(BaseStructure):
     __slots__ = [
         'callsign',
         'score',
         'state',
+
         'enemy_aircraft_kills',
         'enemy_static_aircraft_kills',
         'enemy_tank_kills',
@@ -56,6 +57,7 @@ class UserStatistics(BaseStructure):
         'enemy_wagon_kills',
         'enemy_ship_kills',
         'enemy_radio_kills',
+
         'friendly_aircraft_kills',
         'friendly_static_aircraft_kills',
         'friendly_tank_kills',
@@ -65,20 +67,25 @@ class UserStatistics(BaseStructure):
         'friendly_wagon_kills',
         'friendly_ship_kills',
         'friendly_radio_kills',
+
         'bullets_fired',
         'bullets_hit',
         'bullets_hit_air_targets',
+
         'rockets_launched',
         'rockets_hit',
+
         'bombs_dropped',
         'bombs_hit',
     ]
 
     def __init__(
         self,
+
         callsign: str,
         score: int,
         state: str,
+
         enemy_aircraft_kills: int,
         enemy_static_aircraft_kills: int,
         enemy_tank_kills: int,
@@ -88,6 +95,7 @@ class UserStatistics(BaseStructure):
         enemy_wagon_kills: int,
         enemy_ship_kills: int,
         enemy_radio_kills: int,
+
         friendly_aircraft_kills: int,
         friendly_static_aircraft_kills: int,
         friendly_tank_kills: int,
@@ -97,17 +105,21 @@ class UserStatistics(BaseStructure):
         friendly_wagon_kills: int,
         friendly_ship_kills: int,
         friendly_radio_kills: int,
+
         bullets_fired: int,
         bullets_hit: int,
         bullets_hit_air_targets: int,
+
         rockets_launched: int,
         rockets_hit: int,
+
         bombs_dropped: int,
         bombs_hit: int,
     ):
         self.callsign = callsign
         self.score = score
         self.state = state
+
         self.enemy_aircraft_kills = enemy_aircraft_kills
         self.enemy_static_aircraft_kills = enemy_static_aircraft_kills
         self.enemy_tank_kills = enemy_tank_kills
@@ -117,6 +129,7 @@ class UserStatistics(BaseStructure):
         self.enemy_wagon_kills = enemy_wagon_kills
         self.enemy_ship_kills = enemy_ship_kills
         self.enemy_radio_kills = enemy_radio_kills
+
         self.friendly_aircraft_kills = friendly_aircraft_kills
         self.friendly_static_aircraft_kills = friendly_static_aircraft_kills
         self.friendly_tank_kills = friendly_tank_kills
@@ -126,11 +139,14 @@ class UserStatistics(BaseStructure):
         self.friendly_wagon_kills = friendly_wagon_kills
         self.friendly_ship_kills = friendly_ship_kills
         self.friendly_radio_kills = friendly_radio_kills
+
         self.bullets_fired = bullets_fired
         self.bullets_hit = bullets_hit
         self.bullets_hit_air_targets = bullets_hit_air_targets
+
         self.rockets_launched = rockets_launched
         self.rockets_hit = rockets_hit
+
         self.bombs_dropped = bombs_dropped
         self.bombs_hit = bombs_hit
 

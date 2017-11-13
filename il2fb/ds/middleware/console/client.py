@@ -421,12 +421,12 @@ class ConsoleClient(asyncio.Protocol):
 
         self._requests.put_nowait(request)
 
-    async def server_info(
+    async def get_server_info(
         self,
         timeout: Optional[float]=None,
     ) -> Awaitable[structures.ServerInfo]:
 
-        r = requests.ServerInfoRequest(
+        r = requests.GetServerInfoRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
             trace=self._trace,
@@ -435,34 +435,20 @@ class ConsoleClient(asyncio.Protocol):
 
         return (await r.result())
 
-    async def user_list(
-        self,
-        timeout: Optional[float]=None,
-    ) -> Awaitable[List[structures.User]]:
-
-        r = requests.UserListRequest(
-            loop=self._loop,
-            timeout=self._default_timeout if timeout is None else timeout,
-            trace=self._trace,
-        )
-        self.enqueue_request(r)
-
-        return (await r.result())
-
-    async def user_count(
+    async def get_humans_count(
         self,
         timeout: Optional[float]=None,
     ) -> Awaitable[int]:
 
-        users = await self.user_list(timeout=timeout)
+        users = await self.get_humans_list(timeout=timeout)
         return len(users)
 
-    async def user_stats(
+    async def get_humans_list(
         self,
         timeout: Optional[float]=None,
-    ) -> Awaitable[List[structures.UserStatistics]]:
+    ) -> Awaitable[List[structures.Human]]:
 
-        r = requests.UserStatisticsRequest(
+        r = requests.GetHumansListRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
             trace=self._trace,
@@ -471,13 +457,27 @@ class ConsoleClient(asyncio.Protocol):
 
         return (await r.result())
 
-    async def kick_by_callsign(
+    async def get_humans_statistics(
+        self,
+        timeout: Optional[float]=None,
+    ) -> Awaitable[List[structures.HumanStatistics]]:
+
+        r = requests.GetHumansStatisticsRequest(
+            loop=self._loop,
+            timeout=self._default_timeout if timeout is None else timeout,
+            trace=self._trace,
+        )
+        self.enqueue_request(r)
+
+        return (await r.result())
+
+    async def kick_human_by_callsign(
         self,
         callsign: str,
         timeout: Optional[float]=None,
     ) -> Awaitable[None]:
 
-        r = requests.KickByCallsignRequest(
+        r = requests.KickHumanByCallsignRequest(
             callsign=callsign,
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
@@ -486,13 +486,13 @@ class ConsoleClient(asyncio.Protocol):
         self.enqueue_request(r)
         await r.result()
 
-    async def kick_by_number(
+    async def kick_human_by_number(
         self,
         number: int,
         timeout: Optional[float]=None,
     ) -> Awaitable[None]:
 
-        r = requests.KickByNumberRequest(
+        r = requests.KickHumanByNumberRequest(
             number=number,
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
@@ -501,17 +501,14 @@ class ConsoleClient(asyncio.Protocol):
         self.enqueue_request(r)
         await r.result()
 
-    async def kick_first(
+    async def kick_first_human(
         self,
         timeout: Optional[float]=None,
     ) -> Awaitable[None]:
 
-        await self.kick_by_number(
-            number=1,
-            timeout=timeout,
-        )
+        await self.kick_by_number(number=1, timeout=timeout)
 
-    async def kick_all(
+    async def kick_all_humans(
         self,
         timeout: Optional[float]=None,
     ) -> Awaitable[int]:
@@ -526,7 +523,7 @@ class ConsoleClient(asyncio.Protocol):
             if elapsed_time >= timeout:
                 raise TimeoutError
 
-            count = await self.user_count(
+            count = await self.get_humans_count(
                 timeout=(timeout - elapsed_time)
             )
             kicked_count += count
@@ -539,13 +536,13 @@ class ConsoleClient(asyncio.Protocol):
                 if elapsed_time >= timeout:
                     raise TimeoutError
 
-                await self.kick_first(
+                await self.kick_first_human(
                     timeout=(timeout - elapsed_time)
                 )
 
         return kicked_count
 
-    async def chat_all(
+    async def chat_to_all(
         self,
         message: str,
         timeout: Optional[float]=None,
@@ -557,29 +554,29 @@ class ConsoleClient(asyncio.Protocol):
             timeout=timeout,
         )
 
-    async def chat_user(
+    async def chat_to_human(
         self,
         message: str,
-        callsign: str,
+        addressee: str,
         timeout: Optional[float]=None,
     ) -> Awaitable[None]:
 
         await self._chat(
             message=message,
-            addressee=f"TO {callsign}",
+            addressee=f"TO {addressee}",
             timeout=timeout,
         )
 
-    async def chat_belligerent(
+    async def chat_to_belligerent(
         self,
         message: str,
-        belligerent: Belligerent,
+        addressee: Belligerent,
         timeout: Optional[float]=None,
     ) -> Awaitable[None]:
 
         await self._chat(
             message=message,
-            addressee=f"ARMY {belligerent.value}",
+            addressee=f"ARMY {addressee.value}",
             timeout=timeout,
         )
 
@@ -617,12 +614,12 @@ class ConsoleClient(asyncio.Protocol):
 
             last += step
 
-    async def mission_status(
+    async def get_mission_info(
         self,
         timeout: Optional[float]=None,
     ) -> Awaitable[structures.MissionInfo]:
 
-        r = requests.MissionStatusRequest(
+        r = requests.GetMissionInfoRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
             trace=self._trace,
@@ -631,13 +628,13 @@ class ConsoleClient(asyncio.Protocol):
 
         return (await r.result())
 
-    async def mission_load(
+    async def load_mission(
         self,
         file_path: str,
         timeout: Optional[float]=None,
     ) -> Awaitable[None]:
 
-        r = requests.MissionLoadRequest(
+        r = requests.LoadMissionRequest(
             file_path=file_path,
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
@@ -647,12 +644,12 @@ class ConsoleClient(asyncio.Protocol):
 
         await r.result()
 
-    async def mission_unload(
+    async def begin_mission(
         self,
         timeout: Optional[float]=None,
     ) -> Awaitable[None]:
 
-        r = requests.MissionUnloadRequest(
+        r = requests.BeginMissionRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
             trace=self._trace,
@@ -661,12 +658,12 @@ class ConsoleClient(asyncio.Protocol):
 
         await r.result()
 
-    async def mission_begin(
+    async def end_mission(
         self,
         timeout: Optional[float]=None,
     ) -> Awaitable[None]:
 
-        r = requests.MissionBeginRequest(
+        r = requests.EndMissionRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
             trace=self._trace,
@@ -675,12 +672,12 @@ class ConsoleClient(asyncio.Protocol):
 
         await r.result()
 
-    async def mission_end(
+    async def unload_mission(
         self,
         timeout: Optional[float]=None,
     ) -> Awaitable[None]:
 
-        r = requests.MissionEndRequest(
+        r = requests.UnloadMissionRequest(
             loop=self._loop,
             timeout=self._default_timeout if timeout is None else timeout,
             trace=self._trace,

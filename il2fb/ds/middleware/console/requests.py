@@ -117,8 +117,8 @@ class ConsoleRequest:
         else:
             self._future.set_result(result)
 
-    def _extract_result(self, messages: List[str]) -> Any:
-        return messages
+    def _extract_result(self, messages: List[str]) -> Optional[Any]:
+        pass
 
     def __str__(self) -> str:
         return self.body
@@ -127,7 +127,7 @@ class ConsoleRequest:
         return f"<{self.__class__.__name__}('{self.body}')>"
 
 
-class ServerInfoRequest(ConsoleRequest):
+class GetServerInfoRequest(ConsoleRequest):
 
     def __init__(
         self,
@@ -154,7 +154,7 @@ class ServerInfoRequest(ConsoleRequest):
         )
 
 
-class UserListRequest(ConsoleRequest):
+class GetHumansListRequest(ConsoleRequest):
 
     def __init__(
         self,
@@ -169,16 +169,16 @@ class UserListRequest(ConsoleRequest):
             loop=loop,
         )
 
-    def _extract_result(self, messages: List[str]) -> List[structures.User]:
+    def _extract_result(self, messages: List[str]) -> List[structures.Human]:
         # Skip header
         messages = messages[1:]
         return [
-            self._user_from_message(message)
+            self._human_from_message(message)
             for message in messages
         ]
 
     @staticmethod
-    def _user_from_message(message: str) -> structures.User:
+    def _human_from_message(message: str) -> structures.Human:
         message = message.strip()
         data = re.split('\s{2,}', message)[1:]
 
@@ -200,7 +200,7 @@ class UserListRequest(ConsoleRequest):
         else:
             aircraft = None
 
-        return structures.User(
+        return structures.Human(
             callsign=callsign,
             ping=ping,
             score=score,
@@ -209,7 +209,7 @@ class UserListRequest(ConsoleRequest):
         )
 
 
-class UserStatisticsRequest(ConsoleRequest):
+class GetHumansStatisticsRequest(ConsoleRequest):
 
     def __init__(
         self,
@@ -227,17 +227,17 @@ class UserStatisticsRequest(ConsoleRequest):
     def _extract_result(
         self,
         messages: List[str],
-    ) -> List[structures.UserStatistics]:
+    ) -> List[structures.HumanStatistics]:
 
         results = []
         buffer = {}
 
-        field_names = itertools.cycle(structures.UserStatistics.__slots__)
+        field_names = itertools.cycle(structures.HumanStatistics.__slots__)
 
         for message in messages[1:]:
 
             if message.startswith('-'):
-                item = structures.UserStatistics(**buffer)
+                item = structures.HumanStatistics(**buffer)
                 results.append(item)
                 continue
 
@@ -252,7 +252,7 @@ class UserStatisticsRequest(ConsoleRequest):
         return results
 
 
-class KickByCallsignRequest(ConsoleRequest):
+class KickHumanByCallsignRequest(ConsoleRequest):
 
     def __init__(
         self,
@@ -268,11 +268,8 @@ class KickByCallsignRequest(ConsoleRequest):
             loop=loop,
         )
 
-    def _extract_result(self, messages: List[str]) -> None:
-        pass
 
-
-class KickByNumberRequest(ConsoleRequest):
+class KickHumanByNumberRequest(ConsoleRequest):
 
     def __init__(
         self,
@@ -287,9 +284,6 @@ class KickByNumberRequest(ConsoleRequest):
             trace=trace,
             loop=loop,
         )
-
-    def _extract_result(self, messages: List[str]) -> None:
-        pass
 
 
 class ChatRequest(ConsoleRequest):
@@ -309,11 +303,8 @@ class ChatRequest(ConsoleRequest):
             loop=loop,
         )
 
-    def _extract_result(self, messages: List[str]) -> None:
-        pass
 
-
-class MissionStatusRequest(ConsoleRequest):
+class GetMissionInfoRequest(ConsoleRequest):
 
     def __init__(
         self,
@@ -363,7 +354,7 @@ class MissionControlRequestBase(ConsoleRequest):
                 raise ConsoleRequestError(details)
 
 
-class MissionLoadRequest(MissionControlRequestBase):
+class LoadMissionRequest(MissionControlRequestBase):
 
     def __init__(
         self,
@@ -380,23 +371,7 @@ class MissionLoadRequest(MissionControlRequestBase):
         )
 
 
-class MissionUnloadRequest(MissionControlRequestBase):
-
-    def __init__(
-        self,
-        timeout: Optional[float]=None,
-        trace: bool=False,
-        loop: asyncio.AbstractEventLoop=None,
-    ):
-        super().__init__(
-            body="mission DESTROY",
-            timeout=timeout,
-            trace=trace,
-            loop=loop,
-        )
-
-
-class MissionBeginRequest(MissionControlRequestBase):
+class BeginMissionRequest(MissionControlRequestBase):
 
     def __init__(
         self,
@@ -412,7 +387,7 @@ class MissionBeginRequest(MissionControlRequestBase):
         )
 
 
-class MissionEndRequest(MissionControlRequestBase):
+class EndMissionRequest(MissionControlRequestBase):
 
     def __init__(
         self,
@@ -422,6 +397,22 @@ class MissionEndRequest(MissionControlRequestBase):
     ):
         super().__init__(
             body="mission END",
+            timeout=timeout,
+            trace=trace,
+            loop=loop,
+        )
+
+
+class UnloadMissionRequest(MissionControlRequestBase):
+
+    def __init__(
+        self,
+        timeout: Optional[float]=None,
+        trace: bool=False,
+        loop: asyncio.AbstractEventLoop=None,
+    ):
+        super().__init__(
+            body="mission DESTROY",
             timeout=timeout,
             trace=trace,
             loop=loop,
