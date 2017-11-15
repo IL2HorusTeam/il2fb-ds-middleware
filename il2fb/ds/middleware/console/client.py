@@ -14,7 +14,6 @@ from il2fb.ds.middleware.console import requests
 from il2fb.ds.middleware.console import structures
 
 from il2fb.ds.middleware.console.constants import CHAT_MESSAGE_MAX_LENGTH
-from il2fb.ds.middleware.console.constants import DEFAULT_REQUEST_TIMEOUT
 from il2fb.ds.middleware.console.constants import LINE_DELIMITER
 from il2fb.ds.middleware.console.constants import LINE_DELIMITER_LENGTH
 from il2fb.ds.middleware.console.constants import MESSAGE_DELIMITER
@@ -30,14 +29,12 @@ class ConsoleClient(asyncio.Protocol):
 
     def __init__(
         self,
-        default_request_timeout: float=DEFAULT_REQUEST_TIMEOUT,
         trace: bool=False,
         loop: asyncio.AbstractEventLoop=None,
     ):
         self._loop = loop
         self._trace = trace
 
-        self._default_timeout = default_request_timeout
         self._requests = asyncio.Queue(loop=self._loop)
         self._request = None
 
@@ -428,7 +425,7 @@ class ConsoleClient(asyncio.Protocol):
 
         r = requests.GetServerInfoRequest(
             loop=self._loop,
-            timeout=self._default_timeout if timeout is None else timeout,
+            timeout=timeout,
             trace=self._trace,
         )
         self.enqueue_request(r)
@@ -450,7 +447,7 @@ class ConsoleClient(asyncio.Protocol):
 
         r = requests.GetHumansListRequest(
             loop=self._loop,
-            timeout=self._default_timeout if timeout is None else timeout,
+            timeout=timeout,
             trace=self._trace,
         )
         self.enqueue_request(r)
@@ -464,7 +461,7 @@ class ConsoleClient(asyncio.Protocol):
 
         r = requests.GetHumansStatisticsRequest(
             loop=self._loop,
-            timeout=self._default_timeout if timeout is None else timeout,
+            timeout=timeout,
             trace=self._trace,
         )
         self.enqueue_request(r)
@@ -480,7 +477,7 @@ class ConsoleClient(asyncio.Protocol):
         r = requests.KickHumanByCallsignRequest(
             callsign=callsign,
             loop=self._loop,
-            timeout=self._default_timeout if timeout is None else timeout,
+            timeout=timeout,
             trace=self._trace,
         )
         self.enqueue_request(r)
@@ -495,7 +492,7 @@ class ConsoleClient(asyncio.Protocol):
         r = requests.KickHumanByNumberRequest(
             number=number,
             loop=self._loop,
-            timeout=self._default_timeout if timeout is None else timeout,
+            timeout=timeout,
             trace=self._trace,
         )
         self.enqueue_request(r)
@@ -513,32 +510,31 @@ class ConsoleClient(asyncio.Protocol):
         timeout: Optional[float]=None,
     ) -> Awaitable[int]:
 
-        timeout = self._default_timeout if timeout is None else timeout
         start_time = time.monotonic()
-
         kicked_count = 0
 
         while True:
-            elapsed_time = time.monotonic() - start_time
-            if elapsed_time >= timeout:
-                raise TimeoutError
-
-            count = await self.get_humans_count(
-                timeout=(timeout - elapsed_time)
-            )
+            count = await self.get_humans_count(timeout)
             kicked_count += count
 
             if not count:
                 break
-
-            for i in range(count):
-                elapsed_time = time.monotonic() - start_time
-                if elapsed_time >= timeout:
+            elif timeout is not None:
+                end_time = time.monotonic()
+                timeout -= (end_time - start_time)
+                start_time = end_time
+                if timeout <= 0:
                     raise TimeoutError
 
-                await self.kick_first_human(
-                    timeout=(timeout - elapsed_time)
-                )
+            for i in range(count):
+                await self.kick_first_human(timeout)
+
+                if timeout is not None:
+                    end_time = time.monotonic()
+                    timeout -= (end_time - start_time)
+                    start_time = end_time
+                    if timeout <= 0:
+                        raise TimeoutError
 
         return kicked_count
 
@@ -548,11 +544,7 @@ class ConsoleClient(asyncio.Protocol):
         timeout: Optional[float]=None,
     ) -> Awaitable[None]:
 
-        await self._chat(
-            message=message,
-            addressee="ALL",
-            timeout=timeout,
-        )
+        await self._chat(message=message, addressee="ALL", timeout=timeout)
 
     async def chat_to_human(
         self,
@@ -561,11 +553,8 @@ class ConsoleClient(asyncio.Protocol):
         timeout: Optional[float]=None,
     ) -> Awaitable[None]:
 
-        await self._chat(
-            message=message,
-            addressee=f"TO {addressee}",
-            timeout=timeout,
-        )
+        addressee = f"TO {addressee}"
+        await self._chat(message=message, addressee=addressee, timeout=timeout)
 
     async def chat_to_belligerent(
         self,
@@ -574,11 +563,8 @@ class ConsoleClient(asyncio.Protocol):
         timeout: Optional[float]=None,
     ) -> Awaitable[None]:
 
-        await self._chat(
-            message=message,
-            addressee=f"ARMY {addressee.value}",
-            timeout=timeout,
-        )
+        addressee = f"ARMY {addressee.value}"
+        await self._chat(message=message, addressee=addressee, timeout=timeout)
 
     async def _chat(
         self,
@@ -587,9 +573,7 @@ class ConsoleClient(asyncio.Protocol):
         timeout: Optional[float]=None,
     ) -> Awaitable[None]:
 
-        timeout = self._default_timeout if timeout is None else timeout
         start_time = time.monotonic()
-
         last = 0
         total = len(message)
 
@@ -598,19 +582,22 @@ class ConsoleClient(asyncio.Protocol):
             chunk = message[last:last + step]
             chunk = chunk.encode('unicode-escape').decode()
 
-            elapsed_time = time.monotonic() - start_time
-            if elapsed_time >= timeout:
-                raise TimeoutError
-
             r = requests.ChatRequest(
                 message=chunk,
                 addressee=addressee,
                 loop=self._loop,
-                timeout=(timeout - elapsed_time),
+                timeout=timeout,
                 trace=self._trace,
             )
             self.enqueue_request(r)
             await r.result()
+
+            if timeout is not None:
+                end_time = time.monotonic()
+                timeout -= (end_time - start_time)
+                start_time = end_time
+                if timeout <= 0:
+                    raise TimeoutError
 
             last += step
 
@@ -621,7 +608,7 @@ class ConsoleClient(asyncio.Protocol):
 
         r = requests.GetMissionInfoRequest(
             loop=self._loop,
-            timeout=self._default_timeout if timeout is None else timeout,
+            timeout=timeout,
             trace=self._trace,
         )
         self.enqueue_request(r)
@@ -637,7 +624,7 @@ class ConsoleClient(asyncio.Protocol):
         r = requests.LoadMissionRequest(
             file_path=file_path,
             loop=self._loop,
-            timeout=self._default_timeout if timeout is None else timeout,
+            timeout=timeout,
             trace=self._trace,
         )
         self.enqueue_request(r)
@@ -651,7 +638,7 @@ class ConsoleClient(asyncio.Protocol):
 
         r = requests.BeginMissionRequest(
             loop=self._loop,
-            timeout=self._default_timeout if timeout is None else timeout,
+            timeout=timeout,
             trace=self._trace,
         )
         self.enqueue_request(r)
@@ -665,7 +652,7 @@ class ConsoleClient(asyncio.Protocol):
 
         r = requests.EndMissionRequest(
             loop=self._loop,
-            timeout=self._default_timeout if timeout is None else timeout,
+            timeout=timeout,
             trace=self._trace,
         )
         self.enqueue_request(r)
@@ -679,7 +666,7 @@ class ConsoleClient(asyncio.Protocol):
 
         r = requests.UnloadMissionRequest(
             loop=self._loop,
-            timeout=self._default_timeout if timeout is None else timeout,
+            timeout=timeout,
             trace=self._trace,
         )
         self.enqueue_request(r)
