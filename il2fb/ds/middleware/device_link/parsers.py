@@ -5,9 +5,10 @@ import re
 from il2fb.commons.spatial import Point2D, Point3D
 
 from . import structures
-from .constants import (
-    ACTOR_INDEX_SEPARATOR, ACTOR_DATA_SEPARATOR, HouseStatuses,
-)
+from .constants import ACTOR_INDEX_SEPARATOR
+from .constants import ACTOR_DATA_SEPARATOR
+from .constants import STATIC_AIRCRAFT_WITH_HUMAN_SPAWNED_IN
+from .constants import HouseStatuses
 from .helpers import normalize_aircraft_id
 
 
@@ -72,8 +73,15 @@ def parse_ship_position(
 def parse_stationary_object_position(
     item: structures.PreparsedActorPosition,
 ) -> structures.StationaryObjectPosition:
-    id, x, y, z = item.data.split(ACTOR_DATA_SEPARATOR)
+
+    data = item.data
+
+    if data == STATIC_AIRCRAFT_WITH_HUMAN_SPAWNED_IN:
+        return
+
+    id, x, y, z = data.split(ACTOR_DATA_SEPARATOR)
     pos = Point3D(float(x), float(y), float(z))
+
     return structures.StationaryObjectPosition(
         index=item.index,
         id=id,

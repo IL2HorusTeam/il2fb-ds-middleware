@@ -250,6 +250,7 @@ class PositionsRequestMixin:
         items = filter(actor_index_is_valid, items)
         items = filter(actor_status_is_valid, items)
         items = map(self.__class__.item_parser, items)
+        items = filter(bool, items)
         return list(items)
 
 
