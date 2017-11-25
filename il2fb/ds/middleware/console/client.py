@@ -503,7 +503,7 @@ class ConsoleClient(asyncio.Protocol):
         timeout: Optional[float]=None,
     ) -> Awaitable[None]:
 
-        await self.kick_by_number(number=1, timeout=timeout)
+        await self.kick_human_by_number(number=1, timeout=timeout)
 
     async def kick_all_humans(
         self,
