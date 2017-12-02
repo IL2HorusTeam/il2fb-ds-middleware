@@ -6,6 +6,7 @@ import logging
 import re
 import time
 
+from itertools import takewhile
 from typing import Any, Awaitable, List, Callable, Optional
 
 from il2fb.commons import MissionStatuses
@@ -14,8 +15,6 @@ from il2fb.commons.organization import Belligerents
 from il2fb.ds.middleware.console import structures
 from il2fb.ds.middleware.console.constants import MESSAGE_DELIMITER
 from il2fb.ds.middleware.console.exceptions import ConsoleRequestError
-from il2fb.ds.middleware.console.helpers import is_user_input
-from il2fb.ds.middleware.console.helpers import is_server_input
 
 
 LOG = logging.getLogger(__name__)
@@ -92,20 +91,6 @@ class ConsoleRequest:
         if self._trace:
             LOG.debug(f"res {messages}")
 
-        if any(
-            is_user_input(m) for m in messages
-        ):
-            if self._trace:
-                LOG.debug("usr, skip")
-            return
-
-        if any(
-            is_server_input(m) for m in messages
-        ):
-            if self._trace:
-                LOG.debug("srv, skip")
-            return
-
         if self._future.done():
             LOG.debug("console request was aborted")
             return
@@ -143,6 +128,7 @@ class GetServerInfoRequest(ConsoleRequest):
         )
 
     def _extract_result(self, messages: List[str]) -> structures.ServerInfo:
+        messages = self._maybe_filter_messages(messages)
         messages = [
             m.split(':', 1)[1].strip()
             for m in messages
@@ -152,6 +138,18 @@ class GetServerInfoRequest(ConsoleRequest):
             name=messages[1],
             description=messages[2],
         )
+
+    @staticmethod
+    def _maybe_filter_messages(messages: List[str]) -> List[str]:
+        if not messages[0].startswith("Type:"):
+            messages = messages[::-1]
+            messages = list(takewhile(
+                lambda s: not s.startswith("Type:"),
+                messages,
+            ))
+            messages = messages[::-1]
+
+        return messages
 
 
 class GetHumansListRequest(ConsoleRequest):
@@ -170,12 +168,26 @@ class GetHumansListRequest(ConsoleRequest):
         )
 
     def _extract_result(self, messages: List[str]) -> List[structures.Human]:
+        messages = self._maybe_filter_messages(messages)
+
         # Skip header
         messages = messages[1:]
         return [
             self._human_from_message(message)
             for message in messages
         ]
+
+    @staticmethod
+    def _maybe_filter_messages(messages: List[str]) -> List[str]:
+        if not messages[0].startswith(" N"):
+            messages = messages[::-1]
+            messages = list(takewhile(
+                lambda s: not s.startswith(" N"),
+                messages,
+            ))
+            messages = messages[::-1]
+
+        return messages
 
     @staticmethod
     def _human_from_message(message: str) -> structures.Human:
@@ -229,9 +241,10 @@ class GetHumansStatisticsRequest(ConsoleRequest):
         messages: List[str],
     ) -> List[structures.HumanStatistics]:
 
+        messages = self._maybe_filter_messages(messages)
+
         results = []
         buffer = {}
-
         field_names = itertools.cycle(structures.HumanStatistics.__slots__)
 
         for message in messages[1:]:
@@ -250,6 +263,18 @@ class GetHumansStatisticsRequest(ConsoleRequest):
             buffer[field_name] = value
 
         return results
+
+    @staticmethod
+    def _maybe_filter_messages(messages: List[str]) -> List[str]:
+        if not messages[0].startswith("-----"):
+            messages = messages[::-1]
+            messages = list(takewhile(
+                lambda s: not s.startswith("-----"),
+                messages,
+            ))
+            messages = messages[::-1]
+
+        return messages
 
 
 class KickHumanByCallsignRequest(ConsoleRequest):
@@ -320,6 +345,7 @@ class GetMissionInfoRequest(ConsoleRequest):
         )
 
     def _extract_result(self, messages: List[str]) -> structures.MissionInfo:
+        messages = self._maybe_filter_messages(messages)
         message = messages[0]
 
         if message == "Mission NOT loaded":
@@ -343,6 +369,18 @@ class GetMissionInfoRequest(ConsoleRequest):
             status=status,
             file_path=file_path,
         )
+
+    @staticmethod
+    def _maybe_filter_messages(messages: List[str]) -> List[str]:
+        if not messages[0].startswith("Mission"):
+            messages = messages[::-1]
+            messages = list(takewhile(
+                lambda s: not s.startswith("Mission"),
+                messages,
+            ))
+            messages = messages[::-1]
+
+        return messages
 
 
 class MissionControlRequestBase(ConsoleRequest):
