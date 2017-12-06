@@ -115,7 +115,7 @@ class DeviceLinkRequest:
                 f"{messages_total_count}"
             )
 
-        if self._future.done():
+        if (messages_sent_count != messages_total_count):
             LOG.debug("device link request was aborted")
         elif self._request_requires_response:
             result = self._extract_result(self._response_messages)
@@ -172,6 +172,8 @@ class DeviceLinkRequest:
     def set_exception(self, e: Exception=None) -> None:
         if not self._future.done():
             self._future.set_exception(e)
+
+        self._continue_event.set()
 
     def _extract_result(self, messages: List[msg.DeviceLinkMessage]) -> Any:
         return messages
